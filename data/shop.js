@@ -79,7 +79,7 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_small',
         name:     'Pacote Inicial',
-        icon:     '🔷',
+        icon:     '💎',
         diamonds: 100,
         price:    'R$ 4,90',
         bonus:    null,
@@ -90,7 +90,7 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_medium',
         name:     'Pacote Médio',
-        icon:     '🔷',
+        icon:     '💎',
         diamonds: 300,
         price:    'R$ 9,90',
         bonus:    '+20% Bônus',
@@ -101,7 +101,7 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_large',
         name:     'Pacote Grande',
-        icon:     '🔷',
+        icon:     '💎',
         diamonds: 700,
         price:    'R$ 19,90',
         bonus:    '+75% Bônus',
@@ -113,7 +113,7 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_mega',
         name:     'Pacote MEGA',
-        icon:     '🔷',
+        icon:     '💎',
         diamonds: 2000,
         price:    'R$ 49,90',
         bonus:    '🔥 MELHOR VALOR',

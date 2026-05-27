@@ -70,16 +70,7 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700;
     color: var(--purple); text-shadow: 0 0 10px var(--purple);
 }
-#token-display   { font-size: 13px; color: var(--gold); font-weight: 700; }
-#diamond-display { font-size: 13px; color: #9bb5ff; font-weight: 700; }
-
-/* Brief flash when diamonds are added */
-@keyframes hud-flash-anim {
-    0%   { text-shadow: 0 0 0 transparent; }
-    25%  { text-shadow: 0 0 14px #9bb5ff, 0 0 28px rgba(100,140,255,0.6); }
-    100% { text-shadow: 0 0 0 transparent; }
-}
-.hud-flash { animation: hud-flash-anim 0.7s ease-out forwards; }
+#token-display { font-size: 13px; color: var(--gold); font-weight: 700; }
 
 /* ── XP bar ── */
 #xp-bar-container {

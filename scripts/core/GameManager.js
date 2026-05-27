@@ -298,27 +298,15 @@ class GameManager {
         // Add diamonds to the account (persisted in localStorage immediately via _saveAccount)
         this.account.addDiamonds(pack.diamonds);
 
-        // ── Immediate HUD refresh ─────────────────────────────────────────
-        const diamondEl = document.getElementById('diamond-display');
-        if (diamondEl) {
-            const total = this.account.getDiamonds();
-            diamondEl.textContent = '🔷 ' + total.toLocaleString('pt-BR');
-            diamondEl.style.display = '';
-            // Brief flash animation to signal the update
-            diamondEl.classList.remove('hud-flash');
-            void diamondEl.offsetWidth;
-            diamondEl.classList.add('hud-flash');
-        }
-
         // ── Visual feedback — particle burst ─────────────────────────────
         const cx = window.innerWidth  / 2;
         const cy = window.innerHeight / 2;
-        this._particles.spawnBurst(cx, cy, '#4488ff', 50);
-        this._particles.spawnBurst(cx, cy, '#00f5ff', 25);
+        this._particles.spawnBurst(cx, cy, '#ffd700', 50);
+        this._particles.spawnBurst(cx, cy, '#7b2fff', 25);
 
         // ── Notification & sound ─────────────────────────────────────────
         const fmtD = pack.diamonds.toLocaleString('pt-BR');
-        this.notify(`🔷 +${fmtD} Diamantes adicionados!`, 'levelup');
+        this.notify(`💎 +${fmtD} Diamantes adicionados!`, 'levelup');
         this.audio.levelUp?.();
 
         // Re-render shop panel so balance line updates
