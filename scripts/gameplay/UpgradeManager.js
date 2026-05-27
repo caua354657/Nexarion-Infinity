@@ -112,15 +112,23 @@ class UpgradeManager {
     }
 
     resetForPrestige(economy) {
+        // Reset all generators
         GENERATORS.forEach(g => {
             this.generators[g.id].count = 0;
-            this._genMultipliers[g.id] = 1;
+            this._genMultipliers[g.id]  = 1;
         });
-        this._clickMult = 1;
+        this._clickMult  = 1;
         this._globalMult = 1;
         economy.setClickMult(1);
         economy.setGlobalMult(1);
         economy.neuronsPerClick = 1;
+        this.totalBought = 0;
+
+        // Keep only prestige-type upgrades; reset normal ones so they can be repurchased
+        const prestigeIds = new Set(
+            UPGRADES.filter(u => u.type === 'prestige' || u.type === 'prestige_start').map(u => u.id)
+        );
+        this.purchasedUpgrades = new Set([...this.purchasedUpgrades].filter(id => prestigeIds.has(id)));
 
         // Re-apply prestige upgrades
         UPGRADES.filter(u => (u.type === 'prestige' || u.type === 'prestige_start') && this.purchasedUpgrades.has(u.id))

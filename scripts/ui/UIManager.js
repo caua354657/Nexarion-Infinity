@@ -48,6 +48,10 @@ class UIManager {
         this.touchStartY = 0;
         this.touchEndY = 0;
         this._genBuyQty = 1;
+
+        // Boost buy modal state
+        this._boostModalId  = null;
+        this._boostModalQty = 1;
     }
 
     init() {
@@ -1228,6 +1232,167 @@ class UIManager {
         `;
     }
 
+    // ── Boost Buy Modal ─────────────────────────────────────────────────────────
+
+    _ensureBoostBuyModal() {
+        if (document.getElementById('boost-buy-overlay')) return;
+        const el = document.createElement('div');
+        el.id = 'boost-buy-overlay';
+        el.className = 'boost-buy-overlay';
+        el.innerHTML = `
+            <div class="boost-buy-card" id="boost-buy-card">
+                <button class="bbc-close" onclick="window.game.ui._hideBoostBuyModal()">✕</button>
+                <div class="bbc-header">
+                    <div class="bbc-icon-wrap" id="bbc-icon-wrap">
+                        <span id="bbc-icon">⚡</span>
+                    </div>
+                    <div class="bbc-info">
+                        <div class="bbc-name"   id="bbc-name"></div>
+                        <div class="bbc-rarity" id="bbc-rarity"></div>
+                        <div class="bbc-desc"   id="bbc-desc"></div>
+                    </div>
+                </div>
+
+                <div class="bbc-qty-section">
+                    <div class="bbc-qty-label">Quantidade</div>
+                    <div class="bbc-qty-row">
+                        <button class="bbc-qty-adj" onclick="window.game.ui._changeBoostQty(-1)">−</button>
+                        <div class="bbc-qty-val" id="bbc-qty-val">1</div>
+                        <button class="bbc-qty-adj" onclick="window.game.ui._changeBoostQty(1)">+</button>
+                    </div>
+                    <div class="bbc-presets">
+                        <button class="bbc-preset active" onclick="window.game.ui._setBoostQty(1)">×1</button>
+                        <button class="bbc-preset" onclick="window.game.ui._setBoostQty(5)">×5</button>
+                        <button class="bbc-preset" onclick="window.game.ui._setBoostQty(10)">×10</button>
+                        <button class="bbc-preset" onclick="window.game.ui._setBoostQty(25)">×25</button>
+                    </div>
+                </div>
+
+                <div class="bbc-summary">
+                    <div class="bbc-sum-row">
+                        <span class="bbc-sum-label">Preço total</span>
+                        <span class="bbc-sum-val" id="bbc-total-price">0 ⚡</span>
+                    </div>
+                    <div class="bbc-sum-row">
+                        <span class="bbc-sum-label">Duração total</span>
+                        <span class="bbc-sum-val" id="bbc-total-dur">0s</span>
+                    </div>
+                    <div class="bbc-sum-row">
+                        <span class="bbc-sum-label">Efeito</span>
+                        <span class="bbc-sum-val bbc-effect-val" id="bbc-effect">—</span>
+                    </div>
+                </div>
+
+                <div class="bbc-actions">
+                    <button class="bbc-cancel"  onclick="window.game.ui._hideBoostBuyModal()">Cancelar</button>
+                    <button class="bbc-confirm" id="bbc-confirm" onclick="window.game.ui._confirmBoostBuy()">Comprar</button>
+                </div>
+            </div>`;
+        el.addEventListener('click', e => { if (e.target === el) this._hideBoostBuyModal(); });
+        document.body.appendChild(el);
+    }
+
+    _showBoostBuyModal(itemId) {
+        this._ensureBoostBuyModal();
+        this._boostModalId  = itemId;
+        this._boostModalQty = 1;
+        this._updateBoostBuyModal();
+        const overlay = document.getElementById('boost-buy-overlay');
+        overlay.style.display = 'flex';
+        void overlay.offsetWidth;
+        overlay.classList.add('open');
+    }
+
+    _hideBoostBuyModal() {
+        const overlay = document.getElementById('boost-buy-overlay');
+        if (!overlay) return;
+        overlay.classList.remove('open');
+        overlay.classList.add('hiding');
+        setTimeout(() => {
+            if (!overlay.classList.contains('open')) overlay.style.display = 'none';
+            overlay.classList.remove('hiding');
+        }, 240);
+        this._boostModalId = null;
+    }
+
+    _setBoostQty(qty) {
+        this._boostModalQty = Math.max(1, Math.min(99, Math.floor(qty)));
+        this._updateBoostBuyModal();
+    }
+
+    _changeBoostQty(delta) {
+        this._setBoostQty((this._boostModalQty || 1) + delta);
+    }
+
+    _confirmBoostBuy() {
+        if (!this._boostModalId) return;
+        const qty = this._boostModalQty || 1;
+        if (this._game.shop.buy(this._boostModalId, qty)) {
+            this._game.audio.upgrade?.();
+            this._game.notify(`Boost comprado${qty > 1 ? ' ×' + qty : ''}!`, 'success');
+            this._hideBoostBuyModal();
+            if (this._activePanel === 'shop') this._renderPanelContent('shop');
+        } else {
+            this._game.notify('Neurônios insuficientes!', 'error');
+        }
+    }
+
+    _updateBoostBuyModal() {
+        const item = (typeof SHOP_ITEMS !== 'undefined') ? SHOP_ITEMS.find(x => x.id === this._boostModalId) : null;
+        if (!item) return;
+        const qty       = this._boostModalQty || 1;
+        const totalCost = item.cost * qty;
+        const totalSecs = item.duration * qty;
+        const canAfford = this._game.economy.canAfford(totalCost);
+
+        const RC = { common:'#a0a0a0', uncommon:'#00ff88', rare:'#00f5ff', epic:'#7b2fff', legendary:'#ffd700' };
+        const RL = { common:'Comum', uncommon:'Incomum', rare:'Raro', epic:'Épico', legendary:'Lendário' };
+        const rc = RC[item.rarity] || '#00f5ff';
+
+        const setEl    = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+        const setStyle = (id, p, v) => { const e = document.getElementById(id); if (e) e.style[p]   = v;   };
+        const setHtml  = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML  = val; };
+
+        setEl('bbc-icon',   item.icon);
+        setEl('bbc-name',   item.name);
+        setEl('bbc-rarity', RL[item.rarity] || item.rarity);
+        setStyle('bbc-rarity', 'color', rc);
+        setEl('bbc-desc',   item.desc);
+        setEl('bbc-qty-val', qty);
+
+        setEl('bbc-total-price', formatNum(totalCost) + ' ⚡');
+        setStyle('bbc-total-price', 'color', canAfford ? '#00f5ff' : '#ff5555');
+
+        setEl('bbc-total-dur', formatDuration(totalSecs));
+
+        const effectType = item.boostType === 'click_mult' ? 'poder de clique' : 'produção global';
+        setEl('bbc-effect', item.boostValue + '× ' + effectType);
+        setStyle('bbc-effect', 'color', item.boostType === 'click_mult' ? '#ffd700' : '#00f5ff');
+
+        // Icon wrapper border color
+        const wrap = document.getElementById('bbc-icon-wrap');
+        if (wrap) {
+            wrap.style.borderColor = rc + '55';
+            wrap.style.background  = rc + '10';
+        }
+
+        // Preset button highlight
+        document.querySelectorAll('.bbc-preset').forEach(btn => {
+            const n = parseInt(btn.textContent.replace('×', ''));
+            btn.classList.toggle('active', n === qty);
+        });
+
+        // Confirm button state
+        const confirmBtn = document.getElementById('bbc-confirm');
+        if (confirmBtn) {
+            confirmBtn.disabled = !canAfford;
+            confirmBtn.classList.toggle('can-afford', canAfford);
+            confirmBtn.textContent = canAfford ? `Comprar ×${qty}` : 'Sem Neurônios';
+        }
+    }
+
+    // ── Shop ────────────────────────────────────────────────────────────────────
+
     _renderShop(container, tabsContainer) {
         tabsContainer.innerHTML = '';
         const g = this._game;
@@ -1327,20 +1492,23 @@ class UIManager {
         const boostCards = SHOP_ITEMS.filter(i => i.category === 'boost').map(item => {
             const canBuy = g.shop.canBuy(item);
             const rc = RC[item.rarity] || '#00f5ff';
+            const durLabel = item.duration >= 60
+                ? Math.floor(item.duration / 60) + 'min'
+                : item.duration + 's';
             return `
-                <div class="pshop-card pshop-card--std" style="--rarity-color:${rc};border-color:${rc}1e">
+                <div class="pshop-card pshop-card--std pshop-card--boost" style="--rarity-color:${rc};border-color:${rc}1e">
                     <div class="pshop-icon pshop-icon--std" style="background:${rc}0e;border-color:${rc}22">${item.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-std">${item.name}</div>
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[item.rarity] || ''}</div>
-                            <span class="pshop-duration">${item.duration}s</span>
+                            <span class="pshop-duration">${durLabel}</span>
                         </div>
                         <div class="pshop-subtitle">${item.desc}</div>
                     </div>
                     <div class="pshop-actions">
-                        <button class="pshop-buy-btn pshop-std-buy" style="border-color:${rc}44;color:${rc}"
-                                onclick="window.game.buyShopItem('${item.id}')"
+                        <button class="pshop-buy-btn pshop-std-buy pshop-boost-buy" style="border-color:${rc}44;color:${rc}"
+                                onclick="window.game.ui._showBoostBuyModal('${item.id}')"
                                 ${canBuy ? '' : 'disabled'}>${formatNum(item.cost)} ⚡</button>
                     </div>
                 </div>`;
@@ -1349,7 +1517,7 @@ class UIManager {
         // ── Permanentes ──
         const permCards = SHOP_ITEMS.filter(i => i.category === 'permanent').map(item => {
             const canBuy = g.shop.canBuy(item);
-            const owned = g.shop.purchased.has(item.id);
+            const owned  = g.shop.purchased.has(item.id);
             const rc = RC[item.rarity] || '#00f5ff';
             return `
                 <div class="pshop-card pshop-card--std${owned ? ' pshop-card--owned' : ''}" style="--rarity-color:${rc};border-color:${rc}1e">
@@ -1372,8 +1540,66 @@ class UIManager {
                 </div>`;
         }).join('');
 
+        // ── Diamond Packs ──
+        const packs    = (typeof DIAMOND_PACKS !== 'undefined') ? DIAMOND_PACKS : [];
+        const diamonds = acc.getDiamonds?.() || 0;
+        const packHTML = packs.map(pack => {
+            const isMega    = pack.id === 'diamonds_mega';
+            const isPopular = pack.popular === true;
+            const bonusTag  = pack.bonus
+                ? `<div class="dpack-bonus${isMega ? ' dpack-bonus--fire' : ''}">${pack.bonus}</div>`
+                : '';
+            const popTag = isPopular
+                ? `<div class="dpack-popular">⭐ POPULAR</div>`
+                : '';
+            if (isMega) {
+                return `
+                <div class="dpack-card dpack-card--mega"
+                     onclick="window.game.buyDiamondPack('${pack.id}')">
+                    ${bonusTag}
+                    <div class="dpack-icon">${pack.icon}</div>
+                    <div class="dpack-info">
+                        <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
+                        <div class="dpack-unit">Diamantes</div>
+                        <div class="dpack-name">${pack.name}</div>
+                        <div class="dpack-price">${pack.price}</div>
+                    </div>
+                    <button class="dpack-buy-btn"
+                            onclick="event.stopPropagation(); window.game.buyDiamondPack('${pack.id}')">
+                        COMPRAR
+                    </button>
+                </div>`;
+            }
+            return `
+                <div class="dpack-card${isPopular ? ' dpack-card--popular' : ''}"
+                     onclick="window.game.buyDiamondPack('${pack.id}')">
+                    ${bonusTag}${popTag}
+                    <div class="dpack-icon">${pack.icon}</div>
+                    <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
+                    <div class="dpack-unit">Diamantes</div>
+                    <div class="dpack-name">${pack.name}</div>
+                    <div class="dpack-price">${pack.price}</div>
+                    <button class="dpack-buy-btn"
+                            onclick="event.stopPropagation(); window.game.buyDiamondPack('${pack.id}')">
+                        COMPRAR
+                    </button>
+                </div>`;
+        }).join('');
+
         container.innerHTML = `
             <div class="pshop-container" id="pshop-container">
+
+                <div class="pshop-section pshop-section--diamonds">
+                    <div class="pshop-section-header">
+                        <span>🔷</span>
+                        <div style="flex:1">
+                            <span class="pshop-section-title">DIAMANTES</span>
+                            <span class="pshop-section-sub">Moeda premium · Saldo: <strong class="dpack-balance">${diamonds.toLocaleString('pt-BR')} 🔷</strong></span>
+                        </div>
+                    </div>
+                    <div class="dpack-grid">${packHTML}</div>
+                </div>
+
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>✨</span>
@@ -1382,6 +1608,7 @@ class UIManager {
                     </div>
                     ${vipCard}${doubleCard}
                 </div>
+
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>🎨</span>
@@ -1390,14 +1617,16 @@ class UIManager {
                     </div>
                     ${skinCards}
                 </div>
+
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>⚡</span>
                         <span class="pshop-section-title">BOOSTS</span>
-                        <span class="pshop-section-sub">Aumentos temporários</span>
+                        <span class="pshop-section-sub">Temporários · Clique para selecionar quantidade</span>
                     </div>
                     ${boostCards}
                 </div>
+
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>💎</span>
@@ -1406,6 +1635,7 @@ class UIManager {
                     </div>
                     ${permCards}
                 </div>
+
             </div>`;
     }
 

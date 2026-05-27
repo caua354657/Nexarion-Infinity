@@ -276,14 +276,29 @@ class GameManager {
         if (this.ui._activePanel === 'profile') this.ui._renderPanelContent('profile');
     }
 
-    buyShopItem(id) {
-        if (this.shop.buy(id)) {
+    buyShopItem(id, qty = 1) {
+        if (this.shop.buy(id, qty)) {
             this.audio.upgrade?.();
-            this.notify(`Item comprado!`, 'success');
+            this.notify(`Item comprado${qty > 1 ? ' ×' + qty : ''}!`, 'success');
             if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
         } else {
-            this.notify('Recursos insuficientes!', 'error');
+            this.notify('Neurônios insuficientes!', 'error');
         }
+    }
+
+    buyDiamondPack(id) {
+        const packs = (typeof DIAMOND_PACKS !== 'undefined') ? DIAMOND_PACKS : [];
+        const pack  = packs.find(p => p.id === id);
+        if (!pack) return;
+        if (!this.account.isLoggedIn()) {
+            this.notify('Faça login para comprar diamantes!', 'error');
+            return;
+        }
+        // Mock purchase — adds diamonds to account balance
+        this.account.addDiamonds(pack.diamonds);
+        this.notify(`🔷 +${pack.diamonds} Diamantes adicionados à sua conta!`, 'levelup');
+        this.audio.levelUp?.();
+        if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
     buyUpgrade(id) {
@@ -300,17 +315,36 @@ class GameManager {
 
     doPrestige() {
         const tokenMult = 1 + this.shop.getTokenBonus();
-        const tokens = this.economy.doPrestige(this.upgradeManager, tokenMult);
+        const tokens    = this.economy.doPrestige(this.upgradeManager, tokenMult);
         if (tokens > 0) {
             this.economy.neuronsPerSec = this.upgradeManager.getNPS();
             this._wasPrestigeReady = false;
-            this._aura.prestige(this.economy.totalPrestiges); // burst + theme swap
-            this._particles.spawnBurst(window.innerWidth / 2, window.innerHeight / 2, '#7b2fff', 80);
+
+            // Visual impact: flash + particles + aura burst
+            this._triggerRebirthFlash();
+            this._aura.prestige(this.economy.totalPrestiges);
+            const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+            this._particles.spawnBurst(cx, cy, '#7b2fff', 80);
+            this._particles.spawnBurst(cx, cy, '#ffd700', 50);
+            this._particles.spawnBurst(cx, cy, '#00f5ff', 30);
+
             this.audio.prestige();
             const themeName = PrestigeAura.THEMES[this.economy.totalPrestiges % PrestigeAura.THEMES.length].name;
-            this.notify(`Renascimento #${this.economy.totalPrestiges}! +${tokens} 💎 · ${themeName}`, 'levelup');
+            this.notify(`♻ Renascimento #${this.economy.totalPrestiges}! +${tokens} 💎 · ${themeName}`, 'levelup');
             this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
         }
+    }
+
+    _triggerRebirthFlash() {
+        let flash = document.getElementById('rebirth-flash-overlay');
+        if (!flash) {
+            flash = document.createElement('div');
+            flash.id = 'rebirth-flash-overlay';
+            document.body.appendChild(flash);
+        }
+        flash.className = '';
+        void flash.offsetWidth;
+        flash.className = 'rebirth-flash-active';
     }
 
     notify(msg, type = 'info') {

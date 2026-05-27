@@ -73,3 +73,52 @@ const SHOP_ITEMS = [
         category: 'permanent', rarity: 'legendary'
     },
 ];
+
+// ── Pacotes de Diamantes (moeda premium) ──────────────────────────────────────
+const DIAMOND_PACKS = [
+    {
+        id:       'diamonds_small',
+        name:     'Pacote Inicial',
+        icon:     '🔷',
+        diamonds: 100,
+        price:    'R$ 4,90',
+        bonus:    null,
+        bestValue: false,
+        accent:   '#7b2fff',
+        rarity:   'common',
+    },
+    {
+        id:       'diamonds_medium',
+        name:     'Pacote Médio',
+        icon:     '🔷',
+        diamonds: 300,
+        price:    'R$ 9,90',
+        bonus:    '+20% Bônus',
+        bestValue: false,
+        accent:   '#00f5ff',
+        rarity:   'uncommon',
+    },
+    {
+        id:       'diamonds_large',
+        name:     'Pacote Grande',
+        icon:     '🔷',
+        diamonds: 700,
+        price:    'R$ 19,90',
+        bonus:    '+75% Bônus',
+        bestValue: false,
+        accent:   '#7b2fff',
+        popular:  true,
+        rarity:   'rare',
+    },
+    {
+        id:       'diamonds_mega',
+        name:     'Pacote MEGA',
+        icon:     '🔷',
+        diamonds: 2000,
+        price:    'R$ 49,90',
+        bonus:    '🔥 MELHOR VALOR',
+        bestValue: true,
+        accent:   '#ffd700',
+        rarity:   'legendary',
+    },
+];

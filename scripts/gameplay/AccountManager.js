@@ -64,6 +64,21 @@ class AccountManager {
         this._saveAccount();
     }
 
+    getDiamonds()  { return this._account?.diamonds || 0; }
+
+    addDiamonds(n) {
+        if (!this._account) return;
+        this._account.diamonds = (this._account.diamonds || 0) + Math.max(0, n);
+        this._saveAccount();
+    }
+
+    spendDiamonds(n) {
+        if (!this._account || this.getDiamonds() < n) return false;
+        this._account.diamonds -= n;
+        this._saveAccount();
+        return true;
+    }
+
     getAvatarIcon() {
         if (!this._account) return '👤';
         const icons = ['🧠', '⚡', '🔮', '💡', '🌟', '🔬', '🤖', '🎯', '💎', '🚀'];
