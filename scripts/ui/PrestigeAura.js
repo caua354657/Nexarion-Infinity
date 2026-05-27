@@ -13,12 +13,12 @@
 class PrestigeAura {
     static get THEMES() {
         return [
-            { name: 'Núcleo de Ferro',    c1: '#ff6600', c2: '#ffd700', c3: '#ff3300', render: 'arcReactor'      },
-            { name: 'Rede de Aranha',     c1: '#cc0000', c2: '#4488ff', c3: '#ff5555', render: 'webNexus'        },
-            { name: 'Martelo de Trovão',  c1: '#44aaff', c2: '#ffffaa', c3: '#ffffff', render: 'mjolnirStorm'    },
-            { name: 'Titã de Gama',       c1: '#00cc44', c2: '#aaff00', c3: '#00ff66', render: 'gammaTitan'      },
-            { name: 'Escudo Estelar',     c1: '#4455ee', c2: '#cc1111', c3: '#ffffff', render: 'starShield'      },
-            { name: 'Mandala Suprema',    c1: '#ff2200', c2: '#ffa500', c3: '#ffd700', render: 'sorcererMandala' },
+            { name: 'Núcleo de Ferro',    char: '🤖', c1: '#ff6600', c2: '#ffd700', c3: '#ff3300', render: 'arcReactor'      },
+            { name: 'Rede de Aranha',     char: '🕸️', c1: '#cc0000', c2: '#4488ff', c3: '#ff5555', render: 'webNexus'        },
+            { name: 'Martelo de Trovão',  char: '⚡',  c1: '#44aaff', c2: '#ffffaa', c3: '#ffffff', render: 'mjolnirStorm'    },
+            { name: 'Titã de Gama',       char: '💚',  c1: '#00cc44', c2: '#aaff00', c3: '#00ff66', render: 'gammaTitan'      },
+            { name: 'Escudo Estelar',     char: '🛡️', c1: '#4455ee', c2: '#cc1111', c3: '#ffffff', render: 'starShield'      },
+            { name: 'Mandala Suprema',    char: '🌀',  c1: '#ff2200', c2: '#ffa500', c3: '#ffd700', render: 'sorcererMandala' },
         ];
     }
 

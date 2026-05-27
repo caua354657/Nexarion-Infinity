@@ -27,6 +27,12 @@ class EconomyManager {
         this.lifetimeNeurons += amount;
     }
 
+    /** Add prestige tokens directly (e.g. from diamond pack purchases). */
+    addTokens(n) {
+        this.prestigeTokens += Math.max(0, Math.floor(n));
+        this._updatePrestigeMult();
+    }
+
     spend(amount) {
         if (this.neurons < amount) return false;
         this.neurons -= amount;

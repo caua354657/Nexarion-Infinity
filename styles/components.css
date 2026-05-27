@@ -2426,3 +2426,135 @@ input[type=range]::-webkit-slider-thumb {
     0%,100% { box-shadow: none; }
     50%      { box-shadow: 0 0 10px rgba(255,0,128,0.28); }
 }
+
+/* ── Prestige Character — builds as the player approaches prestige ────────── */
+#prestige-char {
+    position: fixed;
+    /* Sits to the right of the centred click-button; adjusted for sidebar */
+    right: 13%;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    font-size: 58px;
+    line-height: 1;
+    z-index: 6;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    /* Smooth stage transitions */
+    transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                filter 0.8s ease;
+    filter: drop-shadow(0 0 10px var(--pc-color, #ffd700));
+}
+
+/* Stage: f1 — 4-25% progress */
+#prestige-char[data-stage="f1"] {
+    opacity: 0.22;
+    transform: translateY(-50%) scale(0.30);
+}
+/* Stage: f2 — 25-50% */
+#prestige-char[data-stage="f2"] {
+    opacity: 0.42;
+    transform: translateY(-50%) scale(0.55);
+}
+/* Stage: f3 — 50-75% */
+#prestige-char[data-stage="f3"] {
+    opacity: 0.65;
+    transform: translateY(-50%) scale(0.75);
+    filter: drop-shadow(0 0 18px var(--pc-color, #ffd700));
+}
+/* Stage: f4 — 75-100% */
+#prestige-char[data-stage="f4"] {
+    opacity: 0.82;
+    transform: translateY(-50%) scale(0.90);
+    filter: drop-shadow(0 0 24px var(--pc-color, #ffd700));
+}
+/* Stage: ready — prestige available! */
+#prestige-char[data-stage="ready"] {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+    filter: drop-shadow(0 0 28px var(--pc-color, #ffd700))
+            drop-shadow(0 0 12px var(--pc-color2, #ffffff));
+    animation: pc-ready-pulse 1.6s ease-in-out infinite;
+}
+/* Stage: hidden */
+#prestige-char[data-stage="hidden"],
+#prestige-char:not([data-stage]) {
+    opacity: 0;
+    transform: translateY(-50%) scale(0);
+}
+
+@keyframes pc-ready-pulse {
+    0%, 100% {
+        transform: translateY(-50%) scale(1.00);
+        filter: drop-shadow(0 0 28px var(--pc-color, #ffd700))
+                drop-shadow(0 0 12px var(--pc-color2, #ffffff));
+    }
+    50% {
+        transform: translateY(-46%) scale(1.10);
+        filter: drop-shadow(0 0 44px var(--pc-color, #ffd700))
+                drop-shadow(0 0 22px var(--pc-color2, #ffffff));
+    }
+}
+
+/* Mobile: tuck it above the click button instead of beside */
+@media (max-width: 768px) {
+    #prestige-char {
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: 38%;
+        transform: translateX(-50%) scale(0);
+        font-size: 42px;
+    }
+    #prestige-char[data-stage="f1"] { transform: translateX(-50%) scale(0.30); }
+    #prestige-char[data-stage="f2"] { transform: translateX(-50%) scale(0.55); }
+    #prestige-char[data-stage="f3"] { transform: translateX(-50%) scale(0.75); }
+    #prestige-char[data-stage="f4"] { transform: translateX(-50%) scale(0.90); }
+    #prestige-char[data-stage="ready"] {
+        transform: translateX(-50%) scale(1);
+        animation: pc-ready-pulse-mobile 1.6s ease-in-out infinite;
+    }
+    #prestige-char[data-stage="hidden"],
+    #prestige-char:not([data-stage]) { transform: translateX(-50%) scale(0); }
+}
+@keyframes pc-ready-pulse-mobile {
+    0%,100% { transform: translateX(-50%) scale(1.00); }
+    50%      { transform: translateX(-50%) scale(1.12); }
+}
+
+/* ── Skin NPC — themed character that floats beside the game ─────────────── */
+#skin-npc {
+    position: fixed;
+    left: 7%;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 64px;
+    line-height: 1;
+    z-index: 6;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 0 16px var(--npc-color, #7b2fff))
+            drop-shadow(0 0 6px var(--npc-color2, #00f5ff));
+    animation: skin-npc-float 3.2s ease-in-out infinite;
+}
+@keyframes skin-npc-float {
+    0%,100% { transform: translateY(-50%); }
+    50%      { transform: translateY(calc(-50% - 14px)); }
+}
+
+/* Mobile: NPC sits at bottom-right corner, smaller */
+@media (max-width: 768px) {
+    #skin-npc {
+        left: auto;
+        right: 6%;
+        top: auto;
+        bottom: 18%;
+        transform: none;
+        font-size: 40px;
+        animation: skin-npc-float-mobile 3.2s ease-in-out infinite;
+    }
+}
+@keyframes skin-npc-float-mobile {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}

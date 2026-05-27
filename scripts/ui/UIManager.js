@@ -528,6 +528,7 @@ class UIManager {
         this._updateComboDisplay();
         this._updatePrestigeBtn();
         this._updateBadges();
+        this._updatePrestigeCharacter();
 
         if (this._activePanel === 'generators') this._updateGenerators();
         if (this._activePanel === 'upgrades') this._updateUpgrades();
@@ -628,6 +629,39 @@ class UIManager {
         const xpBar = document.getElementById('xp-bar');
         if (xpBar) xpBar.style.width = (lp.pct * 100) + '%';
         this._setEl('xp-text', `${formatNum(lp.cur)} / ${formatNum(lp.max)} XP`);
+    }
+
+    /**
+     * Updates the prestige-char DOM element based on current economy progress.
+     * The character emoji & color come from the active PrestigeAura theme.
+     * Stages: invisible → forming-1 → forming-2 → forming-3 → forming-4 → prestige-ready
+     */
+    _updatePrestigeCharacter() {
+        const el = document.getElementById('prestige-char');
+        if (!el) return;
+        const g = this._game;
+        const progress = Math.min(1, g.economy.totalNeurons / Math.max(1, g.economy.getPrestigeCost()));
+        const SHOW_AT  = 0.04;
+
+        if (progress < SHOW_AT) {
+            el.dataset.stage = 'hidden';
+            return;
+        }
+
+        const themes = PrestigeAura.THEMES;
+        const theme  = themes[g.economy.totalPrestiges % themes.length];
+        if (el.textContent !== theme.char) el.textContent = theme.char;
+        el.style.setProperty('--pc-color', theme.c1);
+        el.style.setProperty('--pc-color2', theme.c2);
+
+        let stage;
+        if (progress >= 1.0)  stage = 'ready';
+        else if (progress >= 0.75) stage = 'f4';
+        else if (progress >= 0.50) stage = 'f3';
+        else if (progress >= 0.25) stage = 'f2';
+        else                       stage = 'f1';
+
+        if (el.dataset.stage !== stage) el.dataset.stage = stage;
     }
 
     setGenQty(qty) {
@@ -1599,6 +1633,15 @@ class UIManager {
                     ${vipCard}${doubleCard}
                 </div>
 
+                <div class="pshop-section pshop-section--diamonds">
+                    <div class="pshop-section-header">
+                        <span>💎</span>
+                        <span class="pshop-section-title">PACOTES DE DIAMANTES</span>
+                        <span class="pshop-section-sub">Adicione tokens neurais à sua conta · Saldo: 💎 ${g.economy.prestigeTokens.toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div class="dpack-grid">${packHTML}</div>
+                </div>
+
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>🎨</span>
@@ -1619,20 +1662,11 @@ class UIManager {
 
                 <div class="pshop-section">
                     <div class="pshop-section-header">
-                        <span>💎</span>
+                        <span>🔮</span>
                         <span class="pshop-section-title">MELHORIAS PERMANENTES</span>
-                        <span class="pshop-section-sub">Compra com Tokens Neurais</span>
+                        <span class="pshop-section-sub">Compra com Tokens Neurais 💎</span>
                     </div>
                     ${permCards}
-                </div>
-
-                <div class="pshop-section pshop-section--diamonds">
-                    <div class="pshop-section-header">
-                        <span>💎</span>
-                        <span class="pshop-section-title">PACOTES DE DIAMANTES</span>
-                        <span class="pshop-section-sub">Adicione diamantes à sua conta</span>
-                    </div>
-                    <div class="dpack-grid">${packHTML}</div>
                 </div>
 
             </div>`;
