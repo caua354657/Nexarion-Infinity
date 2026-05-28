@@ -815,6 +815,107 @@ input[type=range]::-webkit-slider-thumb {
 .mca-btn:active { transform: translateY(0); }
 
 /* ═══════════════════════════════════════════════════════════
+   BOSS INFO PANEL (modal panel, informational)
+═══════════════════════════════════════════════════════════ */
+#boss-info-panel { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+
+/* No boss state */
+.binfo-no-boss { text-align: center; padding: 48px 16px; }
+.binfo-no-boss-icon { font-size: 64px; margin-bottom: 12px; opacity: 0.2; }
+.binfo-no-boss-title {
+    font-family: 'Orbitron', monospace; font-size: 15px; font-weight: 700;
+    color: var(--text-dim); margin-bottom: 10px;
+}
+.binfo-countdown {
+    font-size: 14px; color: var(--text-dim); margin-bottom: 10px;
+}
+.binfo-countdown-val {
+    font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 800;
+    color: var(--cyan);
+}
+.binfo-hint {
+    font-size: 11px; color: rgba(255,255,255,0.2); line-height: 1.6; margin-top: 8px;
+}
+
+/* Active boss — header */
+.binfo-header { display: flex; align-items: center; gap: 14px; }
+.binfo-icon { font-size: 52px; line-height: 1; flex-shrink: 0; animation: binfo-float 3s ease-in-out infinite; }
+@keyframes binfo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.binfo-title-col { flex: 1; min-width: 0; }
+.binfo-name {
+    font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 800;
+    letter-spacing: 0.5px; margin-bottom: 5px;
+}
+.binfo-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.binfo-rarity {
+    font-family: 'Orbitron', monospace; font-size: 8px; font-weight: 700;
+    border: 1px solid; border-radius: 3px; padding: 2px 6px; letter-spacing: 1px;
+}
+.binfo-level {
+    font-family: 'Orbitron', monospace; font-size: 10px; color: var(--text-dim);
+    background: rgba(255,255,255,0.06); border-radius: 3px; padding: 2px 6px;
+}
+.binfo-timer {
+    font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 800;
+}
+.binfo-timer--dead { color: var(--text-dim) !important; }
+.binfo-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+/* HP */
+.binfo-hp-section { display: flex; flex-direction: column; gap: 5px; }
+.binfo-hp-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
+.binfo-hp-track {
+    height: 14px; border-radius: 7px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+.binfo-hp-fill { height: 100%; border-radius: 7px; }
+
+/* My damage */
+.binfo-my-dmg { font-size: 12px; color: var(--text-dim); }
+
+/* Battle button */
+.binfo-battle-btn {
+    width: 100%; padding: 13px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid; border-radius: 12px;
+    font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 800;
+    letter-spacing: 1.5px; cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.binfo-battle-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+.binfo-battle-btn:active { transform: scale(0.98); }
+
+/* Rewards */
+.binfo-rewards {
+    display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    background: rgba(255,215,0,0.04); border: 1px solid rgba(255,215,0,0.1);
+    border-radius: 8px; padding: 8px 12px;
+}
+
+/* Top damage */
+.binfo-top-section { display: flex; flex-direction: column; gap: 6px; }
+.binfo-top-title {
+    font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 6px;
+}
+.binfo-top-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 8px; border-radius: 8px;
+    background: rgba(255,255,255,0.02); border: 1px solid transparent;
+}
+.binfo-top-row--me { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08); }
+.binfo-top-medal { font-size: 14px; flex-shrink: 0; width: 22px; text-align: center; }
+.binfo-top-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.binfo-top-name { font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.binfo-bar-wrap { width: 55px; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.binfo-bar { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.binfo-top-dmg { font-size: 10px; flex-shrink: 0; font-family: 'Orbitron', monospace; }
+.binfo-top-empty { font-size: 11px; color: var(--text-dim); text-align: center; padding: 10px 0; }
+
+/* ═══════════════════════════════════════════════════════════
    BOSS NOTIFICATION
 ═══════════════════════════════════════════════════════════ */
 #boss-notification {

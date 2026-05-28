@@ -170,6 +170,7 @@ class UIManager {
             'missions':    'Missões',
             'achievements':'Conquistas',
             'leaderboard': 'Placar Global',
+            'boss':        '⚔️ Boss Battle',
             'profile':     'Perfil',
             'rebirth':     'Renascimento',
             'settings':    'Configurações',
@@ -184,7 +185,7 @@ class UIManager {
         // Highlight the parent group sidebar button when in a sub-panel
         const panelGroup = {
             generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',
-            missions: 'agenda', achievements: 'agenda', leaderboard: 'agenda',
+            missions: 'agenda', achievements: 'agenda', leaderboard: 'agenda', boss: 'boss',
             profile: 'conta', settings: 'conta'
         };
         const groupId = panelGroup[panelId] || panelId;
@@ -241,6 +242,7 @@ class UIManager {
             case 'achievements': this._renderAchievements(content); break;
             case 'missions':     this._renderMissions(content, tabsContainer); break;
             case 'leaderboard':  this._renderLeaderboard(content); break;
+            case 'boss':         this._renderBossInfo(content); break;
             case 'profile':      this._renderProfile(content); break;
             case 'settings':     this._renderSettings(content); break;
             case 'shop':         this._renderShop(content, tabsContainer); break;
@@ -640,6 +642,7 @@ class UIManager {
         if (this._activePanel === 'generators') this._updateGenerators();
         if (this._activePanel === 'upgrades') this._updateUpgrades();
         if (this._activePanel === 'missions') this._updateMissions();
+        if (this._activePanel === 'boss')     this._renderBossInfoContent();
         if (this._worldOpen) this._updateBossWorld();
         if (this._activePanel === 'profile') this._updateProfileStats();
         if (this._activePanel === 'shop') this._updateShop();
@@ -2207,6 +2210,123 @@ class UIManager {
                 this._lbRefreshTimer = null;
             }
         }, 30_000);
+    }
+
+    // ── Boss Info Panel ──────────────────────────────────────────────────────
+
+    _renderBossInfo(container) {
+        container.innerHTML = '<div id="boss-info-panel"></div>';
+        this._renderBossInfoContent();
+    }
+
+    _renderBossInfoContent() {
+        const panel = document.getElementById('boss-info-panel');
+        if (!panel) return;
+        const bm  = this._game.boss;
+        const acc = this._game.account;
+        const b   = bm.boss;
+
+        if (!b) {
+            // No active boss — show countdown
+            const wait = Math.max(0, bm.cooldown || 0);
+            const mm   = String(Math.floor(wait / 60)).padStart(2, '0');
+            const ss   = String(wait % 60).padStart(2, '0');
+            const next = wait > 0 ? `${mm}:${ss}` : 'Em breve…';
+            const key = `no-boss-${Math.floor(wait / 5)}`; // re-render every 5s
+            if (panel._key === key) return;
+            panel._key = key;
+            panel.innerHTML = `
+                <div class="binfo-no-boss">
+                    <div class="binfo-no-boss-icon">🌐</div>
+                    <div class="binfo-no-boss-title">Nenhum Boss Ativo</div>
+                    ${wait > 0
+                        ? `<div class="binfo-countdown">Próximo boss em <span class="binfo-countdown-val">${next}</span></div>`
+                        : `<div class="binfo-countdown">Preparando próxima ameaça…</div>`
+                    }
+                    <div class="binfo-hint">Os bosses aparecem automaticamente.<br>Uma notificação será exibida quando surgir.</div>
+                </div>`;
+            return;
+        }
+
+        const def      = (typeof BOSS_TYPES !== 'undefined' && BOSS_TYPES[b.type]) || {};
+        const rc       = (typeof BOSS_RARITY_COLORS !== 'undefined' && BOSS_RARITY_COLORS[b.rarity]) || '#00f5ff';
+        const rl       = (typeof BOSS_RARITY_LABELS !== 'undefined' && BOSS_RARITY_LABELS[b.rarity]) || b.rarity;
+        const defeated  = b.status === 'defeated' || b.status === 'expired';
+        const pct       = Math.max(0, Math.min(1, b.pct ?? (b.currentHp / b.maxHp)));
+        const hpPct     = (pct * 100).toFixed(1);
+        const hpColor   = pct > 0.5 ? '#00ff88' : pct > 0.25 ? '#ffd700' : '#ff4444';
+        const rem       = b.remaining ?? 0;
+        const mm        = String(Math.floor(rem / 60)).padStart(2, '0');
+        const ss        = String(rem % 60).padStart(2, '0');
+        const timerStr  = defeated ? (b.status === 'defeated' ? '☠ Derrotado' : '⌛ Expirou') : `${mm}:${ss}`;
+        const mult      = b.rarity === 'legendary' ? 3 : b.rarity === 'epic' ? 2 : 1;
+
+        const myDmgLine = acc.isLoggedIn() && bm.myDamage > 0
+            ? `<div class="binfo-my-dmg">Seu dano: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong>${bm.myRank ? ` · Rank <strong style="color:${rc}">#${bm.myRank}</strong>` : ''}</div>`
+            : '';
+
+        const topHTML = bm.top.length === 0
+            ? '<div class="binfo-top-empty">Nenhum dano registrado ainda.</div>'
+            : bm.top.slice(0, 5).map((p, i) => {
+                const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+                const isMe   = acc.isLoggedIn() && p.userId === acc.getAccount()?.id;
+                const barPct = b.maxHp > 0 ? Math.min(100, p.damage / b.maxHp * 100) : 0;
+                const av     = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
+                return `<div class="binfo-top-row${isMe ? ' binfo-top-row--me' : ''}">
+                    <span class="binfo-top-medal">${medal}</span>
+                    <img class="binfo-top-avatar" src="${av}" alt="">
+                    <span class="binfo-top-name">${p.username}</span>
+                    <div class="binfo-bar-wrap"><div class="binfo-bar" style="width:${barPct.toFixed(1)}%;background:${rc}"></div></div>
+                    <span class="binfo-top-dmg" style="color:${rc}">${formatNum(p.damage)}</span>
+                </div>`;
+            }).join('');
+
+        const battleBtn = !defeated
+            ? `<button class="binfo-battle-btn" style="border-color:${rc}88;color:${rc}" onclick="window.game.ui._openBossWorld()">⚔ Ir para Batalha</button>`
+            : '';
+
+        const newKey = `${b.id}-${Math.floor(rem / 3)}-${Math.floor(pct * 200)}`;
+        if (panel._key === newKey) return;
+        panel._key = newKey;
+
+        panel.innerHTML = `
+            <div class="binfo-header">
+                <div class="binfo-icon" style="filter:drop-shadow(0 0 14px ${rc}88)">${def.icon || '👾'}</div>
+                <div class="binfo-title-col">
+                    <div class="binfo-name" style="color:${rc}">${def.name || b.type}</div>
+                    <div class="binfo-badges">
+                        <span class="binfo-rarity" style="color:${rc};border-color:${rc}55">${rl}</span>
+                        <span class="binfo-level">Lv.${b.level}</span>
+                        <span class="binfo-timer${defeated ? ' binfo-timer--dead' : ''}" style="${!defeated ? `color:${rc}` : ''}">${timerStr}</span>
+                    </div>
+                    <div class="binfo-desc">${def.desc || ''}</div>
+                </div>
+            </div>
+
+            <div class="binfo-hp-section">
+                <div class="binfo-hp-label">
+                    <span>HP</span>
+                    <span>${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)} &nbsp; <strong style="color:${hpColor}">${hpPct}%</strong></span>
+                </div>
+                <div class="binfo-hp-track">
+                    <div class="binfo-hp-fill" style="width:${hpPct}%;background:${hpColor};box-shadow:0 0 10px ${hpColor}88;transition:width .5s ease"></div>
+                </div>
+            </div>
+
+            ${myDmgLine}
+            ${battleBtn}
+
+            <div class="binfo-rewards">
+                <span>🥇 ${30*mult}💎</span>
+                <span>🥈 ${15*mult}💎</span>
+                <span>🥉 ${5*mult}💎</span>
+                <span style="color:var(--text-dim)">+ Neurônios</span>
+            </div>
+
+            <div class="binfo-top-section">
+                <div class="binfo-top-title" style="color:${rc}">⚔ Top Dano</div>
+                ${topHTML}
+            </div>`;
     }
 
     // ── Boss World & Notification ─────────────────────────────────────────────
