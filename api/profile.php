@@ -34,13 +34,13 @@ if ($action === 'upload') {
         json_out(['ok' => false, 'msg' => 'Tipo não permitido. Use JPG, PNG, GIF ou WebP.']);
 
     $ext      = $extMap[$mime];
-    $filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $ext;
+    $filename = 'u_' . $_SESSION['uid'] . '_' . time() . '.' . $ext;
     $destDir  = __DIR__ . '/../foto/';
 
     // Delete old photo
     try {
         $stmt = db()->prepare('SELECT foto FROM usuarios WHERE id = ? LIMIT 1');
-        $stmt->execute([$_SESSION['user_id']]);
+        $stmt->execute([$_SESSION['uid']]);
         $old  = $stmt->fetch();
         if ($old && $old['foto']) {
             $oldPath = $destDir . basename($old['foto']);

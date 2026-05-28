@@ -1,3 +1,13 @@
+function defaultAvatar(username) {
+    const letter = (username || '?')[0].toUpperCase();
+    let hash = 0;
+    const s = username || '';
+    for (let i = 0; i < s.length; i++) hash = (s.charCodeAt(i) + ((hash << 5) - hash)) | 0;
+    const h = Math.abs(hash) % 360;
+    const bg = `hsl(${h},60%,42%)`;
+    return `<svg width="100%" height="100%" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="${bg}"/><text x="18" y="24" text-anchor="middle" font-size="16" font-family="Orbitron,sans-serif" font-weight="700" fill="rgba(255,255,255,0.95)">${letter}</text></svg>`;
+}
+
 class AccountManager {
     constructor() {
         this._cacheKey = 'nexuscore_user';
@@ -107,9 +117,7 @@ class AccountManager {
     }
 
     getAvatarIcon() {
-        if (!this._user) return '👤';
-        const icons = ['🧠', '⚡', '🔮', '💡', '🌟', '🔬', '🤖', '🎯', '💎', '🚀'];
-        return icons[(this._user.username.charCodeAt(0) || 0) % icons.length];
+        return defaultAvatar(this._user?.username || '?');
     }
 
     // ── Async API methods ───────────────────────────────────────────────────

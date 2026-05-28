@@ -2094,8 +2094,7 @@ class UIManager {
                 return `<img class="lb-avatar-img" src="${acc.getPhotoUrl()}" alt="">`;
             if (entry.foto)
                 return `<img class="lb-avatar-img" src="foto/${entry.foto}" alt="">`;
-            const icons = ['🧠','⚡','🔮','💡','🌟','🔬','🤖','🎯','💎','🚀'];
-            return `<div class="lb-avatar-icon">${icons[(entry.username.charCodeAt(0)||0) % icons.length]}</div>`;
+            return `<div class="lb-avatar-icon">${defaultAvatar(entry.username)}</div>`;
         };
 
         const buildPodiumSlot = (entry, rank) => {

@@ -432,11 +432,8 @@ input[type=range]::-webkit-slider-thumb {
 .profile-photo-change-btn:hover { background: rgba(0,245,255,0.15); border-color: var(--cyan); }
 
 .profile-avatar {
-    font-size: 36px; flex-shrink: 0; line-height: 1;
+    flex-shrink: 0; overflow: hidden;
     width: 52px; height: 52px;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(0,245,255,0.07);
-    border: 1px solid rgba(0,245,255,0.2);
     border-radius: 50%;
 }
 .profile-card-info { flex: 1; min-width: 0; }
@@ -910,11 +907,8 @@ input[type=range]::-webkit-slider-thumb {
 }
 .lb-avatar-icon {
     width: 28px; height: 28px;
-    border-radius: 50%;
-    background: rgba(0,245,255,0.07);
-    border: 1px solid rgba(0,245,255,0.15);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; flex-shrink: 0;
+    border-radius: 50%; overflow: hidden;
+    flex-shrink: 0;
 }
 .lb-pod-avatar {
     display: flex; justify-content: center; margin-bottom: 4px;
