@@ -666,8 +666,8 @@ class UIManager {
         const prestTokens = g.economy.calcPrestigeTokens();
         if (prestTokens > 0) badges.rebirth = prestTokens;
 
-        // Active (non-daily/non-weekly) claimable — what the Ativas tab shows
-        const claimableActive = (typeof MISSIONS !== 'undefined' ? MISSIONS : []).filter(m =>
+        // Active claimable — use getActiveMissions() to match exactly what Ativas tab shows
+        const claimableActive = g.missions.getActiveMissions().filter(m =>
             m.cooldown !== 'daily' && m.cooldown !== 'weekly' &&
             g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
         ).length;
@@ -1218,9 +1218,16 @@ class UIManager {
     }
 
     _getClaimableMissionsByTab(tab) {
+        const g = this._game;
+        if (tab === 'active') {
+            // Use getActiveMissions() as source — exact same filter as the Ativas list
+            return g.missions.getActiveMissions().filter(m =>
+                m.cooldown !== 'daily' && m.cooldown !== 'weekly' &&
+                g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
+            );
+        }
         const all = this._getClaimableMissions();
-        if (tab === 'daily')  return all.filter(m => m.cooldown === 'daily' || m.cooldown === 'weekly');
-        if (tab === 'active') return all.filter(m => m.cooldown !== 'daily' && m.cooldown !== 'weekly');
+        if (tab === 'daily') return all.filter(m => m.cooldown === 'daily' || m.cooldown === 'weekly');
         return all;
     }
 

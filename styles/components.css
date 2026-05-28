@@ -819,7 +819,7 @@ input[type=range]::-webkit-slider-thumb {
 ═══════════════════════════════════════════════════════════ */
 #boss-notification {
     position: fixed;
-    bottom: -200px;                                 /* starts hidden below screen */
+    bottom: 90px;
     left: 50%; transform: translateX(-50%);
     width: min(460px, 92vw);
     background: linear-gradient(135deg, rgba(6,4,20,0.97), rgba(10,5,25,0.97));
@@ -827,29 +827,22 @@ input[type=range]::-webkit-slider-thumb {
     border-radius: 18px;
     box-shadow: 0 0 40px var(--bn-color, #ff0080), 0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.8);
     padding: 18px 20px;
-    display: flex; align-items: center; gap: 14px; flex-wrap: nowrap;
+    display: none; align-items: center; gap: 14px; flex-wrap: nowrap;
     z-index: 850;
-    transition: bottom 0.55s cubic-bezier(0.34,1.56,0.64,1);
-    pointer-events: none; opacity: 0;
 }
 #boss-notification.show {
-    bottom: 90px;
-    pointer-events: all; opacity: 1;
-    animation: bn-glow-pulse 2s ease-in-out infinite;
+    display: flex;
+    animation: bn-enter 0.55s cubic-bezier(0.34,1.56,0.64,1), bn-glow-pulse 2s 0.55s ease-in-out infinite;
+}
+@keyframes bn-enter {
+    from { transform: translateX(-50%) translateY(120px); opacity: 0; }
+    to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
 }
 @keyframes bn-glow-pulse {
     0%,100% { box-shadow: 0 0 30px var(--bn-color,#ff0080), 0 20px 60px rgba(0,0,0,0.8); }
     50%      { box-shadow: 0 0 55px var(--bn-color,#ff0080), 0 20px 60px rgba(0,0,0,0.8); }
 }
-.bn-pulse {
-    position: absolute; inset: -1px; border-radius: 18px; pointer-events: none;
-    border: 1px solid var(--bn-color,#ff0080); opacity: 0.5;
-    animation: bn-ripple 1.8s ease-out infinite;
-}
-@keyframes bn-ripple {
-    0%   { transform: scale(1);    opacity: 0.5; }
-    100% { transform: scale(1.06); opacity: 0; }
-}
+.bn-pulse { display: none; }  /* removed — no longer needed */
 .bn-icon { font-size: 52px; flex-shrink: 0; animation: bn-float 2s ease-in-out infinite; }
 @keyframes bn-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 .bn-body { flex: 1; min-width: 0; }
