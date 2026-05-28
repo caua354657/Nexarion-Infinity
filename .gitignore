@@ -16,3 +16,10 @@ desktop.ini
 
 # Node (just in case)
 node_modules/
+
+# User-uploaded photos (keep foto/.htaccess)
+foto/*.jpg
+foto/*.jpeg
+foto/*.png
+foto/*.gif
+foto/*.webp

@@ -1,14 +1,14 @@
 <?php
 /**
  * Shared PDO connection for NEXUS CORE API.
- * Include this file in any API script that needs DB access.
- * Returns a singleton PDO instance via db().
+ * Reads credentials from environment variables (Railway/Docker),
+ * falling back to the school DB defaults.
  */
 
-define('DB_HOST', 'mysql.escola25dejulho.com.br');
-define('DB_NAME', 'escola25dejulh89');
-define('DB_USER', 'escola25dejulh89');
-define('DB_PASS', 'aula2024');
+define('DB_HOST',    getenv('DB_HOST')    ?: 'mysql.escola25dejulho.com.br');
+define('DB_NAME',    getenv('DB_NAME')    ?: 'escola25dejulh89');
+define('DB_USER',    getenv('DB_USER')    ?: 'escola25dejulh89');
+define('DB_PASS',    getenv('DB_PASS')    ?: 'aula2024');
 define('DB_CHARSET', 'utf8mb4');
 
 function db(): PDO {

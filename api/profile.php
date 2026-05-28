@@ -15,7 +15,7 @@ function json_out(array $data, int $code = 200): void {
     exit;
 }
 
-if (empty($_SESSION['user_id'])) json_out(['ok' => false, 'msg' => 'Não autenticado.'], 401);
+if (empty($_SESSION['uid'])) json_out(['ok' => false, 'msg' => 'Não autenticado.'], 401);
 
 $action = $_POST['action'] ?? '';
 
@@ -52,7 +52,7 @@ if ($action === 'upload') {
         json_out(['ok' => false, 'msg' => 'Falha ao salvar imagem.']);
 
     try {
-        db()->prepare('UPDATE usuarios SET foto = ? WHERE id = ?')->execute([$filename, $_SESSION['user_id']]);
+        db()->prepare('UPDATE usuarios SET foto = ? WHERE id = ?')->execute([$filename, $_SESSION['uid']]);
         json_out(['ok' => true, 'foto' => $filename]);
     } catch (PDOException $e) {
         @unlink($destDir . $filename);
