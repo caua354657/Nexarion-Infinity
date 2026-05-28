@@ -1,6 +1,11 @@
 function formatNum(n) {
     if (typeof n !== 'number' || isNaN(n)) return '0';
     const abs = Math.abs(n);
+    if (abs >= 1e33) return (n / 1e33).toFixed(2) + 'Dc';
+    if (abs >= 1e30) return (n / 1e30).toFixed(2) + 'No';
+    if (abs >= 1e27) return (n / 1e27).toFixed(2) + 'Oc';
+    if (abs >= 1e24) return (n / 1e24).toFixed(2) + 'Sp';
+    if (abs >= 1e21) return (n / 1e21).toFixed(2) + 'Sx';
     if (abs >= 1e18) return (n / 1e18).toFixed(2) + 'Qi';
     if (abs >= 1e15) return (n / 1e15).toFixed(2) + 'Qa';
     if (abs >= 1e12) return (n / 1e12).toFixed(2) + 'T';
@@ -91,6 +96,26 @@ class UIManager {
         const closeBtn = document.getElementById('modal-close');
         if (closeBtn) closeBtn.addEventListener('click', () => this.closePanel());
 
+        // Photo preview on register form
+        const regPhoto = document.getElementById('auth-reg-photo');
+        if (regPhoto) {
+            regPhoto.addEventListener('change', () => {
+                const file    = regPhoto.files?.[0];
+                const preview = document.getElementById('auth-photo-preview');
+                const label   = document.querySelector('.auth-photo-upload');
+                const nameEl  = document.getElementById('auth-photo-filename');
+                if (file) {
+                    if (preview) { const url = URL.createObjectURL(file); preview.innerHTML = `<img src="${url}" alt="Foto">`; }
+                    if (nameEl)  nameEl.textContent = file.name;
+                    label?.classList.add('has-file');
+                } else {
+                    if (preview) preview.textContent = '📷';
+                    if (nameEl)  nameEl.innerHTML = 'Foto de perfil <small>(opcional)</small>';
+                    label?.classList.remove('has-file');
+                }
+            });
+        }
+
         document.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 const auth = document.getElementById('auth-overlay');
@@ -102,6 +127,8 @@ class UIManager {
                 }
             }
             if (e.key === 'Escape') {
+                const daOverlay = document.getElementById('delete-account-overlay');
+                if (daOverlay?.classList.contains('open')) { this._hideDeleteConfirm(); return; }
                 const rcOverlay = document.getElementById('reset-confirm-overlay');
                 if (rcOverlay?.classList.contains('open')) { this._hideResetConfirm(); return; }
                 const pcOverlay = document.getElementById('prestige-confirm-overlay');
@@ -171,6 +198,7 @@ class UIManager {
     }
 
     closePanel() {
+        if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
         if (this._parentPanel) {
             const parent = this._parentPanel;
             this._parentPanel = null;
@@ -359,8 +387,23 @@ class UIManager {
             }
 
             // ── Auth overlay ──
+            const eyeBtn = e.target.closest('.auth-eye-btn');
+            if (eyeBtn) {
+                const inp = document.getElementById(eyeBtn.dataset.target);
+                if (inp) {
+                    inp.type = inp.type === 'password' ? 'text' : 'password';
+                    const isVisible = inp.type === 'text';
+                    eyeBtn.innerHTML = isVisible
+                        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+                        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+                }
+            }
             if (id === 'auth-login-btn') this._handleAuthLogin();
             if (id === 'auth-reg-btn')   this._handleAuthRegister();
+            if (id === 'profile-photo-change') document.getElementById('profile-photo-input')?.click();
+            if (id === 'delete-account-btn') this._showDeleteConfirm();
+            if (id === 'da-cancel' || id === 'delete-account-overlay') this._hideDeleteConfirm();
+            if (id === 'da-confirm') this._confirmDeleteAccount();
             if (id === 'auth-tab-login')     this._authSetTab('login');
             if (id === 'auth-tab-register')  this._authSetTab('register');
             if (id === 'auth-go-register')   this._authSetTab('register');
@@ -370,16 +413,18 @@ class UIManager {
             if (id === 'profile-login-btn') this._handleProfileLogin();
             if (id === 'profile-reg-btn')   this._handleProfileRegister();
             if (id === 'profile-logout') {
-                this._game.account.logout();
-                this.closePanel();
-                this._showAuthWall();
+                this._game.account.logout().then(() => {
+                    this.closePanel();
+                    this._showAuthWall();
+                });
             }
             if (id === 'profile-go-register') {
                 this._profileAuthMode = 'register';
                 this._renderPanelContent('profile');
             }
             if (id === 'profile-go-login') {
-                this._profileAuthMode = 'login';
+                // For local-only accounts, "Cancelar" returns to profile card view
+                this._profileAuthMode = this._game.account.isLocalOnly() ? 'card' : 'login';
                 this._renderPanelContent('profile');
             }
         });
@@ -387,18 +432,28 @@ class UIManager {
 
     // ── Auth wall ──
     _checkAuthWall() {
-        if (this._game.account.isLoggedIn()) {
+        const acc = this._game.account;
+        // Immediately show/hide based on cached state
+        if (acc.isLoggedIn()) {
             const overlay = document.getElementById('auth-overlay');
             if (overlay) overlay.style.display = 'none';
         } else {
-            // Show appropriate tab for new vs returning user
-            if (!this._game.account.hasAccount()) {
-                this._authSetTab('register');
-            } else {
-                this._authSetTab('login');
-            }
+            if (!acc.hasAccount()) this._authSetTab('register');
+            else                   this._authSetTab('login');
             this._showAuthWall();
         }
+
+        // Async verify session with server
+        acc.checkSession().then(loggedIn => {
+            if (loggedIn) {
+                this._hideAuthWall();
+            } else if (!acc.isLoggedIn()) {
+                // Session expired — ensure wall is visible
+                if (!acc.hasAccount()) this._authSetTab('register');
+                else                   this._authSetTab('login');
+                this._showAuthWall();
+            }
+        });
     }
 
     _showAuthWall() {
@@ -444,19 +499,18 @@ class UIManager {
         }
     }
 
-    _handleAuthLogin() {
+    async _handleAuthLogin() {
         const id   = document.getElementById('auth-login-id')?.value  || '';
         const pass = document.getElementById('auth-login-pass')?.value || '';
         const err  = document.getElementById('auth-error');
+        const btn  = document.getElementById('auth-login-btn');
         if (!id.trim() || !pass) {
             if (err) err.textContent = 'Preencha todos os campos.';
             return;
         }
-        if (!this._game.account.hasAccount()) {
-            if (err) err.textContent = 'Nenhuma conta criada. Use "Criar Conta".';
-            return;
-        }
-        const result = this._game.account.login(id, pass);
+        if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+        const result = await this._game.account.login(id, pass);
+        if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
         if (result.ok) {
             this._hideAuthWall();
         } else {
@@ -464,12 +518,17 @@ class UIManager {
         }
     }
 
-    _handleAuthRegister() {
+    async _handleAuthRegister() {
         const user  = document.getElementById('auth-reg-user')?.value  || '';
         const email = document.getElementById('auth-reg-email')?.value || '';
         const pass  = document.getElementById('auth-reg-pass')?.value  || '';
         const err   = document.getElementById('auth-error');
-        const result = this._game.account.createAccount(user, email, pass);
+        const btn   = document.getElementById('auth-reg-btn');
+        const photoFile = document.getElementById('auth-reg-photo')?.files?.[0] || null;
+
+        if (btn) { btn.disabled = true; btn.textContent = 'Criando…'; }
+        const result = await this._game.account.createAccount(user, email, pass, photoFile);
+        if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
         if (result.ok) {
             this._hideAuthWall();
         } else {
@@ -478,11 +537,14 @@ class UIManager {
     }
 
     // ── Profile panel auth helpers (used when profile panel is open) ──
-    _handleProfileLogin() {
+    async _handleProfileLogin() {
         const user = document.getElementById('profile-login-user')?.value || '';
         const pass = document.getElementById('profile-login-pass')?.value || '';
         const msg  = document.getElementById('profile-auth-msg');
-        const result = this._game.account.login(user, pass);
+        const btn  = document.getElementById('profile-login-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+        const result = await this._game.account.login(user, pass);
+        if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
         if (result.ok) {
             this._renderPanelContent('profile');
         } else {
@@ -490,16 +552,47 @@ class UIManager {
         }
     }
 
-    _handleProfileRegister() {
-        const user  = document.getElementById('profile-reg-user')?.value  || '';
-        const email = document.getElementById('profile-reg-email')?.value || '';
-        const pass  = document.getElementById('profile-reg-pass')?.value  || '';
-        const msg   = document.getElementById('profile-auth-msg');
-        const result = this._game.account.createAccount(user, email, pass);
+    async _handleProfileRegister() {
+        const user      = document.getElementById('profile-reg-user')?.value  || '';
+        const email     = document.getElementById('profile-reg-email')?.value || '';
+        const pass      = document.getElementById('profile-reg-pass')?.value  || '';
+        const msg       = document.getElementById('profile-auth-msg');
+        const btn       = document.getElementById('profile-reg-btn');
+        const photoFile = document.getElementById('profile-reg-photo')?.files?.[0] || null;
+        if (btn) { btn.disabled = true; btn.textContent = 'Criando…'; }
+        const result = await this._game.account.createAccount(user, email, pass, photoFile);
+        if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
         if (result.ok) {
+            this._profileAuthMode = 'login'; // reset mode after registration
             this._renderPanelContent('profile');
         } else {
             if (msg) { msg.textContent = result.msg; msg.classList.add('profile-auth-error'); }
+        }
+    }
+
+    _showDeleteConfirm() {
+        const overlay = document.getElementById('delete-account-overlay');
+        if (overlay) {
+            overlay.classList.add('open');
+            const card = document.getElementById('delete-account-card');
+            if (card) { card.style.animation = 'none'; void card.offsetWidth; card.style.animation = ''; }
+        }
+    }
+
+    _hideDeleteConfirm() {
+        document.getElementById('delete-account-overlay')?.classList.remove('open');
+    }
+
+    async _confirmDeleteAccount() {
+        const confirmBtn = document.getElementById('da-confirm');
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Excluindo…'; }
+        const result = await this._game.account.deleteAccount();
+        this._hideDeleteConfirm();
+        if (result.ok) {
+            this._game.wipeSave();
+        } else {
+            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Excluir Conta'; }
+            this._game.notify(result.msg || 'Erro ao excluir conta.', 'error');
         }
     }
 
@@ -650,7 +743,7 @@ class UIManager {
 
         const themes = PrestigeAura.THEMES;
         const theme  = themes[g.economy.totalPrestiges % themes.length];
-        if (el.textContent !== theme.char) el.textContent = theme.char;
+        el.textContent = '';
         el.style.setProperty('--pc-color', theme.c1);
         el.style.setProperty('--pc-color2', theme.c2);
 
@@ -911,7 +1004,10 @@ class UIManager {
             <button class="tab-btn ${this._activeTab === 'daily' ? 'active' : ''}" onclick="window.game.ui._activeTab='daily'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Agenda</button>
             <button class="tab-btn ${this._activeTab === 'completed' ? 'active' : ''}" onclick="window.game.ui._activeTab='completed'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Concluídas</button>
         `;
-        container.innerHTML = '<div id="missions-list" style="display:flex;flex-direction:column;"></div>';
+        container.innerHTML = `
+            <div id="missions-claim-bar" class="mission-claim-all-bar" style="display:none;"></div>
+            <div id="missions-list" style="display:flex;flex-direction:column;"></div>
+        `;
         this._updateMissions();
     }
 
@@ -934,27 +1030,33 @@ class UIManager {
         if (stateKey !== this._missionsStateKey) {
             this._missionsStateKey = stateKey;
             this._rebuildMissionsList(list);
-            return;
+        } else {
+            // State unchanged — only update progress bars and timers in-place (no DOM rebuild = no hover flicker)
+            list.querySelectorAll('.mission-item[data-mission-id]').forEach(item => {
+                const id = item.dataset.missionId;
+                const m = MISSIONS.find(x => x.id === id);
+                if (!m) return;
+                const p = g.missions.progress[id] || { cur: 0, max: m.value, pct: 0 };
+                const pct = Math.min(1, p.pct !== undefined ? p.pct : (p.cur / p.max));
+                const fill = item.querySelector('.mission-fill');
+                if (fill) fill.style.width = (pct * 100) + '%';
+                const prog = item.querySelector('.mission-progress');
+                if (prog) prog.textContent = formatNum(p.cur) + ' / ' + formatNum(p.max);
+                const pctEl = item.querySelector('.mission-pct');
+                if (pctEl) {
+                    pctEl.textContent = (pct * 100).toFixed(0) + '%';
+                    pctEl.classList.toggle('mission-pct-done', pct >= 1);
+                }
+            });
+            // Update countdown timers in-place (daily tab only)
+            const dailyTimer = document.getElementById('daily-timer-badge');
+            if (dailyTimer) dailyTimer.textContent = '⏱ ' + formatTime(Math.floor(this._getTimeUntilMidnight()));
+            const weeklyTimer = document.getElementById('weekly-timer-badge');
+            if (weeklyTimer) weeklyTimer.textContent = '⏱ ' + formatTime(Math.floor(this._getTimeUntilWeekReset()));
         }
 
-        // State unchanged — only update progress bars and timers in-place (no DOM rebuild = no hover flicker)
-        list.querySelectorAll('.mission-item[data-mission-id]').forEach(item => {
-            const id = item.dataset.missionId;
-            const m = MISSIONS.find(x => x.id === id);
-            if (!m) return;
-            const p = g.missions.progress[id] || { cur: 0, max: m.value, pct: 0 };
-            const pct = Math.min(1, p.pct !== undefined ? p.pct : (p.cur / p.max));
-            const fill = item.querySelector('.mission-fill');
-            if (fill) fill.style.width = (pct * 100) + '%';
-            const prog = item.querySelector('.mission-progress');
-            if (prog) prog.textContent = formatNum(p.cur) + ' / ' + formatNum(p.max);
-        });
-
-        // Update countdown timers in-place (daily tab only)
-        const dailyTimer = document.getElementById('daily-timer-badge');
-        if (dailyTimer) dailyTimer.textContent = '⏱ ' + formatTime(Math.floor(this._getTimeUntilMidnight()));
-        const weeklyTimer = document.getElementById('weekly-timer-badge');
-        if (weeklyTimer) weeklyTimer.textContent = '⏱ ' + formatTime(Math.floor(this._getTimeUntilWeekReset()));
+        // Always sync the claim-all bar
+        this._updateMissionsClaimBar();
     }
 
     _rebuildMissionsList(list) {
@@ -962,8 +1064,9 @@ class UIManager {
         const g = this._game;
 
         if (tab === 'active') {
+            // getActiveMissions() already excludes claimed ones; include completed-but-unclaimed so user sees the claim button here
             const active = g.missions.getActiveMissions().filter(m =>
-                m.cooldown !== 'daily' && m.cooldown !== 'weekly' && !g.missions.completed.has(m.id)
+                m.cooldown !== 'daily' && m.cooldown !== 'weekly'
             );
             if (active.length === 0) {
                 list.innerHTML = '<div class="empty-msg">Nenhuma missão ativa no momento!</div>';
@@ -971,7 +1074,8 @@ class UIManager {
             }
             list.innerHTML = active.map(m => {
                 const p = g.missions.progress[m.id] || { cur: 0, max: m.value, pct: 0 };
-                return this._buildMissionItemHTML(m, p, false, false);
+                const isCompleted = g.missions.completed.has(m.id);
+                return this._buildMissionItemHTML(m, p, false, isCompleted);
             }).join('');
 
         } else if (tab === 'daily') {
@@ -1004,9 +1108,8 @@ class UIManager {
             list.innerHTML = html || '<div class="empty-msg">Nenhuma missão agendada disponível!</div>';
 
         } else if (tab === 'completed') {
-            const completedIds = new Set([...g.missions.completed, ...g.missions.claims]);
             const done = MISSIONS.filter(m =>
-                m.cooldown !== 'daily' && m.cooldown !== 'weekly' && completedIds.has(m.id)
+                m.cooldown !== 'daily' && m.cooldown !== 'weekly' && g.missions.claims.has(m.id)
             );
             if (done.length === 0) {
                 list.innerHTML = '<div class="empty-msg">Nenhuma missão concluída ainda!</div>';
@@ -1014,7 +1117,7 @@ class UIManager {
             }
             list.innerHTML = done.map(m => {
                 const p = g.missions.progress[m.id] || { cur: m.value, max: m.value, pct: 1 };
-                return this._buildMissionItemHTML(m, p, g.missions.claims.has(m.id), g.missions.completed.has(m.id));
+                return this._buildMissionItemHTML(m, p, true, true);
             }).join('');
         }
     }
@@ -1022,6 +1125,7 @@ class UIManager {
     _buildMissionItemHTML(m, p, isClaimed, isCompleted) {
         const rarity = m.rarity || 'common';
         const pct = Math.min(1, p.pct !== undefined ? p.pct : (p.cur / p.max));
+        const pctNum = (pct * 100).toFixed(0);
 
         const rewards = [];
         if (m.reward?.xp) rewards.push(`<div class="reward-chip xp">+${formatNum(m.reward.xp)} XP</div>`);
@@ -1029,29 +1133,38 @@ class UIManager {
         if (m.reward?.neurons_pct) rewards.push(`<div class="reward-chip neuron">+${(m.reward.neurons_pct * 100).toFixed(0)}% ⚡</div>`);
         if (m.reward?.tokens) rewards.push(`<div class="reward-chip token">+${m.reward.tokens} 💎</div>`);
 
-        const badge = isClaimed ? `<span class="mission-claimed-badge">✓ Resgatada</span>` : '';
+        const topRight = isClaimed
+            ? `<span class="mission-claimed-badge">✓ Resgatada</span>`
+            : '';
         const claimBtn = isCompleted && !isClaimed
-            ? `<button class="mission-claim-btn" onclick="window.game.missions.claimMission('${m.id}')">Resgatar</button>`
+            ? `<button class="mission-claim-btn" onclick="window.game.ui._claimMission('${m.id}')">⚡ Resgatar</button>`
             : '';
 
+        const stateClass = isClaimed ? 'completed claimed' : (isCompleted ? 'completed' : '');
+
         return `
-            <div class="mission-item ${isCompleted || isClaimed ? 'completed' : ''}" data-rarity="${rarity}" data-mission-id="${m.id}">
+            <div class="mission-item ${stateClass}" data-rarity="${rarity}" data-mission-id="${m.id}">
                 <div class="mission-top">
                     <div class="mission-title-group">
                         <span class="mission-icon">${m.icon}</span>
-                        <div style="display:flex;flex-direction:column;">
+                        <div class="mission-name-col">
                             <span class="mission-name">${m.name}</span>
                             <span class="mission-diff">${'★'.repeat(m.difficulty || 1)}</span>
                         </div>
                     </div>
-                    ${badge}
+                    ${topRight}
                 </div>
                 <div class="mission-desc">${m.desc}</div>
-                <div class="mission-rewards">${rewards.join('')}</div>
-                <div class="mission-bar">
-                    <div class="mission-fill ${isCompleted || isClaimed ? 'shimmer-active' : ''}" style="width:${pct * 100}%"></div>
+                ${rewards.length ? `<div class="mission-rewards">${rewards.join('')}</div>` : ''}
+                <div class="mission-progress-section">
+                    <div class="mission-bar">
+                        <div class="mission-fill ${isCompleted || isClaimed ? 'shimmer-active' : ''}" style="width:${pct * 100}%"></div>
+                    </div>
+                    <div class="mission-stats-row">
+                        <span class="mission-progress">${formatNum(p.cur)} / ${formatNum(p.max)}</span>
+                        <span class="mission-pct ${pct >= 1 ? 'mission-pct-done' : ''}">${pctNum}%</span>
+                    </div>
                 </div>
-                <div class="mission-progress">${formatNum(p.cur)} / ${formatNum(p.max)}</div>
                 ${claimBtn}
             </div>`;
     }
@@ -1072,23 +1185,88 @@ class UIManager {
         return Math.max(0, (next - now) / 1000);
     }
 
+    _getClaimableMissions() {
+        const g = this._game;
+        return (typeof MISSIONS !== 'undefined' ? MISSIONS : []).filter(m =>
+            g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
+        );
+    }
+
+    _getClaimableMissionsByTab(tab) {
+        const all = this._getClaimableMissions();
+        if (tab === 'daily')  return all.filter(m => m.cooldown === 'daily' || m.cooldown === 'weekly');
+        if (tab === 'active') return all.filter(m => m.cooldown !== 'daily' && m.cooldown !== 'weekly');
+        return all;
+    }
+
+    _updateMissionsClaimBar() {
+        const bar = document.getElementById('missions-claim-bar');
+        if (!bar) return;
+
+        const showBar = this._activeTab === 'active' || this._activeTab === 'daily';
+        if (!showBar) { bar.style.display = 'none'; bar.innerHTML = ''; bar._lastN = -1; return; }
+
+        const n = this._getClaimableMissionsByTab(this._activeTab).length;
+        if (bar._lastN === n) return;
+        bar._lastN = n;
+        if (n === 0) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+        bar.style.display = 'flex';
+        bar.innerHTML = `
+            <span class="mca-count">🎁 ${n} missão${n > 1 ? 'ões prontas' : ' pronta'}</span>
+            <button class="mca-btn" onclick="window.game.ui.claimAllMissions()">✓ Resgatar Tudo</button>
+        `;
+    }
+
+    _claimMission(id) {
+        const g = this._game;
+        if (!g?.missions) return;
+        const claimed = g.missions.claimMission(id, true); // silent — we handle the re-render here
+        if (claimed) this._renderPanelContent('missions');
+    }
+
+    claimAllMissions() {
+        const g = window.game;
+        if (!g?.missions) return;
+        const ids = this._getClaimableMissionsByTab(this._activeTab).map(m => m.id);
+        const count = g.missions.claimAll(ids);
+        if (count > 0 && this._activePanel === 'missions') this._renderPanelContent('missions');
+    }
+
     _renderProfile(container) {
         const g = this._game;
         const acc = g.account;
         const isLoggedIn = acc.isLoggedIn();
         const hasAccount = acc.hasAccount();
 
+        const showingRegisterForLocal = acc.isLocalOnly() && this._profileAuthMode === 'register';
+
         let accountSection = '';
-        if (isLoggedIn) {
+        if (isLoggedIn && !showingRegisterForLocal) {
             const a = acc.getAccount();
-            const since = new Date(a.createdAt).toLocaleDateString('pt-BR');
+            const since = new Date(a.createdAt || Date.now()).toLocaleDateString('pt-BR');
             const vipBadge = acc.isVip() ? `<span class="vip-profile-badge">👑 VIP</span>` : '';
+            const photoUrl = acc.getPhotoUrl();
+            const isLocalOnly = acc.isLocalOnly();
+            const avatarHTML = photoUrl
+                ? `<img class="profile-photo-img${acc.isVip() ? ' profile-avatar-vip' : ''}" src="${photoUrl}" alt="Foto" id="profile-photo-el">`
+                : `<div class="profile-avatar${acc.isVip() ? ' profile-avatar-vip' : ''}" id="profile-photo-el">${acc.getAvatarIcon()}</div>`;
+
+            const localBanner = isLocalOnly ? `
+                <div class="profile-local-banner">
+                    ⚠ Conta local — <button class="profile-link-btn" id="profile-go-register" style="display:inline;font-size:11px;">Criar conta online</button> para salvar na nuvem
+                </div>` : '';
+
             accountSection = `
+                ${localBanner}
                 <div class="profile-card">
-                    <div class="profile-avatar${acc.isVip() ? ' profile-avatar-vip' : ''}">${acc.getAvatarIcon()}</div>
+                    <div class="profile-avatar-wrap">
+                        ${avatarHTML}
+                        ${!isLocalOnly ? `<button class="profile-photo-change-btn" id="profile-photo-change" title="Alterar foto">📷</button>
+                        <input type="file" id="profile-photo-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none">` : ''}
+                    </div>
                     <div class="profile-card-info">
                         <div class="profile-username${acc.isVip() ? ' profile-username-vip' : ''}">${a.username}${vipBadge}</div>
-                        <div class="profile-email">${a.email}</div>
+                        <div class="profile-email">${a.email || 'Conta local'}</div>
                         <div class="profile-since">Membro desde ${since}</div>
                     </div>
                     <button class="profile-action-btn" id="profile-logout">Sair</button>
@@ -1107,12 +1285,20 @@ class UIManager {
             accountSection = `
                 <div class="profile-auth-form">
                     <div class="profile-auth-title">Criar Conta</div>
+                    <div class="auth-photo-row" style="margin-bottom:10px;">
+                        <label class="auth-photo-label" for="profile-reg-photo" title="Foto de perfil (opcional)">
+                            <div class="auth-photo-preview" id="profile-photo-preview">📷</div>
+                            <span class="auth-photo-hint">Foto opcional</span>
+                        </label>
+                        <input type="file" id="profile-reg-photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+                    </div>
                     <input class="profile-input" id="profile-reg-user" type="text" placeholder="Nome de usuário (mín. 3 chars)" autocomplete="username">
                     <input class="profile-input" id="profile-reg-email" type="email" placeholder="Email" autocomplete="email">
                     <input class="profile-input" id="profile-reg-pass" type="password" placeholder="Senha (mín. 6 chars)" autocomplete="new-password">
-                    <button class="profile-submit-btn" id="profile-reg-btn">Criar Conta</button>
+                    <button class="profile-submit-btn" id="profile-reg-btn">Criar Conta Online</button>
                     <div class="profile-auth-msg" id="profile-auth-msg"></div>
-                    ${hasAccount ? `<button class="profile-link-btn" id="profile-go-login">Já tenho uma conta</button>` : ''}
+                    ${(hasAccount && !acc.isLocalOnly()) ? `<button class="profile-link-btn" id="profile-go-login">Já tenho uma conta</button>` : ''}
+                    ${acc.isLocalOnly() ? `<button class="profile-link-btn" id="profile-go-login">Cancelar</button>` : ''}
                 </div>`;
         }
 
@@ -1126,6 +1312,40 @@ class UIManager {
                 <div class="profile-stats-title">Estatísticas</div>
                 <div id="stats-list">${statsHTML}</div>
             </div>`;
+
+        // Bind photo upload (change existing photo)
+        const photoInput = document.getElementById('profile-photo-input');
+        if (photoInput) {
+            photoInput.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const btn = document.getElementById('profile-photo-change');
+                if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+                const result = await this._game.account.uploadPhoto(file);
+                if (result.ok) {
+                    this._renderPanelContent('profile');
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = '📷'; }
+                    this._game.notify(result.msg || 'Erro ao enviar foto.', 'error');
+                }
+            });
+        }
+
+        // Bind register photo preview
+        const regPhotoInput = document.getElementById('profile-reg-photo');
+        if (regPhotoInput) {
+            regPhotoInput.addEventListener('change', () => {
+                const file    = regPhotoInput.files?.[0];
+                const preview = document.getElementById('profile-photo-preview');
+                if (!preview) return;
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    preview.innerHTML = `<img src="${url}" alt="Foto">`;
+                } else {
+                    preview.textContent = '📷';
+                }
+            });
+        }
     }
 
     _updateProfileStats() {
@@ -1162,9 +1382,10 @@ class UIManager {
     }
 
     _renderSettings(container) {
-        const enabled = this._game.audio.isEnabled();
-        const sfxVol = this._game.audio.sfxVol;
+        const enabled  = this._game.audio.isEnabled();
+        const sfxVol   = this._game.audio.sfxVol;
         const musicVol = this._game.audio.musicVol;
+        const loggedIn = this._game.account.isLoggedIn();
 
         container.innerHTML = `
             <div class="settings-section">
@@ -1191,7 +1412,11 @@ class UIManager {
                 </label>
                 <input type="file" id="import-save-input" accept=".json" style="display:none;">
                 <div id="import-save-msg" class="settings-import-msg"></div>
+            </div>
+            <div class="settings-section">
+                <label class="settings-label">⚠️ Zona de Perigo</label>
                 <button class="settings-btn danger" id="wipe-save">🗑 Resetar Todo o Progresso</button>
+                ${loggedIn ? `<button class="settings-btn danger" id="delete-account-btn" style="margin-top:6px;">🗑 Excluir Conta</button>` : ''}
             </div>
             <div class="settings-section" style="opacity:0.4;font-size:11px;text-align:center;">
                 NEXUS CORE v1.0.0 — Salva automaticamente a cada 30s
@@ -1492,6 +1717,29 @@ class UIManager {
         // ── Skins ──
         const skins = (typeof PREMIUM_SKINS !== 'undefined') ? PREMIUM_SKINS : [];
         const activeSkin = acc.getActiveSkin();
+
+        // Default theme card (always shown first)
+        const defaultEquipped = activeSkin === null;
+        const defaultCard = `
+            <div class="pshop-card pshop-card--skin${defaultEquipped ? ' pshop-card--owned' : ''}"
+                 style="border-color:rgba(0,245,255,0.22)">
+                <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,rgba(0,245,255,0.08) 0%,transparent 70%)"></div>
+                <div class="pshop-icon pshop-icon--skin" style="background:rgba(0,245,255,0.07);border-color:rgba(0,245,255,0.18)">🧠</div>
+                <div class="pshop-info">
+                    <div class="pshop-header-row">
+                        <div class="pshop-title pshop-title-skin" style="color:var(--cyan)">NEXUS PADRÃO</div>
+                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">Padrão</div>
+                    </div>
+                    <div class="pshop-subtitle">Tema original do núcleo — cyan neural clássico</div>
+                </div>
+                <div class="pshop-actions">
+                    ${defaultEquipped
+                        ? `<div class="pshop-owned-badge" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)">✓ ATIVO</div>`
+                        : `<button class="pshop-equip-btn" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)" onclick="window.game.resetSkin()">Equipar</button>`
+                    }
+                </div>
+            </div>`;
+
         const skinCards = skins.map(skin => {
             const owned = acc.hasSkin(skin.id);
             const equipped = activeSkin === skin.id;
@@ -1648,7 +1896,7 @@ class UIManager {
                         <span class="pshop-section-title">SKINS & TEMAS</span>
                         <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
                     </div>
-                    ${skinCards}
+                    ${defaultCard}${skinCards}
                 </div>
 
                 <div class="pshop-section">
@@ -1783,88 +2031,135 @@ class UIManager {
         if (el) el.textContent = this._game.skills.skillPoints + ' SP';
     }
 
-    _renderLeaderboard(container) {
+    async _renderLeaderboard(container) {
         const g   = this._game;
         const acc = g.account;
+        const isOnline = acc.isLoggedIn() && !acc.isLocalOnly() && window.location.protocol !== 'file:';
 
-        const mockPlayers = [
-            { name: 'OmegaMind_X',    neurons: 3.14e18, level: 1450, prestiges: 612, isVip: true  },
-            { name: 'QuantumBrain',   neurons: 2.07e18, level: 1280, prestiges: 521, isVip: true  },
-            { name: 'NexusGod_77',    neurons: 9.88e17, level: 1100, prestiges: 447, isVip: true  },
-            { name: 'SynapticWave',   neurons: 4.52e17, level: 940,  prestiges: 382, isVip: false },
-            { name: 'CortexOverlord', neurons: 1.73e17, level: 820,  prestiges: 310, isVip: false },
-            { name: 'HoloMatrix_9',   neurons: 6.61e16, level: 715,  prestiges: 245, isVip: true  },
-            { name: 'NeuralForgeX',   neurons: 2.34e16, level: 630,  prestiges: 198, isVip: false },
-            { name: 'SingularityAI',  neurons: 8.80e15, level: 550,  prestiges: 162, isVip: false },
-            { name: 'DendritoMax',    neurons: 3.12e15, level: 475,  prestiges: 130, isVip: false },
-            { name: 'ClusterKing',    neurons: 9.50e14, level: 405,  prestiges: 101, isVip: false },
-            { name: 'SynapseRush',    neurons: 2.77e14, level: 340,  prestiges: 78,  isVip: false },
-            { name: 'AxonStorm',      neurons: 7.30e13, level: 282,  prestiges: 59,  isVip: false },
-            { name: 'NanoMaster_3',   neurons: 1.94e13, level: 231,  prestiges: 42,  isVip: false },
-            { name: 'Qbit_Runner',    neurons: 4.55e12, level: 185,  prestiges: 28,  isVip: false },
-            { name: 'SpikeNet_Z',     neurons: 8.90e11, level: 140,  prestiges: 17,  isVip: false },
-        ];
+        // Clear any previous refresh timer
+        if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
 
-        const playerEntry = {
-            name:     acc.isLoggedIn() ? acc.getAccount().username : 'VOCÊ',
-            neurons:  g.economy.lifetimeNeurons,
-            level:    g.level.level,
-            prestiges: g.economy.totalPrestiges,
-            isVip:    acc.isVip(),
-            isPlayer: true,
+        // Show loading immediately (sync)
+        container.innerHTML = `
+            <div class="lb-header-note">
+                <span class="lb-badge">PLACAR GLOBAL</span>
+                <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
+            </div>
+            <div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
+
+        let entries = [], playerRank = null;
+
+        if (isOnline) {
+            await g._syncLeaderboard();
+            try {
+                const [topRes, rankRes] = await Promise.all([
+                    fetch('api/leaderboard.php?action=top&limit=50'),
+                    fetch('api/leaderboard.php?action=rank'),
+                ]);
+                const topData  = await topRes.json();
+                const rankData = await rankRes.json();
+                if (topData.ok)  entries    = topData.entries;
+                if (rankData.ok) playerRank = rankData.rank;
+            } catch {
+                container.innerHTML = `
+                    <div class="lb-header-note">
+                        <span class="lb-badge">PLACAR GLOBAL</span>
+                        <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
+                    </div>
+                    <div class="lb-error">⚠️ Sem conexão com o servidor.<br>Verifique se o XAMPP está rodando.</div>`;
+                return;
+            }
+        }
+
+        // Tag current player in server entries
+        const uid = acc.getAccount()?.id;
+        if (uid) entries.forEach(e => { if (e.id === uid) e.isPlayer = true; });
+
+        // Build local player entry (always available as fallback)
+        const playerLocal = acc.isLoggedIn() ? {
+            id: uid, username: acc.getAccount().username, foto: acc.getAccount().foto,
+            lifetimeNeurons: g.economy.lifetimeNeurons, level: g.level.level,
+            totalPrestiges: g.economy.totalPrestiges, vip: acc.isVip(), isPlayer: true,
+        } : null;
+
+        const top        = entries.slice(0, 50);
+        const playerInList = top.some(e => e.isPlayer);
+
+        // Helpers
+        const podiumClasses = ['lb-pod-1st','lb-pod-2nd','lb-pod-3rd'];
+        const podiumMedals  = ['🥇','🥈','🥉'];
+
+        const avatarEl = (entry) => {
+            if (entry.isPlayer && acc.getPhotoUrl())
+                return `<img class="lb-avatar-img" src="${acc.getPhotoUrl()}" alt="">`;
+            if (entry.foto)
+                return `<img class="lb-avatar-img" src="foto/${entry.foto}" alt="">`;
+            const icons = ['🧠','⚡','🔮','💡','🌟','🔬','🤖','🎯','💎','🚀'];
+            return `<div class="lb-avatar-icon">${icons[(entry.username.charCodeAt(0)||0) % icons.length]}</div>`;
         };
 
-        const allEntries = [...mockPlayers, playerEntry].sort((a, b) => b.neurons - a.neurons);
-        const playerRank = allEntries.findIndex(e => e.isPlayer) + 1;
-        const top15      = allEntries.slice(0, 15);
-        const playerIn15 = top15.some(e => e.isPlayer);
-
-        // ── Podium for top 3 ──
-        const podiumClasses = ['lb-pod-1st', 'lb-pod-2nd', 'lb-pod-3rd'];
-        const podiumMedals  = ['🥇', '🥈', '🥉'];
-
         const buildPodiumSlot = (entry, rank) => {
-            if (!entry) return '';
-            const vipBadge  = entry.isVip ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>` : '';
-            const nameClass = entry.isVip ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            if (!entry) return `<div class="lb-pod-slot ${podiumClasses[rank-1]} lb-pod-empty"><div class="lb-pod-medal">${podiumMedals[rank-1]}</div><div class="lb-pod-card lb-pod-card--empty"><span>—</span></div><div class="lb-pod-pedestal"></div></div>`;
+            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
+            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
+            const nameClass = entry.vip      ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
             return `
-                <div class="lb-pod-slot ${podiumClasses[rank - 1]}${entry.isPlayer ? ' lb-pod-you' : ''}">
-                    <div class="lb-pod-medal">${podiumMedals[rank - 1]}</div>
+                <div class="lb-pod-slot ${podiumClasses[rank-1]}${entry.isPlayer?' lb-pod-you':''}">
+                    <div class="lb-pod-medal">${podiumMedals[rank-1]}</div>
                     <div class="lb-pod-card">
-                        <div class="${nameClass}">${entry.name}${vipBadge}${youTag}</div>
-                        <div class="lb-pod-score">${formatNum(entry.neurons)}<span class="lb-unit"> ⚡</span></div>
-                        <div class="lb-pod-sub">Lv ${entry.level} · ${entry.prestiges} ♻</div>
+                        <div class="lb-pod-avatar">${avatarEl(entry)}</div>
+                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="lb-pod-score">${formatNum(entry.lifetimeNeurons)}<span class="lb-unit"> ⚡</span></div>
+                        <div class="lb-pod-sub">Lv ${entry.level} · ${entry.totalPrestiges} ♻</div>
                     </div>
                     <div class="lb-pod-pedestal"></div>
                 </div>`;
         };
 
-        const podiumHTML = `
-            <div class="lb-podium">
-                ${buildPodiumSlot(top15[0], 1)}
-                ${buildPodiumSlot(top15[1], 2)}
-                ${buildPodiumSlot(top15[2], 3)}
-            </div>`;
-
-        // ── Regular rows for rank 4+ ──
         const buildRow = (entry, rank) => {
-            const vipBadge  = entry.isVip ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>` : '';
-            const nameClass = entry.isVip ? 'lb-name lb-name-vip' : 'lb-name';
+            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
+            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
+            const nameClass = entry.vip      ? 'lb-name lb-name-vip' : 'lb-name';
             return `
-                <div class="lb-row ${entry.isPlayer ? 'lb-row-player' : ''}">
+                <div class="lb-row${entry.isPlayer?' lb-row-player':''}">
                     <div class="lb-rank">#${rank}</div>
+                    <div class="lb-row-avatar">${avatarEl(entry)}</div>
                     <div class="lb-info">
-                        <div class="${nameClass}">${entry.name}${vipBadge}${youTag}</div>
-                        <div class="lb-sub">Lv ${entry.level} · ${entry.prestiges} ♻</div>
+                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="lb-sub">Lv ${entry.level} · ${entry.totalPrestiges} ♻</div>
                     </div>
-                    <div class="lb-score">${formatNum(entry.neurons)}<span class="lb-unit"> ⚡</span></div>
+                    <div class="lb-score">${formatNum(entry.lifetimeNeurons)}<span class="lb-unit"> ⚡</span></div>
                 </div>`;
         };
 
-        let rows = top15.slice(3).map((e, i) => buildRow(e, i + 4)).join('');
-        if (!playerIn15) rows += `<div class="lb-separator">· · ·</div>` + buildRow(playerEntry, playerRank);
+        // ── Render podium ──
+        const podiumHTML = `
+            <div class="lb-podium">
+                ${buildPodiumSlot(top[0], 1)}
+                ${buildPodiumSlot(top[1], 2)}
+                ${buildPodiumSlot(top[2], 3)}
+            </div>`;
+
+        // ── Render rows 4+ ──
+        let rowsHTML = top.slice(3).map((e, i) => buildRow(e, i + 4)).join('');
+
+        if (!playerInList && playerLocal) {
+            const sep = top.length >= 3 ? `<div class="lb-separator">· · ·</div>` : '';
+            const rank = playerRank ?? (top.length + 1);
+            rowsHTML += sep + buildRow(playerLocal, rank);
+        }
+
+        if (top.length === 0 && !playerLocal) {
+            rowsHTML = `<div class="lb-empty">Nenhum jogador no ranking ainda.<br>Seja o primeiro!</div>`;
+        }
+
+        // ── Footer ──
+        const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const footer = isOnline
+            ? `🌐 Placar online · Atualizado às ${time} · Atualiza a cada 30s`
+            : (!acc.isLoggedIn()
+                ? '⚠️ Entre na sua conta para aparecer no ranking global'
+                : '⚠️ Conta local — crie uma conta online para entrar no ranking');
 
         container.innerHTML = `
             <div class="lb-header-note">
@@ -1872,8 +2167,19 @@ class UIManager {
                 <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
             </div>
             ${podiumHTML}
-            <div class="lb-list">${rows}</div>
-            <div class="lb-footer">Dados simulados · Conexão online em breve</div>`;
+            <div class="lb-list">${rowsHTML}</div>
+            <div class="lb-footer">${footer}</div>`;
+
+        // Auto-refresh every 30s while panel is open
+        this._lbRefreshTimer = setInterval(() => {
+            if (this._activePanel === 'leaderboard') {
+                const c = document.getElementById('modal-content');
+                if (c) this._renderLeaderboard(c);
+            } else {
+                clearInterval(this._lbRefreshTimer);
+                this._lbRefreshTimer = null;
+            }
+        }, 30_000);
     }
 
     _renderRebirth(container) {
@@ -1958,23 +2264,26 @@ class UIManager {
                     </div>
                 </div>
 
-                <div class="rb-info-grid">
-                    <div class="rb-info-col rb-loses">
-                        <div class="rb-info-head">❌ Resetado</div>
-                        <div class="rb-info-item">Neurônios</div>
-                        <div class="rb-info-item">Geradores</div>
-                        <div class="rb-info-item">Melhorias de base</div>
+                <div class="rb-section">
+                    <div class="rb-section-title">Estatísticas</div>
+                    <div class="rb-stats-grid">
+                        <div class="rb-stat-box" data-color="gold">
+                            <span class="rb-stat-label">🔄 Prestígios</span>
+                            <span class="rb-stat-val">${totalPrestiges}</span>
+                        </div>
+                        <div class="rb-stat-box" data-color="purple">
+                            <span class="rb-stat-label">📈 Multiplicador</span>
+                            <span class="rb-stat-val">${currentMult}×</span>
+                        </div>
+                        <div class="rb-stat-box" data-color="cyan">
+                            <span class="rb-stat-label">⚡ Neurônios atuais</span>
+                            <span class="rb-stat-val">${formatNum(totalNeurons)}</span>
+                        </div>
+                        <div class="rb-stat-box" style="--tc:${nextTheme.c1}">
+                            <span class="rb-stat-label">🎯 Próximo Tema</span>
+                            <span class="rb-stat-val" style="font-size:11px;color:var(--tc,var(--cyan))">${nextTheme.name}</span>
+                        </div>
                     </div>
-                    <div class="rb-info-col rb-keeps">
-                        <div class="rb-info-head">✅ Mantido</div>
-                        <div class="rb-info-item">Diamantes</div>
-                        <div class="rb-info-item">Nível e XP</div>
-                        <div class="rb-info-item">Conquistas</div>
-                    </div>
-                </div>
-
-                <div class="rb-next-theme" style="--tc:${nextTheme.c1}">
-                    Próximo tema: <strong>${nextTheme.name}</strong>
                 </div>
 
                 <button id="prestige-btn" class="rb-prestige-btn${canPrestige ? ' rb-btn-ready' : ''}" ${canPrestige ? '' : 'disabled'}>

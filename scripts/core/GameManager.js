@@ -81,7 +81,8 @@ class GameManager {
         });
         this.events.on('achievement', () => this.audio.achievement());
         this.events.on('missionComplete', () => this.audio.notification());
-        this.events.on('missionClaimed', () => this.audio.upgrade());
+        this.events.on('missionClaimed',  () => this.audio.upgrade());
+        this.events.on('missionsClaimed', () => this.audio.upgrade());
         this.events.on('comboUp', () => { if (this.combo.getLevel() >= 2) this.audio.notification(); });
         this.events.on('randomEvent', () => this.audio.event());
         this.events.on('boostAdded', () => {});
@@ -111,7 +112,6 @@ class GameManager {
         this.boosts.update();
         this.randomEvents.update();
         this.ui.update(dt);
-        this._aura.update(dt);
 
         this._autoSaveTimer += dt;
         if (this._autoSaveTimer >= Config.AUTOSAVE_INTERVAL / 1000) {
@@ -133,9 +133,7 @@ class GameManager {
         this.missions.updateFromStats(this.stats, this.economy, this.upgradeManager, this.combo);
         this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
 
-        // Progressive prestige aura — figure builds from the moment neurons accumulate
         const prestigeProgress = Math.min(1, this.economy.totalNeurons / this.economy.getPrestigeCost());
-        this._aura.setPrestigeProgress(prestigeProgress, this.economy.totalPrestiges);
         this._wasPrestigeReady = prestigeProgress >= 1;
     }
 
@@ -192,6 +190,14 @@ class GameManager {
         btn.classList.remove('click-anim', 'crit-anim');
         void btn.offsetWidth;
         btn.classList.add(isCrit ? 'crit-anim' : 'click-anim');
+
+        const orb = document.getElementById('prestige-char');
+        if (orb && orb.dataset.stage !== 'hidden') {
+            orb.classList.remove('click-sync');
+            void orb.offsetWidth;
+            orb.classList.add('click-sync');
+            orb.addEventListener('animationend', () => orb.classList.remove('click-sync'), { once: true });
+        }
     }
 
     buyGenerator(id) {
@@ -249,6 +255,13 @@ class GameManager {
         this._applyActiveSkin(id);
         const skin = (typeof PREMIUM_SKINS !== 'undefined') ? PREMIUM_SKINS.find(s => s.id === id) : null;
         this.notify(`🎨 Skin "${skin?.name}" equipada!`, 'info');
+        if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
+    }
+
+    resetSkin() {
+        this.account.setActiveSkin(null);
+        this._applyActiveSkin(null);
+        this.notify('🧠 Tema padrão ativado!', 'info');
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
@@ -341,12 +354,13 @@ class GameManager {
         const tokenMult = 1 + this.shop.getTokenBonus();
         const tokens    = this.economy.doPrestige(this.upgradeManager, tokenMult);
         if (tokens > 0) {
+            this._lbSyncAt = 0; // bypass debounce — prestige is an important milestone
+            this._syncLeaderboard();
             this.economy.neuronsPerSec = this.upgradeManager.getNPS();
             this._wasPrestigeReady = false;
 
-            // Visual impact: flash + particles + aura burst
+            // Visual impact: flash + particles
             this._triggerRebirthFlash();
-            this._aura.prestige(this.economy.totalPrestiges);
             const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
             this._particles.spawnBurst(cx, cy, '#7b2fff', 80);
             this._particles.spawnBurst(cx, cy, '#ffd700', 50);
@@ -391,6 +405,28 @@ class GameManager {
             audio: this.audio.getState(),
         };
         this.saveManager.save(state);
+        this._syncLeaderboard();
+    }
+
+    async _syncLeaderboard() {
+        if (!this.account.isLoggedIn() || this.account.isLocalOnly()) return;
+        if (window.location.protocol === 'file:') return;
+        const now = Date.now();
+        if (this._lbSyncAt && now - this._lbSyncAt < 60_000) return;
+        this._lbSyncAt = now;
+        try {
+            await fetch('api/leaderboard.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action:           'submit',
+                    lifetime_neurons: this.economy.lifetimeNeurons,
+                    level:            this.level.level,
+                    total_prestiges:  this.economy.totalPrestiges,
+                    vip:              this.account.isVip(),
+                }),
+            });
+        } catch { /* ignore network errors */ }
     }
 
     wipeSave() {

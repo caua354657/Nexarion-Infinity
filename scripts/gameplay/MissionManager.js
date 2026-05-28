@@ -179,7 +179,7 @@ class MissionManager {
         }
     }
 
-    claimMission(id) {
+    claimMission(id, silent = false) {
         if (!this.completed.has(id) || this.claims.has(id)) return false;
         
         const m = MISSIONS.find(x => x.id === id);
@@ -214,9 +214,43 @@ class MissionManager {
             if(m.type === 'earn_session') this._sessionEarn = 0;
         }
         
-        if (g.ui && g.ui._activePanel === 'missions') g.ui._renderPanelContent('missions');
+        if (!silent && g.ui && g.ui._activePanel === 'missions') g.ui._renderPanelContent('missions');
         
         return true;
+    }
+
+    claimAll(ids) {
+        const g = window.game;
+        let claimable = MISSIONS.filter(m => this.completed.has(m.id) && !this.claims.has(m.id));
+        if (ids) claimable = claimable.filter(m => ids.includes(m.id));
+        if (!claimable.length) return 0;
+
+        let totalNeurons = 0, totalXp = 0, totalTokens = 0;
+        const xpMult = (g.skills?.getXpMult?.() || 1) * (g.shop?.getXpMult?.() || 1);
+
+        claimable.forEach(m => {
+            this.claims.add(m.id);
+            if (m.reward) {
+                if (m.reward.neurons)     totalNeurons += m.reward.neurons;
+                if (m.reward.neurons_pct) totalNeurons += Math.floor(g.economy.neurons * m.reward.neurons_pct);
+                if (m.reward.xp)          totalXp     += m.reward.xp * xpMult;
+                if (m.reward.tokens)      totalTokens += m.reward.tokens;
+            }
+            if (m.repeatable && m.cooldown === 'custom') {
+                this._cooldowns[m.id] = Date.now() + (m.cooldownTime || 3600) * 1000;
+                this.completed.delete(m.id);
+                this.claims.delete(m.id);
+                this.progress[m.id] = { cur: 0, max: m.value, pct: 0 };
+                if (m.type === 'earn_session') this._sessionEarn = 0;
+            }
+        });
+
+        if (totalNeurons > 0) g.economy.addNeurons(totalNeurons);
+        if (totalXp > 0)      g.level.addXP(totalXp);
+        if (totalTokens > 0)  { g.economy.prestigeTokens += totalTokens; g.economy._updatePrestigeMult(); }
+
+        this._events.emit('missionsClaimed', { count: claimable.length });
+        return claimable.length;
     }
 
     getActiveTutorial() {

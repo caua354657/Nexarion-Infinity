@@ -1,0 +1,7 @@
+# Block PHP execution in uploads directory
+<FilesMatch "\.php$">
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes

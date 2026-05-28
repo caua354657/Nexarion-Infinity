@@ -10,7 +10,8 @@ class NotificationManager {
         events.on('achievement', a => this.show(`Conquista: ${a.name}`, 'achievement', a.icon));
         events.on('levelUp', d => this.show(`Subiu de Nível! Agora nível ${d.level}`, 'levelup', '⬆️'));
         events.on('missionComplete', m => this.show(`Missão concluída: ${m.name}`, 'mission', m.icon));
-        events.on('missionClaimed', m => this.show(`Recompensas resgatadas: ${m.name}`, 'gold', '💎'));
+        events.on('missionClaimed',  m => this.show(`Recompensas resgatadas: ${m.name}`, 'gold', '💎'));
+        events.on('missionsClaimed', d => this.show(`${d.count} missão${d.count > 1 ? 'ões' : ''} resgatada${d.count > 1 ? 's' : ''}!`, 'gold', '💎'));
         events.on('randomEvent', e => this.show(e.name + ' — ' + e.desc.split('!')[0] + '!', 'event', e.icon));
         events.on('comboUp', d => { if (d.level >= 2) this.show(`Combo ×${d.mult}!`, 'combo', '🔥'); });
     }

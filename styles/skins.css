@@ -173,11 +173,6 @@ body[data-skin="christmas"] .pshop-section-header { border-bottom-color:rgba(220
 body[data-skin="christmas"] #prestige-btn:not(:disabled) { border-color:#dc143c; color:#dc143c; box-shadow:0 0 16px rgba(220,20,60,0.35); }
 body[data-skin="christmas"] #xp-bar { background:linear-gradient(90deg,#dc143c,#228b22,#f0c000); }
 
-/* ── Prestige character skin tint ── */
-body[data-skin="christmas"] #prestige-char {
-    text-shadow: 0 0 20px rgba(220,20,60,0.8), 0 0 40px rgba(34,139,34,0.5);
-    filter: drop-shadow(0 0 16px #dc143c) drop-shadow(0 0 8px #228b22);
-}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -364,9 +359,6 @@ body[data-skin="halloween"] .pshop-section-header { border-bottom-color:rgba(255
 body[data-skin="halloween"] #prestige-btn:not(:disabled) { border-color:#ff6400; color:#ff6400; box-shadow:0 0 18px rgba(255,100,0,0.40); }
 body[data-skin="halloween"] #xp-bar { background:linear-gradient(90deg,#ff6400,#9b30ff,#ff00dd); }
 
-body[data-skin="halloween"] #prestige-char {
-    filter: drop-shadow(0 0 18px #ff6400) drop-shadow(0 0 8px #9b30ff);
-}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -551,9 +543,6 @@ body[data-skin="newyear"] #xp-bar { background:linear-gradient(90deg,#ffd700,#ff
     100% { background-position: -200% 0; }
 }
 
-body[data-skin="newyear"] #prestige-char {
-    filter: drop-shadow(0 0 20px #ffd700) drop-shadow(0 0 8px #ffffff);
-}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -741,16 +730,6 @@ body[data-skin="cyberpunk"] #xp-bar { background:linear-gradient(90deg,#ff0080,#
     100% { background-position: -200% 0; }
 }
 
-body[data-skin="cyberpunk"] #prestige-char {
-    filter: drop-shadow(0 0 20px #ff0080) drop-shadow(0 0 10px #00f5ff);
-    animation: cyber-char-glitch 4s ease-in-out infinite;
-}
-@keyframes cyber-char-glitch {
-    0%,88%,100% { filter: drop-shadow(0 0 20px #ff0080) drop-shadow(0 0 10px #00f5ff); transform: translateY(-50%) scale(var(--pc-s,1)); }
-    90% { filter: drop-shadow(2px 0 0 #ff0080) drop-shadow(-2px 0 0 #00f5ff); transform: translateY(-50%) scale(var(--pc-s,1)) translateX(2px); }
-    92% { filter: drop-shadow(-2px 0 0 #ff0080) drop-shadow(2px 0 0 #00f5ff); transform: translateY(-50%) scale(var(--pc-s,1)) translateX(-2px); }
-    94% { filter: drop-shadow(0 0 20px #ff0080) drop-shadow(0 0 10px #00f5ff); transform: translateY(-50%) scale(var(--pc-s,1)); }
-}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -945,72 +924,27 @@ body[data-skin="pixelneon"] #xp-bar { background:linear-gradient(90deg,#00ff88,#
     100% { background-position: -200% 0; }
 }
 
+
+
+/* ── Skin-specific prestige orb colors ──────────────────────────────────── */
+body[data-skin="christmas"] #prestige-char {
+    --pc-color:  #dc143c;
+    --pc-color2: #228b22;
+}
+body[data-skin="halloween"] #prestige-char {
+    --pc-color:  #ff6600;
+    --pc-color2: #8800cc;
+}
+body[data-skin="newyear"] #prestige-char {
+    --pc-color:  #ffd700;
+    --pc-color2: #00bfff;
+}
+body[data-skin="cyberpunk"] #prestige-char {
+    --pc-color:  #ff007f;
+    --pc-color2: #00f5ff;
+}
 body[data-skin="pixelneon"] #prestige-char {
-    filter: drop-shadow(0 0 20px #00ff88) drop-shadow(0 0 8px #ff00ff);
+    --pc-color:  #00ff88;
+    --pc-color2: #ff00ff;
     image-rendering: pixelated;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   ✦  PRESTIGE CHARACTER — Improved build animation & aura rings
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Pulsing ring around the building character */
-#prestige-char::before {
-    content: '';
-    position: absolute;
-    inset: -18px;
-    border-radius: 50%;
-    border: 2px solid var(--pc-color, #ffd700);
-    opacity: 0;
-    transform: scale(0.6);
-    transition: opacity 0.7s ease, transform 0.7s ease;
-    pointer-events: none;
-}
-
-/* Outer diffuse ring */
-#prestige-char::after {
-    content: '';
-    position: absolute;
-    inset: -34px;
-    border-radius: 50%;
-    border: 1px solid var(--pc-color, #ffd700);
-    opacity: 0;
-    transform: scale(0.5);
-    transition: opacity 0.8s ease, transform 0.8s ease;
-    pointer-events: none;
-}
-
-/* Stage: inner ring appears at f3 */
-#prestige-char[data-stage="f3"]::before,
-#prestige-char[data-stage="f4"]::before,
-#prestige-char[data-stage="ready"]::before {
-    opacity: 0.45;
-    transform: scale(1);
-}
-
-/* Stage: outer ring appears at f4 */
-#prestige-char[data-stage="f4"]::after,
-#prestige-char[data-stage="ready"]::after {
-    opacity: 0.25;
-    transform: scale(1);
-}
-
-/* Stage: ready — full radiant animation */
-#prestige-char[data-stage="ready"]::before {
-    opacity: 0.75;
-    animation: pc-inner-ring 1.8s ease-in-out infinite;
-}
-#prestige-char[data-stage="ready"]::after {
-    opacity: 0.40;
-    animation: pc-outer-ring 1.8s ease-in-out infinite 0.4s;
-}
-
-@keyframes pc-inner-ring {
-    0%,100% { transform: scale(1);    opacity: 0.75; box-shadow: 0 0 12px var(--pc-color, #ffd700); }
-    50%     { transform: scale(1.14); opacity: 0.35; box-shadow: 0 0 24px var(--pc-color, #ffd700); }
-}
-@keyframes pc-outer-ring {
-    0%,100% { transform: scale(1);    opacity: 0.40; box-shadow: 0 0 8px var(--pc-color, #ffd700); }
-    50%     { transform: scale(1.18); opacity: 0.12; box-shadow: 0 0 20px var(--pc-color, #ffd700); }
 }
