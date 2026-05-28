@@ -87,8 +87,9 @@ class GameManager {
         this.events.on('comboUp', () => { if (this.combo.getLevel() >= 2) this.audio.notification(); });
         this.events.on('randomEvent',   () => this.audio.event());
         this.events.on('boostAdded',    () => {});
+        this.events.on('bossSpawned',   () => this.audio.levelUp?.());
         this.events.on('bossDefeated',  () => this.audio.achievement());
-        this.events.on('bossHit',       () => this.audio.click?.());
+        this.events.on('bossHit',       () => {});
     }
 
     _loop(timestamp) {

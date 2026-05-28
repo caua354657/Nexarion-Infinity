@@ -814,185 +814,302 @@ input[type=range]::-webkit-slider-thumb {
 }
 .mca-btn:active { transform: translateY(0); }
 
-/* ── Boss Battle ── */
-.boss-panel { display: flex; flex-direction: column; gap: 14px; padding-bottom: 16px; }
-.boss-loading { text-align: center; padding: 60px 0; color: var(--text-dim); font-size: 15px; }
-
-.boss-header { text-align: center; }
-.boss-title-row {
-    display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
-    margin-bottom: 4px;
+/* ═══════════════════════════════════════════════════════════
+   BOSS NOTIFICATION
+═══════════════════════════════════════════════════════════ */
+#boss-notification {
+    position: fixed;
+    bottom: -200px;                                 /* starts hidden below screen */
+    left: 50%; transform: translateX(-50%);
+    width: min(460px, 92vw);
+    background: linear-gradient(135deg, rgba(6,4,20,0.97), rgba(10,5,25,0.97));
+    border: 1px solid var(--bn-color, #ff0080);
+    border-radius: 18px;
+    box-shadow: 0 0 40px var(--bn-color, #ff0080), 0 0 0 1px rgba(255,255,255,0.05), 0 20px 60px rgba(0,0,0,0.8);
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: nowrap;
+    z-index: 850;
+    transition: bottom 0.55s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none; opacity: 0;
 }
-.boss-name {
-    font-family: 'Orbitron', monospace; font-size: 17px; font-weight: 800;
-    letter-spacing: 1px; text-shadow: 0 0 16px currentColor;
+#boss-notification.show {
+    bottom: 90px;
+    pointer-events: all; opacity: 1;
+    animation: bn-glow-pulse 2s ease-in-out infinite;
 }
-.boss-rarity-badge {
+@keyframes bn-glow-pulse {
+    0%,100% { box-shadow: 0 0 30px var(--bn-color,#ff0080), 0 20px 60px rgba(0,0,0,0.8); }
+    50%      { box-shadow: 0 0 55px var(--bn-color,#ff0080), 0 20px 60px rgba(0,0,0,0.8); }
+}
+.bn-pulse {
+    position: absolute; inset: -1px; border-radius: 18px; pointer-events: none;
+    border: 1px solid var(--bn-color,#ff0080); opacity: 0.5;
+    animation: bn-ripple 1.8s ease-out infinite;
+}
+@keyframes bn-ripple {
+    0%   { transform: scale(1);    opacity: 0.5; }
+    100% { transform: scale(1.06); opacity: 0; }
+}
+.bn-icon { font-size: 52px; flex-shrink: 0; animation: bn-float 2s ease-in-out infinite; }
+@keyframes bn-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.bn-body { flex: 1; min-width: 0; }
+.bn-alert {
     font-family: 'Orbitron', monospace; font-size: 9px; font-weight: 700;
-    color: var(--rc, #00f5ff); border: 1px solid var(--rc, #00f5ff);
-    border-radius: 4px; padding: 2px 6px; letter-spacing: 1px; opacity: 0.85;
+    color: rgba(255,200,50,0.9); letter-spacing: 2px; margin-bottom: 3px;
+    animation: bn-alert-blink 1s ease-in-out infinite;
 }
-.boss-level-badge {
-    font-size: 10px; color: var(--text-dim); font-family: 'Orbitron', monospace;
-    background: rgba(255,255,255,0.05); border-radius: 4px; padding: 2px 6px;
+@keyframes bn-alert-blink { 0%,100%{opacity:1} 50%{opacity:0.55} }
+.bn-name {
+    font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 800;
+    color: var(--bn-color,#ff0080); text-shadow: 0 0 12px var(--bn-color,#ff0080);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.boss-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.bn-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.bn-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.bn-battle-btn {
+    padding: 10px 18px;
+    background: linear-gradient(135deg, var(--bn-color,#ff0080), rgba(255,0,128,0.6));
+    border: 1px solid var(--bn-color,#ff0080); border-radius: 10px;
+    color: #fff; font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; cursor: pointer; white-space: nowrap;
+    transition: all 0.15s; text-shadow: none;
+}
+.bn-battle-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.bn-battle-btn:active { transform: scale(0.97); }
+.bn-close-btn {
+    padding: 10px 12px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    color: var(--text-dim); font-size: 14px; cursor: pointer;
+    transition: background 0.15s;
+}
+.bn-close-btn:hover { background: rgba(255,255,255,0.12); }
 
-/* HP Bar */
-.boss-hp-bar-track {
-    height: 14px; border-radius: 7px;
-    background: rgba(255,255,255,0.06);
+/* ═══════════════════════════════════════════════════════════
+   BOSS WORLD (full-screen overlay)
+═══════════════════════════════════════════════════════════ */
+#boss-world {
+    position: fixed; inset: 0; z-index: 900;
+    display: none; flex-direction: column; align-items: center;
+    overflow-y: auto; overflow-x: hidden;
+    --world-color: #00f5ff; --world-color2: #ff0080; --world-dark: #000814;
+}
+#boss-world.open {
+    display: flex;
+    animation: bw-fade-in 0.4s ease;
+}
+@keyframes bw-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Boss type themes */
+#boss-world[data-type="cyber_boss"]     { --world-color:#00f5ff; --world-color2:#ff0080; --world-dark:#000a14; }
+#boss-world[data-type="glitch_entity"]  { --world-color:#00ff88; --world-color2:#ffff00; --world-dark:#00100a; }
+#boss-world[data-type="neural_titan"]   { --world-color:#9b30ff; --world-color2:#ff66ff; --world-dark:#08001a; }
+#boss-world[data-type="circuit_phantom"]{ --world-color:#ff6400; --world-color2:#ff0000; --world-dark:#100400; }
+#boss-world[data-type="data_colossus"]  { --world-color:#ffd700; --world-color2:#ff8c00; --world-dark:#100a00; }
+
+/* Animated background */
+#boss-world::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(ellipse at 50% 30%, var(--world-color) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 80%, var(--world-color2) 0%, transparent 45%),
+        linear-gradient(180deg, var(--world-dark) 0%, #000006 100%);
+    opacity: 0.15;
+}
+#boss-world::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg, transparent 0px, transparent 3px,
+        rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+    );
+}
+#bw-scanlines {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, var(--world-dark) 100%);
+    opacity: 0.55;
+}
+
+/* Floating particles */
+#bw-particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.bw-particle {
+    position: absolute; border-radius: 50%;
+    background: var(--world-color);
+    animation: bw-rise linear infinite;
+}
+@keyframes bw-rise {
+    0%   { opacity: 0;   transform: translateY(100vh) scale(0); }
+    8%   { opacity: 0.7; transform: translateY(85vh)  scale(1); }
+    92%  { opacity: 0.3; transform: translateY(5vh)   scale(0.6); }
+    100% { opacity: 0;   transform: translateY(-5vh)  scale(0); }
+}
+
+/* Content container */
+#bw-content {
+    position: relative; z-index: 2;
+    width: 100%; max-width: 520px;
+    padding: 72px 16px 32px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 16px;
+}
+
+/* Exit button */
+.bw-exit-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 10;
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+    color: var(--text-dim); font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s;
+}
+.bw-exit-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+/* World loading */
+.bw-loading { text-align: center; padding: 80px 0; color: var(--text-dim); font-size: 15px; }
+
+/* ── Header ── */
+.bw-header { display: flex; flex-direction: column; gap: 8px; }
+.bw-title-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.bw-boss-name {
+    font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 800;
+    letter-spacing: 1px;
+}
+.bw-rarity {
+    font-family: 'Orbitron', monospace; font-size: 9px; font-weight: 700;
+    border: 1px solid; border-radius: 4px; padding: 3px 8px; letter-spacing: 1px;
+}
+.bw-level {
+    font-family: 'Orbitron', monospace; font-size: 11px; color: var(--text-dim);
+    background: rgba(255,255,255,0.06); border-radius: 4px; padding: 3px 8px;
+}
+.bw-hp-row {
+    display: flex; align-items: center; gap: 10px;
+}
+.bw-hp-track {
+    flex: 1; height: 18px; border-radius: 9px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1); overflow: hidden;
+}
+.bw-hp-fill {
+    height: 100%; border-radius: 9px; background: var(--world-color);
+    transition: width 0.5s ease, background 0.4s;
+}
+.bw-hp-text { font-size: 11px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+.bw-timer-row {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+}
+.bw-timer {
+    font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 800;
+    letter-spacing: 2px;
+}
+.bw-timer--dead { color: var(--text-dim) !important; }
+.bw-my-dmg, .bw-login-hint { font-size: 12px; color: var(--text-dim); }
+.bw-login-hint { color: rgba(255,180,50,0.8); }
+
+/* ── Arena ── */
+.bw-arena {
+    position: relative; min-height: 240px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 20px;
     border: 1px solid rgba(255,255,255,0.08);
-    overflow: hidden;
-}
-.boss-hp-bar-fill {
-    height: 100%; border-radius: 7px; background: #00ff88;
-    transition: width 0.6s ease, background 0.4s;
-}
-.boss-hp-label {
-    display: flex; justify-content: space-between;
-    font-size: 11px; color: var(--text-dim);
-}
-
-/* Arena — the main click target */
-.boss-arena {
-    position: relative;
-    min-height: 200px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.07);
-    background: rgba(0,0,10,0.6);
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
     cursor: pointer; user-select: none; overflow: hidden;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, transform 0.1s;
 }
-.boss-arena:hover { border-color: rgba(255,255,255,0.14); }
-.boss-arena:active { transform: scale(0.99); }
-.boss-arena-bg {
+.bw-arena:hover  { border-color: rgba(255,255,255,0.18); }
+.bw-arena:active { transform: scale(0.99); }
+.bw-arena-glow {
     position: absolute; inset: 0; pointer-events: none;
-    animation: boss-glow-pulse 2.4s ease-in-out infinite;
+    background: radial-gradient(ellipse at center, var(--glow, rgba(0,245,255,0.15)) 0%, transparent 65%);
+    animation: bw-glow-pulse 2.5s ease-in-out infinite;
 }
-@keyframes boss-glow-pulse {
-    0%,100% { opacity: 0.5; transform: scale(0.95); }
-    50%      { opacity: 1;   transform: scale(1.05); }
+@keyframes bw-glow-pulse { 0%,100%{opacity:.5;transform:scale(.95)} 50%{opacity:1;transform:scale(1.05)} }
+.bw-arena--dead { cursor: default; }
+.bw-boss-icon {
+    font-size: 110px; line-height: 1; pointer-events: none;
+    animation: bw-boss-float 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 28px var(--world-color));
 }
-.boss-arena--dead { cursor: default; opacity: 0.6; }
-.boss-arena-hint {
-    font-family: 'Orbitron', monospace; font-size: 9px;
-    color: rgba(255,255,255,0.25); letter-spacing: 2px;
-    margin-top: 8px; pointer-events: none;
-    animation: hint-blink 2s ease-in-out infinite;
+@keyframes bw-boss-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.bw-boss-icon--hit { animation: bw-hit-shake 0.28s ease forwards !important; }
+@keyframes bw-hit-shake {
+    0%  { transform:scale(1); }
+    25% { transform:translateX(-9px) scale(1.12); }
+    50% { transform:translateX(9px)  scale(0.92); }
+    75% { transform:translateX(-5px) scale(1.05); }
+    100%{ transform:scale(1); }
 }
-@keyframes hint-blink { 0%,100%{opacity:.25} 50%{opacity:.6} }
-.boss-defeated-overlay {
+.bw-arena--dead .bw-boss-icon { filter: grayscale(1) opacity(0.35); animation: none; }
+.bw-arena-hint {
+    font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 2.5px;
+    color: rgba(255,255,255,0.25); margin-top: 10px; pointer-events: none;
+    animation: bw-hint-blink 2s ease-in-out infinite;
+}
+@keyframes bw-hint-blink { 0%,100%{opacity:.25} 50%{opacity:.65} }
+.bw-defeated-label {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 800;
-    color: rgba(255,255,255,0.35); letter-spacing: 3px;
-    background: rgba(0,0,0,0.45); pointer-events: none;
+    font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 800;
+    color: rgba(255,255,255,0.3); letter-spacing: 4px;
+    background: rgba(0,0,0,0.5); pointer-events: none;
 }
 
-/* Boss icon inside arena */
-.boss-icon {
-    font-size: 90px; line-height: 1; display: inline-block; pointer-events: none;
-    animation: boss-float 3s ease-in-out infinite;
-    filter: drop-shadow(0 0 22px var(--glow, rgba(0,245,255,0.55)));
+/* Hit particles */
+.bw-hit-fx {
+    position: absolute; font-size: 26px; pointer-events: none; z-index: 10;
+    animation: bw-hit-fly 0.7s ease-out forwards;
 }
-@keyframes boss-float {
-    0%,100% { transform: translateY(0); }
-    50%      { transform: translateY(-10px); }
-}
-.boss-icon--hit { animation: boss-hit-shake 0.28s ease !important; }
-@keyframes boss-hit-shake {
-    0%  { transform: scale(1); }
-    25% { transform: translateX(-7px) scale(1.1); }
-    50% { transform: translateX(7px) scale(0.93); }
-    75% { transform: translateX(-4px) scale(1.04); }
-    100%{ transform: scale(1); }
-}
-.boss-arena--dead .boss-icon { filter: grayscale(1) opacity(0.4); animation: none; }
-
-/* Hit particles + damage numbers */
-.boss-hit-fx {
-    position: absolute; font-size: 22px; pointer-events: none;
-    animation: boss-hit-fly 0.7s ease-out forwards; z-index: 10;
-}
-@keyframes boss-hit-fly {
-    0%   { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(-55px) scale(1.5); }
-}
-.boss-dmg-num {
+@keyframes bw-hit-fly { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-60px) scale(1.5)} }
+.bw-dmg-num {
     position: absolute; pointer-events: none; z-index: 11;
-    font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 800;
-    color: #ff4444; text-shadow: 0 0 8px #ff444488;
-    animation: boss-dmg-rise 0.9s ease-out forwards;
+    font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 800;
+    color: #ff4444; text-shadow: 0 0 10px #ff444488;
+    animation: bw-dmg-rise 0.9s ease-out forwards;
 }
-@keyframes boss-dmg-rise {
-    0%   { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(-65px) scale(0.8); }
+@keyframes bw-dmg-rise { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-70px) scale(0.75)} }
+
+/* ── Rewards row ── */
+.bw-rewards-row {
+    display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    background: rgba(255,215,0,0.04); border: 1px solid rgba(255,215,0,0.12);
+    border-radius: 10px; padding: 9px 14px;
 }
 
-/* Meta row */
-.boss-meta-row {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 11px; color: var(--text-dim); flex-wrap: wrap; gap: 6px;
-}
-.boss-meta-row strong { color: var(--text); }
-.boss-timer {
-    font-family: 'Orbitron', monospace; font-size: 12px;
-    color: var(--cyan); font-weight: 700;
-}
-.boss-timer--dead { color: var(--text-dim); }
-
-/* Login message */
-.boss-login-msg {
-    font-size: 11px; color: rgba(255,180,50,0.8);
-    background: rgba(255,180,50,0.06); border: 1px solid rgba(255,180,50,0.15);
-    border-radius: 8px; padding: 7px 12px; text-align: center;
-}
-
-/* Rewards hint */
-.boss-rewards-hint {
-    display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;
-    font-size: 10px; color: var(--text-dim);
-    background: rgba(255,215,0,0.04); border: 1px solid rgba(255,215,0,0.1);
-    border-radius: 8px; padding: 7px 10px;
-}
-.boss-rewards-hint span { white-space: nowrap; }
-
-/* Top damage */
-.boss-top-section { display: flex; flex-direction: column; gap: 6px; }
-.boss-top-title {
+/* ── Top damage ── */
+.bw-top-section { display: flex; flex-direction: column; gap: 7px; }
+.bw-top-title {
     font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700;
-    color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase;
-    border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;
+    letter-spacing: 2px; text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 7px;
 }
-.boss-top-row {
-    display: flex; align-items: center; gap: 7px;
-    padding: 5px 8px; border-radius: 8px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid transparent; transition: background 0.15s;
+.bw-top-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid transparent;
+    transition: background 0.15s;
 }
-.boss-top-row--me {
-    background: rgba(0,245,255,0.07);
-    border-color: rgba(0,245,255,0.2);
+.bw-top-row--me {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
 }
-.boss-top-medal { font-size: 14px; flex-shrink: 0; width: 22px; text-align: center; }
-.boss-top-avatar {
-    width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.1);
+.bw-top-medal { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
+.bw-top-avatar {
+    width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.12);
 }
-.boss-top-name { font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.boss-top-bar-wrap { width: 60px; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
-.boss-top-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
-.boss-top-dmg { font-size: 11px; color: var(--text-dim); flex-shrink: 0; font-family: 'Orbitron', monospace; }
-.boss-top-empty { font-size: 11px; color: var(--text-dim); text-align: center; padding: 12px 0; }
+.bw-top-name  { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-top-bar-wrap { width: 70px; height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.bw-top-bar   { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.bw-top-dmg   { font-size: 11px; flex-shrink: 0; font-family: 'Orbitron', monospace; }
+.bw-top-empty { font-size: 12px; color: var(--text-dim); text-align: center; padding: 14px 0; }
 
-/* No boss state */
-.boss-no-boss { text-align: center; padding: 60px 16px; }
-.boss-no-boss-icon { font-size: 60px; margin-bottom: 12px; opacity: 0.3; }
-.boss-no-boss-title { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text-dim); margin-bottom: 6px; }
-.boss-no-boss-sub { font-size: 12px; color: rgba(255,255,255,0.2); }
+/* No boss */
+.bw-no-boss       { text-align: center; padding: 80px 16px; }
+.bw-no-boss-icon  { font-size: 70px; margin-bottom: 14px; opacity: 0.25; }
+.bw-no-boss-title { font-family: 'Orbitron', monospace; font-size: 15px; color: var(--text-dim); margin-bottom: 8px; }
+.bw-no-boss-sub   { font-size: 12px; color: rgba(255,255,255,0.2); }
 
 /* ── Notification Center ── */
 #notification-center {

@@ -78,7 +78,6 @@
 <div id="sidebar">
     <button class="sidebar-btn" data-panel="neural"  title="Progressão Neural">⚡</button>
     <button class="sidebar-btn" data-panel="agenda"  title="Missões & Conquistas">📋</button>
-    <button class="sidebar-btn" data-panel="boss"    title="Batalhas">⚔️</button>
     <button class="sidebar-btn" data-panel="shop"    title="Loja Neural">🛒</button>
     <button class="sidebar-btn" data-panel="conta"   title="Conta">👤</button>
 </div>
@@ -87,7 +86,6 @@
 <div id="mobile-nav">
     <button class="mobile-nav-btn" data-panel="neural"  title="Progressão Neural">⚡</button>
     <button class="mobile-nav-btn" data-panel="agenda"  title="Missões">📋</button>
-    <button class="mobile-nav-btn" data-panel="boss"    title="Batalhas">⚔️</button>
     <button class="mobile-nav-btn" data-panel="shop"    title="Loja">🛒</button>
     <button class="mobile-nav-btn" data-panel="conta"   title="Conta">👤</button>
 </div>
@@ -189,6 +187,29 @@
             <button id="pc-confirm">Renascer Agora</button>
         </div>
     </div>
+</div>
+
+<!-- ── Boss Notification ── -->
+<div id="boss-notification">
+    <div class="bn-pulse"></div>
+    <div class="bn-icon" id="bn-icon">👾</div>
+    <div class="bn-body">
+        <div class="bn-alert">⚠ UM NOVO BOSS APARECEU!</div>
+        <div class="bn-name" id="bn-name">Glitch Entity</div>
+        <div class="bn-sub" id="bn-sub">RARO · Lv. 1</div>
+    </div>
+    <div class="bn-actions">
+        <button class="bn-battle-btn" id="bn-battle">⚔ Ir para Batalha</button>
+        <button class="bn-close-btn" id="bn-close">✕</button>
+    </div>
+</div>
+
+<!-- ── Boss World (full-screen overlay) ── -->
+<div id="boss-world">
+    <div id="bw-particles"></div>
+    <div id="bw-scanlines"></div>
+    <div id="bw-content"></div>
+    <button class="bw-exit-btn" id="bw-exit">✕ Sair da Batalha</button>
 </div>
 
 <!-- Modal de confirmação de Excluir Conta -->

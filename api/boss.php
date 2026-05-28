@@ -61,12 +61,13 @@ function getActiveBoss(PDO $pdo): ?array {
 }
 
 function spawnBoss(PDO $pdo): array {
+    // All bosses last 5 min (300s) — feel like world events that come and go fast
     $pool = [
-        ['type'=>'cyber_boss',      'rarity'=>'rare',      'dur'=>1800],
-        ['type'=>'glitch_entity',   'rarity'=>'rare',      'dur'=>1800],
-        ['type'=>'neural_titan',    'rarity'=>'epic',      'dur'=>3600],
-        ['type'=>'circuit_phantom', 'rarity'=>'epic',      'dur'=>3600],
-        ['type'=>'data_colossus',   'rarity'=>'legendary', 'dur'=>7200],
+        ['type'=>'cyber_boss',      'rarity'=>'rare',      'dur'=>300],
+        ['type'=>'glitch_entity',   'rarity'=>'rare',      'dur'=>300],
+        ['type'=>'neural_titan',    'rarity'=>'epic',      'dur'=>420],
+        ['type'=>'circuit_phantom', 'rarity'=>'epic',      'dur'=>420],
+        ['type'=>'data_colossus',   'rarity'=>'legendary', 'dur'=>600],
     ];
     $t = $pool[array_rand($pool)];
 
@@ -145,16 +146,21 @@ case 'state': {
         $pdo  = db();
         $boss = getActiveBoss($pdo);
 
-        // Auto-spawn with cooldown
+        // Auto-spawn: 60s cooldown between bosses → new boss ~every 5 min
         if (!$boss) {
             $r    = $pdo->query("SELECT MAX(COALESCE(defeated_at,ends_at)) AS last FROM bosses")->fetch();
             $last = $r['last'] ? strtotime($r['last']) : 0;
-            if (time() - $last >= 180) {           // 3-minute cooldown
+            if (time() - $last >= 60) {
                 $boss = spawnBoss($pdo);
             }
         }
 
-        if (!$boss) out(['ok' => true, 'boss' => null, 'cooldown' => 180]);
+        if (!$boss) {
+            $r    = $pdo->query("SELECT MAX(COALESCE(defeated_at,ends_at)) AS last FROM bosses")->fetch();
+            $last = $r && $r['last'] ? strtotime($r['last']) : time();
+            $wait = max(0, 60 - (time() - $last));
+            out(['ok' => true, 'boss' => null, 'cooldown' => $wait]);
+        }
 
         $bossId = (int)$boss['id'];
 
