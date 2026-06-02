@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050510;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    user-select: none;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .logo { font-size: 52px; margin-bottom: 12px; }
+  .title { font-size: 22px; font-weight: 700; color: #00f5ff; letter-spacing: 4px; }
+  .sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; letter-spacing: 2px; }
+  .loader {
+    margin-top: 32px;
+    width: 180px; height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .loader-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00f5ff, #7b2fff);
+    animation: load 2.5s ease-in-out infinite;
+    border-radius: 2px;
+  }
+  @keyframes load {
+    0%   { width: 0%; margin-left: 0; }
+    50%  { width: 70%; margin-left: 30%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+  .status { margin-top: 16px; font-size: 11px; color: rgba(255,255,255,0.4); }
+  .error-box {
+    display: none;
+    margin-top: 20px;
+    background: rgba(255,0,80,0.1);
+    border: 1px solid rgba(255,0,80,0.3);
+    border-radius: 8px;
+    padding: 14px 20px;
+    max-width: 340px;
+    text-align: center;
+  }
+  .error-box p { font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.6; }
+  .error-box strong { color: #ff5080; }
+  .retry-btn {
+    margin-top: 12px;
+    padding: 6px 20px;
+    background: rgba(0,245,255,0.1);
+    border: 1px solid rgba(0,245,255,0.3);
+    border-radius: 6px;
+    color: #00f5ff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .retry-btn:hover { background: rgba(0,245,255,0.2); }
+</style>
+</head>
+<body>
+  <div class="logo">🧠</div>
+  <div class="title">Nexarion Infinity</div>
+  <div class="sub">CLICKER NEURAL</div>
+  <div class="loader"><div class="loader-bar"></div></div>
+  <div class="status" id="status">Iniciando...</div>
+  <div class="error-box" id="error-box">
+    <p><strong>Servidor local não encontrado.</strong><br>
+    Inicie o <strong>XAMPP</strong> e certifique-se que o Apache e MySQL estão rodando, depois tente novamente.</p>
+    <button class="retry-btn" onclick="location.reload()">⟳ Tentar novamente</button>
+  </div>
+  <script>
+    function showError() {
+      document.getElementById('status').style.display = 'none';
+      document.querySelector('.loader').style.display = 'none';
+      document.getElementById('error-box').style.display = 'block';
+    }
+    function showFolderError() {
+      document.getElementById('status').style.display = 'none';
+      document.querySelector('.loader').style.display = 'none';
+      const box = document.getElementById('error-box');
+      box.innerHTML = '<p><strong>Pasta do jogo não encontrada.</strong><br>Verifique se o jogo está instalado em <strong>C:\\xampp\\htdocs\\</strong> e que o XAMPP está rodando.</p><button class="retry-btn" onclick="location.reload()">⟳ Tentar novamente</button>';
+      box.style.display = 'block';
+    }
+    const msgs = ['Carregando recursos...', 'Conectando ao servidor...', 'Inicializando jogo...'];
+    let i = 0;
+    setInterval(() => {
+      const el = document.getElementById('status');
+      if (el) el.textContent = msgs[i++ % msgs.length];
+    }, 900);
+  </script>
+</body>
+</html>

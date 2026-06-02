@@ -17,6 +17,9 @@ desktop.ini
 # Node (just in case)
 node_modules/
 
+# Build artifacts
+downloads/
+
 # User-uploaded photos (keep .htaccess and padrao.png)
 foto/*.jpg
 foto/*.jpeg

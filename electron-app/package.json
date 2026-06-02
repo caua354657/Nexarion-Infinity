@@ -1,0 +1,38 @@
+{
+  "name": "nexarion-infinity",
+  "version": "1.0.0",
+  "description": "Nexarion Infinity — Clicker Neural",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.nexuscore.game",
+    "productName": "Nexarion Infinity",
+    "win": {
+      "target": "portable",
+      "signDlls": false,
+      "sign": null,
+      "certificateSubjectName": null,
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "nexuscore-setup.exe"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html"
+    ],
+    "extraResources": [],
+    "directories": {
+      "output": "../downloads"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  }
+}

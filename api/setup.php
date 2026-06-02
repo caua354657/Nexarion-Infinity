@@ -2,7 +2,7 @@
 /**
  * Nexarion Infinity — Database setup.
  * Run once (or anytime) to create / verify all tables.
- * Access: http://localhost/Clicker%20Simulator/api/setup.php
+ * Access: http://localhost/<nome-da-pasta>/api/setup.php
  */
 
 header('Content-Type: application/json; charset=utf-8');
