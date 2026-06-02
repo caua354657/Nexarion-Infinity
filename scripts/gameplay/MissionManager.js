@@ -28,6 +28,31 @@ class MissionManager {
 
         // Timed missions
         this._timedActive = {}; // { id: startTime }
+
+        // Performance caches (built lazily from static MISSIONS array)
+        this._missionMap  = null; // Map<id, mission> for O(1) lookup
+        this._chainCache  = null; // Map<chainId, sorted mission[]> for O(n) getActiveMissions
+    }
+
+    _getMission(id) {
+        if (!this._missionMap) {
+            this._missionMap = new Map();
+            MISSIONS.forEach(m => this._missionMap.set(m.id, m));
+        }
+        return this._missionMap.get(id);
+    }
+
+    _getChainMissions(chainId) {
+        if (!this._chainCache) {
+            this._chainCache = new Map();
+            MISSIONS.forEach(m => {
+                if (!m.chain) return;
+                if (!this._chainCache.has(m.chain)) this._chainCache.set(m.chain, []);
+                this._chainCache.get(m.chain).push(m);
+            });
+            this._chainCache.forEach(arr => arr.sort((a, b) => a.order - b.order));
+        }
+        return this._chainCache.get(chainId) || [];
     }
 
     _today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
@@ -73,9 +98,13 @@ class MissionManager {
     onClick() {
         this._dailyClicksToday++;
         this._weeklyClicks++;
+        if (Object.keys(this._timedActive).length === 0) return;
+        const now = Date.now();
         for (const id in this._timedActive) {
-            if (Date.now() - this._timedActive[id] < MISSIONS.find(m=>m.id===id).timeLimit * 1000) {
-                if(!this.progress[id]) this.progress[id] = {cur:0, max: MISSIONS.find(m=>m.id===id).value, pct:0};
+            const m = this._getMission(id);
+            if (!m) continue;
+            if (now - this._timedActive[id] < m.timeLimit * 1000) {
+                if (!this.progress[id]) this.progress[id] = { cur: 0, max: m.value, pct: 0 };
                 this.progress[id].cur++;
             }
         }
@@ -259,25 +288,23 @@ class MissionManager {
     }
 
     getActiveMissions() {
-        // Return missions that are not claimed, and if repeatable, not on cooldown
+        const now = Date.now();
         return MISSIONS.filter(m => {
             if (this.claims.has(m.id)) return false;
-            if (m.cooldown === 'custom' && this._cooldowns[m.id] && Date.now() < this._cooldowns[m.id]) return false;
-            
-            // Limit story/milestones to the first uncompleted in their chain
+            if (m.cooldown === 'custom' && this._cooldowns[m.id] && now < this._cooldowns[m.id]) return false;
+
             if (m.chain) {
-                const chainMissions = MISSIONS.filter(x => x.chain === m.chain).sort((a,b) => a.order - b.order);
+                // Use pre-sorted chain cache instead of re-filtering MISSIONS each time
+                const chainMissions = this._getChainMissions(m.chain);
                 const firstUncompleted = chainMissions.find(x => !this.completed.has(x.id));
-                const firstUnclaimed = chainMissions.find(x => !this.claims.has(x.id));
-                
-                // Show it if it's the first uncompleted OR it's completed but unclaimed
+                const firstUnclaimed   = chainMissions.find(x => !this.claims.has(x.id));
                 if (m.id !== firstUnclaimed?.id && m.id !== firstUncompleted?.id && !this.completed.has(m.id)) {
                     return false;
                 }
             }
-            
+
             return true;
-        }).slice(0, 30); // Max 30 active displayed at once for performance
+        }).slice(0, 30);
     }
 
     getState() {

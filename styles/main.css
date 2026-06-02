@@ -44,10 +44,9 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 #hud {
     position: fixed; top: 0; left: 0; right: 0;
     height: var(--hud-h); z-index: 20;
-    background: rgba(5,5,16,0.94);
+    background: rgba(5,5,16,0.97);
     border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    /* backdrop-filter removed: canvas redraws every frame, blur causes GPU re-composite on every tick */
     display: flex; align-items: center;
     padding: 0 18px; gap: 20px;
 }
@@ -56,7 +55,6 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 .hud-sep  { flex: 1; }
 .hud-stat { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
 .hud-stat span { color: var(--cyan); font-weight: 700; }
-
 #neuron-count {
     font-family: 'Orbitron', monospace;
     font-size: 22px; font-weight: 900;
@@ -71,6 +69,7 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     color: var(--purple); text-shadow: 0 0 10px var(--purple);
 }
 #token-display { font-size: 13px; color: var(--gold); font-weight: 700; }
+#prestige-display { font-size: 13px; color: var(--purple); font-weight: 700; text-shadow: 0 0 8px var(--purple); }
 
 /* ── XP bar ── */
 #xp-bar-container {
@@ -123,8 +122,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     position: fixed;
     inset: 0;
     background: rgba(0,0,5,0.88);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 300;
     display: none;
     align-items: center;
@@ -270,8 +269,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 12px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 30;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
 }
@@ -281,8 +280,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0, 0, 5, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 40;
 }
 
@@ -300,6 +299,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     z-index: 50;
     display: flex;
     flex-direction: column;
+    contain: layout style;
+    will-change: transform, opacity;
     opacity: 0;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -418,9 +419,9 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     transform: translate(-50%,-50%);
     pointer-events: none;
 }
-.ring-1 { width: 230px; height: 230px; animation: spin 8s  linear infinite; }
-.ring-2 { width: 260px; height: 260px; animation: spin 12s linear infinite reverse; border-color: rgba(123,47,255,0.2); }
-.ring-3 { width: 295px; height: 295px; animation: spin 18s linear infinite; border-color: rgba(255,0,128,0.15); }
+.ring-1 { width: 230px; height: 230px; animation: spin 8s  linear infinite; will-change: transform; }
+.ring-2 { width: 260px; height: 260px; animation: spin 12s linear infinite reverse; border-color: rgba(123,47,255,0.2); will-change: transform; }
+.ring-3 { width: 295px; height: 295px; animation: spin 18s linear infinite; border-color: rgba(255,0,128,0.15); will-change: transform; }
 
 .ring-dot {
     position: absolute; top: -3px; left: 50%;
@@ -495,8 +496,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 #auth-overlay {
     position: fixed; inset: 0;
     background: rgba(3, 3, 14, 0.96);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 500;
     display: none;
     align-items: center;
@@ -646,8 +647,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 #reset-confirm-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,5,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 400;
     display: none; align-items: center; justify-content: center;
 }
@@ -705,8 +706,8 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
 #delete-account-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,5,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 400;
     display: none; align-items: center; justify-content: center;
 }

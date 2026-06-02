@@ -1,8 +1,9 @@
 const Config = {
-    GAME_NAME: 'NEXUS CORE',
+    GAME_NAME: 'Nexarion Infinity',
     VERSION: '1.0.0',
     SAVE_KEY: 'nexuscore_save',
-    AUTOSAVE_INTERVAL: 30000,
+    AUTOSAVE_INTERVAL: 2000,      // autosave a cada 2s (LS síncrono ~1ms + IDB assíncrono)
+    SERVER_SYNC_INTERVAL: 120000, // server save every 2 minutes
     TICK_RATE: 20,
 
     CLICK_COOLDOWN_MIN: 1000 / 30,
@@ -18,11 +19,11 @@ const Config = {
 
     COST_SCALE: 1.22,      // steeper generator cost curve (was 1.15)
 
-    PARTICLE_MAX: 150,
+    PARTICLE_MAX: 100,
     NOTIFICATION_MAX: 5,
     NOTIFICATION_DURATION: 4000,
 
-    NEURAL_NODES: 60,
+    NEURAL_NODES: 30,
     NEURAL_CONNECTIONS: 80,
 
     COLORS: {

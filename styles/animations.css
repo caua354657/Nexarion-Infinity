@@ -31,9 +31,9 @@
 }
 
 @keyframes scan-line {
-    0%   { top: calc(var(--hud-h, 55px) + 3px); opacity: 0.6; }
+    0%   { transform: translateY(0); opacity: 0.6; }
     80%  { opacity: 0.6; }
-    100% { top: 100vh; opacity: 0; }
+    100% { transform: translateY(calc(100vh - var(--hud-h, 55px) - 3px)); opacity: 0; }
 }
 
 @keyframes border-flow {
@@ -44,8 +44,8 @@
 }
 
 @keyframes buy-pulse {
-    0%   { box-shadow: 0 0 0 0   rgba(0,245,255,0.55); }
-    100% { box-shadow: 0 0 0 10px rgba(0,245,255,0); }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
 }
 
 @keyframes click-squish {
@@ -88,7 +88,7 @@
 #click-btn.click-anim { animation: click-squish 0.18s ease forwards; }
 #click-btn.crit-anim  { animation: crit-flash   0.3s  ease forwards; }
 
-/* Generator buy pulse (only when affordable) */
+/* Generator buy pulse — opacity is GPU-composited, no paint per frame */
 .gen-buy-btn.can-afford { animation: buy-pulse 1.4s ease-in-out infinite; }
 
 /* Achievement newly unlocked */
@@ -104,10 +104,11 @@
     animation: fadeIn 0.4s ease, border-flow 4s linear infinite;
 }
 
-/* Scan line across the viewport */
+/* Scan line across the viewport — uses transform (GPU-composited, not top/layout) */
 #game-container::before {
     content: '';
     position: fixed; left: 0; right: 0;
+    top: calc(var(--hud-h, 55px) + 3px);
     height: 2px;
     background: linear-gradient(transparent, rgba(0,245,255,0.04), transparent);
     animation: scan-line 7s linear infinite;
@@ -155,14 +156,23 @@
 }
 
 @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0%   { transform: translateX(-200%); }
+    100% { transform: translateX(200%); }
 }
 
+/* Shimmer via a pseudo-element using transform (GPU-composited, no paint per frame) */
 .mission-fill.shimmer-active {
-    background: linear-gradient(90deg, var(--cyan) 25%, #fff 50%, var(--purple) 75%);
-    background-size: 200% 100%;
+    background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 100%);
+    overflow: hidden;
+    position: relative;
+}
+.mission-fill.shimmer-active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%);
     animation: shimmer 2s infinite linear;
+    will-change: transform;
 }
 
 @keyframes panel-slide-in {

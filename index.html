@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="NEXUS CORE — Clicker Neural em português. Gere neurônios, evolua seu cérebro e alcance a singularidade!">
-    <title>NEXUS CORE — Clicker Neural</title>
+    <meta name="description" content="Nexarion Infinity — Clicker Neural em português. Gere neurônios, evolua seu cérebro e alcance a singularidade!">
+    <title>Nexarion Infinity — Clicker Neural</title>
     <!-- Fonts: non-blocking load (page renders immediately even offline) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap"></noscript>
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    <link rel="icon" type="image/png"   href="assets/logo.png">
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/animations.css">
@@ -36,7 +38,7 @@
     <div class="hud-sep"></div>
     <div class="hud-stat"><span id="level-display">NVL 1</span></div>
     <div class="hud-stat"><span id="token-display">💎 0</span></div>
-    <div class="hud-stat" id="save-indicator" style="font-size:10px;opacity:0.4;">●</div>
+    <div class="hud-stat"><span id="prestige-display">♻ 0</span></div>
 </div>
 <div id="xp-bar-container">
     <div id="xp-bar"></div>
@@ -74,18 +76,18 @@
 
 <!-- Sidebar Direita -->
 <div id="sidebar">
-    <button class="sidebar-btn" data-panel="neural"  title="Progressão Neural">⚡</button>
-    <button class="sidebar-btn" data-panel="agenda"  title="Missões & Conquistas">📋</button>
-    <button class="sidebar-btn" data-panel="boss"    title="Boss Battle">⚔️</button>
+    <button class="sidebar-btn" data-panel="neural"  title="Progressão Neural">🧠</button>
+    <button class="sidebar-btn" data-panel="agenda"  title="Missões & Conquistas">📅</button>
+    <button class="sidebar-btn" data-panel="boss"    title="Boss Battle">💀</button>
     <button class="sidebar-btn" data-panel="shop"    title="Loja Neural">🛒</button>
     <button class="sidebar-btn" data-panel="conta"   title="Conta">👤</button>
 </div>
 
 <!-- Mobile Nav (oculto no desktop) -->
 <div id="mobile-nav">
-    <button class="mobile-nav-btn" data-panel="neural"  title="Progressão Neural">⚡</button>
-    <button class="mobile-nav-btn" data-panel="agenda"  title="Missões">📋</button>
-    <button class="mobile-nav-btn" data-panel="boss"    title="Boss Battle">⚔️</button>
+    <button class="mobile-nav-btn" data-panel="neural"  title="Progressão Neural">🧠</button>
+    <button class="mobile-nav-btn" data-panel="agenda"  title="Missões">📅</button>
+    <button class="mobile-nav-btn" data-panel="boss"    title="Boss Battle">💀</button>
     <button class="mobile-nav-btn" data-panel="shop"    title="Loja">🛒</button>
     <button class="mobile-nav-btn" data-panel="conta"   title="Conta">👤</button>
 </div>
@@ -105,6 +107,19 @@
     </div>
 </div>
 
+<!-- Confirmação de remoção de amigo -->
+<div id="remove-friend-overlay" style="display:none;">
+    <div id="remove-friend-card">
+        <div class="rfc-icon">👥</div>
+        <div class="rfc-title">Remover Amigo</div>
+        <div class="rfc-msg" id="rfc-msg">Tem certeza que deseja remover <b id="rfc-username"></b> da sua lista de amigos?</div>
+        <div class="rfc-actions">
+            <button class="rfc-btn rfc-btn--cancel" id="rfc-cancel">Cancelar</button>
+            <button class="rfc-btn rfc-btn--confirm" id="rfc-confirm">Remover</button>
+        </div>
+    </div>
+</div>
+
 <!-- Centro de Notificações Lateral -->
 <div id="notification-center">
     <div class="notif-center-header">
@@ -114,22 +129,13 @@
     <div class="notif-center-body" id="notif-log"></div>
 </div>
 
-<!-- Overlay de tutorial -->
-<div id="tutorial-overlay">
-    <button id="tutorial-close" title="Fechar tutorial">✕</button>
-    <div id="tutorial-title">⚡ Desperte o Núcleo</div>
-    <div id="tutorial-desc">Clique no Núcleo brilhante para gerar neurônios!</div>
-    <div id="tutorial-progress-bar">
-        <div id="tutorial-progress"></div>
-    </div>
-</div>
 
 <!-- Auth Overlay (bloqueio de acesso antes do login) -->
 <div id="auth-overlay">
     <div id="auth-card">
         <div class="auth-logo-wrap">
             <div class="auth-logo">🧠</div>
-            <h1 class="auth-game-title">NEXUS CORE</h1>
+            <h1 class="auth-game-title">Nexarion Infinity</h1>
             <p class="auth-game-sub">Clicker Neural</p>
         </div>
         <div class="auth-tabs">
@@ -167,7 +173,7 @@
             <button class="auth-link-btn" id="auth-go-login" style="display:none;">Já tem conta? Entrar</button>
         </div>
         <div class="auth-error-msg" id="auth-error"></div>
-        <div class="auth-footer-note">Sessão lembrada automaticamente · NEXUS CORE v1.0.0</div>
+        <div class="auth-footer-note">Sessão lembrada automaticamente · Nexarion Infinity v1.0.0</div>
     </div>
 </div>
 
@@ -239,11 +245,18 @@
         <h3 class="rc-title">Resetar Todo o Progresso</h3>
         <p class="rc-desc">Esta ação vai PERMANENTEMENTE apagar:</p>
         <div class="rc-list">
-            <div class="rc-list-item">❌ Neurônios, Tokens e Prestígios</div>
+            <div class="rc-list-item">❌ Neurônios, Prestígios e Diamantes</div>
             <div class="rc-list-item">❌ Geradores e Melhorias</div>
             <div class="rc-list-item">❌ Missões e Conquistas</div>
-            <div class="rc-list-item">❌ Habilidades e XP</div>
-            <div class="rc-list-item">❌ Configurações e histórico</div>
+            <div class="rc-list-item">❌ Habilidades, XP e Histórico</div>
+            <div class="rc-list-item">❌ Progresso de Boss e Melhorias</div>
+        </div>
+        <p class="rc-desc" style="margin-top:10px;color:#00ff88">✅ Permanece na sua conta:</p>
+        <div class="rc-list" style="border-color:rgba(0,255,136,0.2)">
+            <div class="rc-list-item" style="color:#00ff88">✅ VIP Permanente <span style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88">✅ 2× Neurônio <span style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88">✅ 2× Dano no Boss <span style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88">✅ Skins <span style="color:#888;font-size:10px">(se adquiridas)</span></div>
         </div>
         <p class="rc-final">⚠ Esta ação é irreversível.</p>
         <div class="rc-actions">
@@ -318,17 +331,16 @@
     });
 
     window.addEventListener('load', () => {
-        try {
-            window.game = new GameManager();
-            window.game.init();
-            // Expor funções de compra globalmente para handlers onclick inline
-            window.buyGenerator = id => window.game.buyGenerator(id);
-            window.buyUpgrade   = id => window.game.buyUpgrade(id);
-            window.buyVip       = () => window.game.buyVip();
-        } catch(err) {
-            console.error('NEXUS CORE erro de inicialização:', err);
+        window.game = new GameManager();
+        // Expor funções de compra globalmente para handlers onclick inline
+        window.buyGenerator = id => window.game.buyGenerator(id);
+        window.buyUpgrade   = id => window.game.buyUpgrade(id);
+        window.buyVip       = () => window.game.buyVip();
+
+        window.game.init().catch(err => {
+            console.error('Nexarion Infinity erro de inicialização:', err);
             document.body.innerHTML = `<div style="color:#ff0080;font-family:monospace;padding:40px;background:#050510;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;"><div style="font-size:24px;">⚠ Erro de Inicialização</div><pre style="font-size:12px;color:#00f5ff;max-width:800px;overflow:auto;">${err.stack || err}</pre><button onclick="location.reload()" style="margin-top:20px;padding:12px 28px;background:#7b2fff;border:none;border-radius:8px;color:#fff;font-size:16px;cursor:pointer;">Recarregar</button></div>`;
-        }
+        });
     });
 </script>
 </body>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Shared PDO connection for NEXUS CORE API.
+ * Shared PDO connection for Nexarion Infinity API.
  * Reads credentials from environment variables (Railway/Docker),
  * falling back to the school DB defaults.
  */

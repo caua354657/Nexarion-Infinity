@@ -41,9 +41,10 @@ function formatDuration(secs) {
 class UIManager {
     constructor(game) {
         this._game = game;
-        this._activePanel = null;
-        this._activeTab = null;
-        this._worldOpen = false;
+        this._activePanel  = null;
+        this._activeTab    = null;
+        this._worldOpen    = false;
+        this._activeBossTab = 'boss';
         this._activeShopTab = 'boosts';
         this._activeSkillTab = 'click';
         this._profileAuthMode = 'login'; // 'login' | 'register'
@@ -58,6 +59,27 @@ class UIManager {
         // Boost buy modal state
         this._boostModalId  = null;
         this._boostModalQty = 1;
+
+        this._bossRankRefreshTimer    = null;
+        this._dailyCountdownTimer     = null;
+        this._bossBattleTimerInterval = null;
+        this._bossWorldTimerInterval  = null;
+        this._bossUpgQty              = 1;
+
+        this._activeLbTab      = 'neuronios'; // leaderboard tab
+        this._activeBossRankTab = 'dano';     // boss ranking tab
+
+        this._lastBadgeUpdate = 0;  // throttle badge recalc to 2Hz
+        this._badgeBtns = null;     // cached NodeLists keyed by panel id
+
+        // Friends system state
+        this._friendsTab        = 'list';  // 'list' | 'requests' | 'search'
+        this._friendsView       = 'tabs';  // 'tabs' | 'profile' | 'compare'
+        this._friendsProfileId  = null;
+        this._friendsCompareId  = null;
+        this._friendsCache      = null;    // cached list data
+        this._friendsSearchQ    = '';
+        this._friendsPending    = 0;       // pending received requests count (for badge)
     }
 
     init() {
@@ -68,10 +90,29 @@ class UIManager {
         this._bindSettings();
         this._bindLevelUpAlert();
         this._initBossUI();
+        this._initBadgeCache();
         window.addEventListener('resize', () => this._onResize());
 
         this._updateHUD();
         this._checkAuthWall();
+
+        // Poll pending friend requests every 60s to keep badge updated
+        setInterval(() => {
+            if (this._game.account.isLoggedIn() && !this._game.account.isLocalOnly()
+                && window.location.protocol !== 'file:') {
+                this._fetchFriendsList(true);
+            }
+        }, 60000);
+    }
+
+    _initBadgeCache() {
+        const panels = ['neural', 'agenda', 'generators', 'upgrades', 'missions', 'rebirth', 'more'];
+        this._badgeBtns = {};
+        panels.forEach(p => {
+            this._badgeBtns[p] = document.querySelectorAll(
+                `.sidebar-btn[data-panel="${p}"], .mobile-nav-btn[data-panel="${p}"]`
+            );
+        });
     }
 
     _bindNavigation() {
@@ -144,55 +185,58 @@ class UIManager {
     }
 
     openPanel(panelId) {
-        this._activePanel = panelId;
-        
-        // Update nav active states
-        document.querySelectorAll('.sidebar-btn, .mobile-nav-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll(`.sidebar-btn[data-panel="${panelId}"], .mobile-nav-btn[data-panel="${panelId}"]`).forEach(b => b.classList.add('active'));
-        
-        // Setup modal
-        const overlay = document.getElementById('modal-overlay');
-        const panel = document.getElementById('modal-panel');
-        const title = document.getElementById('modal-title');
-        
-        overlay.style.display = 'block';
-        panel.style.display = 'flex';
-        
-        // Force reflow for animation
-        void panel.offsetWidth;
-        panel.classList.add('open');
-        
-        const titles = {
-            'generators':  'Geradores Neurais',
-            'upgrades':    'Melhorias',
-            'shop':        'Loja Neural',
-            'skills':      'Habilidades',
-            'missions':    'Missões',
-            'achievements':'Conquistas',
-            'leaderboard': 'Placar Global',
-            'boss':        '⚔️ Boss Battle',
-            'profile':     'Perfil',
-            'rebirth':     'Renascimento',
-            'settings':    'Configurações',
-            'more':        'Mais Opções',
-            'neural':      '⚡ Progressão Neural',
-            'agenda':      '📋 Missões & Conquistas',
-            'conta':       '👤 Conta',
-        };
+        try {
+            this._activePanel = panelId;
 
-        title.textContent = titles[panelId] || 'Painel';
+            document.querySelectorAll('.sidebar-btn, .mobile-nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll(`.sidebar-btn[data-panel="${panelId}"], .mobile-nav-btn[data-panel="${panelId}"]`).forEach(b => b.classList.add('active'));
 
-        // Highlight the parent group sidebar button when in a sub-panel
-        const panelGroup = {
-            generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',
-            missions: 'agenda', achievements: 'agenda', leaderboard: 'agenda', boss: 'boss',
-            profile: 'conta', settings: 'conta'
-        };
-        const groupId = panelGroup[panelId] || panelId;
-        document.querySelectorAll(`.sidebar-btn[data-panel="${groupId}"], .mobile-nav-btn[data-panel="${groupId}"]`).forEach(b => b.classList.add('active'));
+            const overlay = document.getElementById('modal-overlay');
+            const panel   = document.getElementById('modal-panel');
+            const title   = document.getElementById('modal-title');
+            if (!overlay || !panel) return;
 
-        // Render content
-        this._renderPanelContent(panelId);
+            overlay.style.display = 'block';
+            panel.style.display   = 'flex';
+            void panel.offsetWidth;
+            panel.classList.add('open');
+
+            const titles = {
+                'generators':    '🔋 Geradores Neurais',
+                'upgrades':      '🔧 Melhorias',
+                'shop':          '🛒 Loja Neural',
+                'skills':        '⚡ Habilidades',
+                'missions':      '📋 Missões',
+                'achievements':  '🎯 Conquistas',
+                'leaderboard':   '🏆 Placar Global',
+                'boss':          '💀 Boss Battle',
+                'boss_battle':   '⚔️ Batalha',
+                'boss_ranking':  '🏆 Placar Global',
+                'boss_upgrades': '💥 Melhorias do Boss',
+                'profile':       '👤 Perfil',
+                'friends':       '👥 Amigos',
+                'rebirth':       '♻️ Renascimento',
+                'settings':      '⚙️ Configurações',
+                'more':          'Mais Opções',
+                'neural':        '🧠 Progressão Neural',
+                'agenda':        '📅 Missões & Conquistas',
+                'conta':         '👤 Conta',
+            };
+            if (title) title.textContent = titles[panelId] || 'Painel';
+
+            const panelGroup = {
+                generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',
+                missions: 'agenda', achievements: 'agenda', leaderboard: 'agenda', boss: 'boss',
+                boss_battle: 'boss', boss_ranking: 'boss', boss_upgrades: 'boss',
+                profile: 'conta', friends: 'conta', settings: 'conta'
+            };
+            const groupId = panelGroup[panelId] || panelId;
+            document.querySelectorAll(`.sidebar-btn[data-panel="${groupId}"], .mobile-nav-btn[data-panel="${groupId}"]`).forEach(b => b.classList.add('active'));
+
+            this._renderPanelContent(panelId);
+        } catch (e) {
+            console.error('[openPanel]', panelId, e);
+        }
     }
 
     openSubPanel(panelId) {
@@ -201,7 +245,11 @@ class UIManager {
     }
 
     closePanel() {
-        if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
+        if (this._lbRefreshTimer)          { clearInterval(this._lbRefreshTimer);          this._lbRefreshTimer          = null; }
+        if (this._bossRankRefreshTimer)    { clearInterval(this._bossRankRefreshTimer);    this._bossRankRefreshTimer    = null; }
+        if (this._dailyCountdownTimer)     { clearInterval(this._dailyCountdownTimer);     this._dailyCountdownTimer     = null; }
+        if (this._bossBattleTimerInterval) { clearInterval(this._bossBattleTimerInterval); this._bossBattleTimerInterval = null; }
+        if (this._bossWorldTimerInterval)  { clearInterval(this._bossWorldTimerInterval);  this._bossWorldTimerInterval  = null; }
         if (this._parentPanel) {
             const parent = this._parentPanel;
             this._parentPanel = null;
@@ -226,12 +274,22 @@ class UIManager {
     }
 
     _renderPanelContent(panelId) {
-        const content = document.getElementById('modal-content');
+        const content       = document.getElementById('modal-content');
         const tabsContainer = document.getElementById('modal-tabs');
-        
+        if (!content || !tabsContainer) return;
+
         // Clear tabs by default
         tabsContainer.innerHTML = '';
         content.innerHTML = '';
+
+        try { this.__renderPanelContentInner(panelId, content, tabsContainer); }
+        catch (e) {
+            console.error('[renderPanel]', panelId, e);
+            content.innerHTML = '<div class="empty-msg">Erro ao carregar painel. Tente novamente.</div>';
+        }
+    }
+
+    __renderPanelContentInner(panelId, content, tabsContainer) {
         
         switch (panelId) {
             case 'neural':       this._renderNavGroup(content, 'neural'); break;
@@ -241,9 +299,13 @@ class UIManager {
             case 'upgrades':     this._renderUpgrades(content); break;
             case 'achievements': this._renderAchievements(content); break;
             case 'missions':     this._renderMissions(content, tabsContainer); break;
-            case 'leaderboard':  this._renderLeaderboard(content); break;
-            case 'boss':         this._renderBossInfo(content); break;
+            case 'leaderboard':  this._renderLeaderboard(content, tabsContainer); break;
+            case 'boss':         this._bossUnlocked() ? this._renderNavGroup(content, 'boss')                : this._renderBossLocked(content); break;
+            case 'boss_battle':  this._bossUnlocked() ? this._renderBossPanel(content)                       : this._renderBossLocked(content); break;
+            case 'boss_ranking': this._bossUnlocked() ? this._renderBossRankingPanel(content, tabsContainer) : this._renderBossLocked(content); break;
+            case 'boss_upgrades':this._bossUnlocked() ? this._renderBossUpgradesPanel(content)               : this._renderBossLocked(content); break;
             case 'profile':      this._renderProfile(content); break;
+            case 'friends':      this._renderFriends(content, tabsContainer); break;
             case 'settings':     this._renderSettings(content); break;
             case 'shop':         this._renderShop(content, tabsContainer); break;
             case 'skills':       this._renderSkills(content, tabsContainer); break;
@@ -315,15 +377,12 @@ class UIManager {
         if (!el) return;
         el.textContent = `▲ NÍVEL ${level} ▲`;
         el.classList.remove('visible');
-        void el.offsetWidth;
-        el.classList.add('visible');
+        requestAnimationFrame(() => el.classList.add('visible'));
 
-        // Flash the HUD level indicator
         const lvlEl = document.getElementById('level-display');
         if (lvlEl) {
             lvlEl.classList.remove('level-flash');
-            void lvlEl.offsetWidth;
-            lvlEl.classList.add('level-flash');
+            requestAnimationFrame(() => lvlEl.classList.add('level-flash'));
         }
     }
 
@@ -375,12 +434,10 @@ class UIManager {
             }
             if (id === 'wipe-save') this._showResetConfirm();
             if (id === 'export-save') {
-                this._game.save(); // force save latest state before exporting
-                if (this._game.saveManager.exportFile()) {
-                    this._game.notify('Save exportado com sucesso!', 'success');
-                } else {
-                    this._game.notify('Nenhum save encontrado.', 'error');
-                }
+                this._game.save();
+                this._game.saveManager.exportFile().then(ok => {
+                    this._game.notify(ok ? 'Save exportado com sucesso!' : 'Nenhum save encontrado.', ok ? 'success' : 'error');
+                });
             }
 
             // ── Reset confirm modal ──
@@ -418,9 +475,10 @@ class UIManager {
             if (id === 'profile-login-btn') this._handleProfileLogin();
             if (id === 'profile-reg-btn')   this._handleProfileRegister();
             if (id === 'profile-logout') {
+                this._game._noSave = true; // don't auto-save on unload
                 this._game.account.logout().then(() => {
-                    this.closePanel();
-                    this._showAuthWall();
+                    this._game.saveManager.wipe(); // clear local save so next login starts fresh
+                    location.reload();             // full reload = clean slate for new account
                 });
             }
             if (id === 'profile-go-register') {
@@ -452,12 +510,15 @@ class UIManager {
         acc.checkSession().then(loggedIn => {
             if (loggedIn) {
                 this._hideAuthWall();
+                this._game._restoreFromServer(); // auto-restore server progress on page load
             } else if (!acc.isLoggedIn()) {
-                // Session expired — ensure wall is visible
                 if (!acc.hasAccount()) this._authSetTab('register');
                 else                   this._authSetTab('login');
                 this._showAuthWall();
             }
+        }).catch(() => {
+            // Server unreachable — hide wall so game stays playable offline
+            this._hideAuthWall();
         });
     }
 
@@ -518,6 +579,9 @@ class UIManager {
         if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
         if (result.ok) {
             this._hideAuthWall();
+            this._game._restoreFromServer();
+            // Fetch pending requests badge after login
+            setTimeout(() => this._fetchFriendsList(true), 2000);
         } else {
             if (err) err.textContent = result.msg;
         }
@@ -535,9 +599,15 @@ class UIManager {
         const result = await this._game.account.createAccount(user, email, pass, photoFile);
         if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
         if (result.ok) {
-            this._hideAuthWall();
+            // Reset client auth so the login form works cleanly (createAccount sets _loggedIn=true)
+            this._game.account._loggedIn = false;
+            this._authSetTab('login');
+            const loginId = document.getElementById('auth-login-id');
+            if (loginId) loginId.value = user || email;
+            const successErr = document.getElementById('auth-error');
+            if (successErr) { successErr.style.color = '#00ff88'; successErr.textContent = '✅ Conta criada! Faça login para continuar.'; }
         } else {
-            if (err) err.textContent = result.msg;
+            if (err) { err.style.color = ''; err.textContent = result.msg; }
         }
     }
 
@@ -551,6 +621,7 @@ class UIManager {
         const result = await this._game.account.login(user, pass);
         if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
         if (result.ok) {
+            this._game._restoreFromServer(); // restore server-side progress
             this._renderPanelContent('profile');
         } else {
             if (msg) { msg.textContent = result.msg; msg.classList.add('profile-auth-error'); }
@@ -568,7 +639,8 @@ class UIManager {
         const result = await this._game.account.createAccount(user, email, pass, photoFile);
         if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
         if (result.ok) {
-            this._profileAuthMode = 'login'; // reset mode after registration
+            this._game._restoreFromServer(); // restore server-side progress
+            this._profileAuthMode = 'login';
             this._renderPanelContent('profile');
         } else {
             if (msg) { msg.textContent = result.msg; msg.classList.add('profile-auth-error'); }
@@ -632,22 +704,32 @@ class UIManager {
         if (now - this._lastUpdate < 100) return;
         this._lastUpdate = now;
 
-        this._updateHUD();
-        this._updateBoostDisplay();
-        this._updateEventBanner();
-        this._updateComboDisplay();
-        this._updatePrestigeBtn();
-        this._updateBadges();
+        try {
+            this._updateHUD();
+            this._updateBoostDisplay();
+            this._updateEventBanner();
+            this._updateComboDisplay();
+            this._updatePrestigeBtn();
 
-        if (this._activePanel === 'generators') this._updateGenerators();
-        if (this._activePanel === 'upgrades') this._updateUpgrades();
-        if (this._activePanel === 'missions') this._updateMissions();
-        if (this._activePanel === 'boss')     this._renderBossInfoContent();
-        if (this._worldOpen) this._updateBossWorld();
-        if (this._activePanel === 'profile') this._updateProfileStats();
-        if (this._activePanel === 'shop') this._updateShop();
-        if (this._activePanel === 'skills') this._updateSkillPoints();
-        if (this._activePanel === 'rebirth') this._updateRebirthProgress();
+            // Badge recalculation is expensive (calls getActiveMissions, getAvailableUpgrades,
+            // and multiple querySelectorAll). Throttle to 2Hz (500ms).
+            if (now - this._lastBadgeUpdate >= 500) {
+                this._lastBadgeUpdate = now;
+                this._updateBadges();
+            }
+
+            if (this._activePanel === 'generators') this._updateGenerators();
+            if (this._activePanel === 'upgrades') this._updateUpgrades();
+            if (this._activePanel === 'missions') this._updateMissions();
+            if (this._activePanel === 'boss_battle') this._renderBossInfoContent();
+            if (this._worldOpen) this._updateBossWorld();
+            if (this._activePanel === 'profile') this._updateProfileStats();
+            if (this._activePanel === 'shop') this._updateShop();
+            if (this._activePanel === 'skills') this._updateSkillPoints();
+            if (this._activePanel === 'rebirth') this._updateRebirthProgress();
+        } catch (e) {
+            console.error('[UIUpdate]', e);
+        }
     }
 
     _getBadgeCounts() {
@@ -679,7 +761,7 @@ class UIManager {
             g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
         ).length;
         const claimableTotal = claimableActive + claimableDaily;
-        if (claimableActive > 0) badges.missions = claimableActive;  // matches Ativas tab count
+        if (claimableTotal > 0) badges.missions = claimableTotal;  // inclui ativas + agenda
 
         const moreTotal = (badges.missions || 0) + (badges.rebirth ? 1 : 0) + (badges.upgrades || 0);
         if (moreTotal > 0) badges.more = moreTotal;
@@ -689,15 +771,20 @@ class UIManager {
         if (neuralTotal > 0) badges.neural = neuralTotal;
         if (claimableTotal > 0) badges.agenda = claimableTotal;  // agenda shows full total
 
+        if (this._friendsPending > 0) badges.friends = this._friendsPending;
+
         return badges;
     }
 
     _updateBadges() {
         const counts = this._getBadgeCounts();
+        const btns   = this._badgeBtns;
         ['neural', 'agenda', 'generators', 'upgrades', 'missions', 'rebirth', 'more'].forEach(p => {
-            document.querySelectorAll(`.sidebar-btn[data-panel="${p}"], .mobile-nav-btn[data-panel="${p}"]`).forEach(btn => {
-                const count = counts[p];
-                if (count > 0) btn.setAttribute('data-badge', count > 99 ? '99+' : count);
+            const count   = counts[p];
+            const label   = count > 0 ? (count > 99 ? '99+' : String(count)) : null;
+            const btnList = btns ? btns[p] : document.querySelectorAll(`.sidebar-btn[data-panel="${p}"], .mobile-nav-btn[data-panel="${p}"]`);
+            btnList.forEach(btn => {
+                if (label) btn.setAttribute('data-badge', label);
                 else btn.removeAttribute('data-badge');
             });
         });
@@ -744,6 +831,7 @@ class UIManager {
         this._setEl('click-value', '+' + formatNum(g.economy.getClickValue() * g.combo.getMult()));
         this._setEl('level-display', 'NVL ' + g.level.level);
         this._setEl('token-display', '💎 ' + g.economy.prestigeTokens);
+        this._setEl('prestige-display', '♻ ' + g.economy.totalPrestiges);
 
         const lp = g.level.getProgress();
         const xpBar = document.getElementById('xp-bar');
@@ -1026,9 +1114,22 @@ class UIManager {
     _renderMissions(container, tabsContainer) {
         if (!['active', 'daily', 'completed'].includes(this._activeTab)) this._activeTab = 'active';
         this._missionsStateKey = null; // force full rebuild on open
+
+        const g = this._game;
+        const claimableActive = g.missions.getActiveMissions().filter(m =>
+            m.cooldown !== 'daily' && m.cooldown !== 'weekly' &&
+            g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
+        ).length;
+        const claimableAgenda = (typeof MISSIONS !== 'undefined' ? MISSIONS : []).filter(m =>
+            (m.cooldown === 'daily' || m.cooldown === 'weekly') &&
+            g.missions.completed.has(m.id) && !g.missions.claims.has(m.id)
+        ).length;
+
+        const badgeAttr = n => n > 0 ? ` data-badge="${n > 99 ? '99+' : n}"` : '';
+
         tabsContainer.innerHTML = `
-            <button class="tab-btn ${this._activeTab === 'active' ? 'active' : ''}" onclick="window.game.ui._activeTab='active'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Ativas</button>
-            <button class="tab-btn ${this._activeTab === 'daily' ? 'active' : ''}" onclick="window.game.ui._activeTab='daily'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Agenda</button>
+            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'active' ? 'active' : ''}"${badgeAttr(claimableActive)} onclick="window.game.ui._activeTab='active'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Ativas</button>
+            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'daily' ? 'active' : ''}"${badgeAttr(claimableAgenda)} onclick="window.game.ui._activeTab='daily'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Agenda</button>
             <button class="tab-btn ${this._activeTab === 'completed' ? 'active' : ''}" onclick="window.game.ui._activeTab='completed'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Concluídas</button>
         `;
         container.innerHTML = `
@@ -1040,9 +1141,9 @@ class UIManager {
 
     _getMissionsStateKey() {
         const g = this._game;
-        const completedStr = [...g.missions.completed].sort().join(',');
-        const claimsStr = [...g.missions.claims].sort().join(',');
-        return `${this._activeTab}|${completedStr}|${claimsStr}`;
+        // Sizes are monotonically increasing (except repeatable resets), so equal sizes
+        // mean equal contents. This avoids the expensive Set→array→sort→join per 100ms.
+        return `${this._activeTab}|${g.missions.completed.size}|${g.missions.claims.size}`;
     }
 
     _updateMissions() {
@@ -1061,7 +1162,7 @@ class UIManager {
             // State unchanged — only update progress bars and timers in-place (no DOM rebuild = no hover flicker)
             list.querySelectorAll('.mission-item[data-mission-id]').forEach(item => {
                 const id = item.dataset.missionId;
-                const m = MISSIONS.find(x => x.id === id);
+                const m = g.missions._getMission(id); // O(1) cached map lookup
                 if (!m) return;
                 const p = g.missions.progress[id] || { cur: 0, max: m.value, pct: 0 };
                 const pct = Math.min(1, p.pct !== undefined ? p.pct : (p.cur / p.max));
@@ -1335,9 +1436,12 @@ class UIManager {
         }
 
         const stats = this._getStatsData();
-        const statsHTML = stats.map((s, i) =>
-            `<div class="stat-row"><span class="stat-key">${s[0]}</span><span class="stat-val" id="stat-val-${i}">${s[1]}</span></div>`
-        ).join('');
+        const statsHTML = stats.map((s, i) => {
+            if (s[1] === '' && s[0].startsWith('—')) {
+                return `<div class="stat-section-label" id="stat-val-${i}">${s[0].replaceAll('—','').trim()}</div>`;
+            }
+            return `<div class="stat-row"><span class="stat-key">${s[0]}</span><span class="stat-val" id="stat-val-${i}">${s[1]}</span></div>`;
+        }).join('');
 
         container.innerHTML = accountSection + `
             <div class="profile-stats-section">
@@ -1394,22 +1498,37 @@ class UIManager {
         const g = this._game;
         const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1);
         return [
-            ['Neurônios Vitalícios', formatNum(g.economy.lifetimeNeurons) + ' ⚡'],
-            ['Neurônios (Ciclo Atual)', formatNum(g.economy.totalNeurons) + ' ⚡'],
-            ['Neurônios/seg', formatNum(g.economy.getEffectiveNPS()) + '/s'],
-            ['Valor do Clique', formatNum(g.economy.getClickValue())],
-            ['Chance Crítica', critChance + '%'],
-            ['Total de Cliques', formatNum(g.stats.totalClicks)],
-            ['Cliques Críticos', formatNum(g.stats.critClicks)],
-            ['Nível', g.level.level],
-            ['Pontos de Habilidade', g.skills.skillPoints + ' SP'],
-            ['XP Total', formatNum(g.level.totalXp)],
-            ['Conquistas', g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
-            ['Missões Resgatadas', g.missions.claims.size],
-            ['Prestígios', g.economy.totalPrestiges],
-            ['Diamantes', g.economy.prestigeTokens],
-            ['Multiplicador de Prestígio', g.economy._prestigeMult.toFixed(2) + '×'],
-            ['Tempo de Jogo', formatTime(g.stats.playTime)]
+            // ── Progressão
+            ['— Progressão —',            ''],
+            ['Nível',                     g.level.level],
+            ['XP Total',                  formatNum(g.level.totalXp)],
+            ['Prestígios',                g.economy.totalPrestiges],
+            ['Mult. de Prestígio',        g.economy._prestigeMult.toFixed(2) + '×'],
+            ['Pontos de Habilidade',      g.skills.skillPoints + ' SP'],
+            ['Diamantes',                 g.economy.prestigeTokens],
+            // ── Neurônios
+            ['— Neurônios —',             ''],
+            ['Neurônios Vitalícios',      formatNum(g.economy.lifetimeNeurons) + ' ⚡'],
+            ['Neurônios (Ciclo Atual)',    formatNum(g.economy.totalNeurons) + ' ⚡'],
+            ['Neurônios/seg',             formatNum(g.economy.getEffectiveNPS()) + '/s'],
+            ['Valor do Clique',           formatNum(g.economy.getClickValue())],
+            // ── Combate
+            ['— Combate —',               ''],
+            ['Total de Cliques',          formatNum(g.stats.totalClicks)],
+            ['Cliques Críticos',          formatNum(g.stats.critClicks)],
+            ['Chance Crítica',            critChance + '%'],
+            // ── Conquistas
+            ['— Conquistas —',            ''],
+            ['Conquistas',                g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
+            ['Missões Resgatadas',        g.missions.claims.size],
+            // ── Boss
+            ['— Boss —',                  ''],
+            ['Nível do Chefe',            g.boss.userBossLevel],
+            ['Dano Total ao Chefe',       formatNum(g.boss.lifetimeDamage) + ' ⚔'],
+            ['Abates de Chefes',          g.boss.bossKills + ' ☠'],
+            // ── Geral (último)
+            ['— Geral —',                 ''],
+            ['Tempo de Jogo',             formatTime(g.stats.playTime)],
         ];
     }
 
@@ -1445,35 +1564,512 @@ class UIManager {
                 <input type="file" id="import-save-input" accept=".json" style="display:none;">
                 <div id="import-save-msg" class="settings-import-msg"></div>
             </div>
+            ${this._isElectron() ? '' : `
+            <div class="settings-section">
+                <label class="settings-label">🖥️ Versão Desktop</label>
+                <button class="settings-btn settings-btn-download" id="download-game-btn" onclick="window.game.ui._downloadGame()">
+                    ⬇ Download Game (.exe)
+                </button>
+                <div class="settings-download-hint">Versão standalone para Windows</div>
+            </div>`}
             <div class="settings-section">
                 <label class="settings-label">⚠️ Zona de Perigo</label>
                 <button class="settings-btn danger" id="wipe-save">🗑 Resetar Todo o Progresso</button>
                 ${loggedIn ? `<button class="settings-btn danger" id="delete-account-btn" style="margin-top:6px;">🗑 Excluir Conta</button>` : ''}
             </div>
             <div class="settings-section" style="opacity:0.4;font-size:11px;text-align:center;">
-                NEXUS CORE v1.0.0 — Salva automaticamente a cada 30s
+                Nexarion Infinity v1.0.0 — Salva automaticamente a cada 3s
             </div>
         `;
     }
+
+    _isElectron() {
+        return /Electron/.test(navigator.userAgent);
+    }
+
+    _downloadGame() {
+        const url = 'downloads/nexuscore-setup.exe';
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'nexuscore-setup.exe';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        this._game.notify('⬇ Download iniciado! Verifique sua pasta de downloads.', 'info');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ── Friends System ────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _renderFriends(container, tabsContainer) {
+        const g = this._game;
+        if (!g.account.isLoggedIn() || g.account.isLocalOnly()) {
+            tabsContainer.innerHTML = '';
+            container.innerHTML = `<div class="friends-login-msg">
+                <div style="font-size:40px;margin-bottom:12px">👥</div>
+                <div style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:8px">Sistema de Amigos</div>
+                <div style="font-size:12px;color:var(--text-dim)">Faça login para adicionar amigos,<br>comparar progresso e ver status online.</div>
+            </div>`;
+            return;
+        }
+
+        if (this._friendsView === 'profile') { this._renderFriendProfileView(container, tabsContainer); return; }
+        if (this._friendsView === 'compare') { this._renderFriendCompareView(container, tabsContainer); return; }
+
+        const tab     = this._friendsTab;
+        const pBadge  = this._friendsPending > 0
+            ? ` <span style="background:var(--pink);color:#fff;border-radius:8px;font-size:8px;padding:1px 5px;font-weight:700;vertical-align:middle">${this._friendsPending > 99 ? '99+' : this._friendsPending}</span>`
+            : '';
+        tabsContainer.innerHTML = `
+            <button class="tab-btn ${tab==='list'?'active':''}"     onclick="window.game.ui._setFriendsTab('list')">👥 Lista</button>
+            <button class="tab-btn ${tab==='requests'?'active':''}" onclick="window.game.ui._setFriendsTab('requests')">📨 Pedidos${pBadge}</button>
+            <button class="tab-btn ${tab==='search'?'active':''}"   onclick="window.game.ui._setFriendsTab('search')">➕ Adicionar</button>`;
+
+        if (tab === 'search') { this._renderFriendsSearchTab(container); return; }
+
+        container.innerHTML = '<div class="friends-loading">⏳ Carregando...</div>';
+
+        this._fetchFriendsList().then(data => {
+            if (tab === 'list')     this._buildFriendsListHTML(container, data);
+            if (tab === 'requests') this._buildFriendsRequestsHTML(container, data);
+        });
+    }
+
+    _setFriendsTab(tab) {
+        this._friendsTab = tab;
+        if (this._activePanel === 'friends') {
+            const c = document.getElementById('modal-content'), tc = document.getElementById('modal-tabs');
+            if (c) { this._friendsView = 'tabs'; this._renderFriends(c, tc); }
+        }
+    }
+
+    async _fetchFriendsList(force = false) {
+        if (!force && this._friendsCache && (Date.now() - this._friendsCache._ts < 15000)) return this._friendsCache;
+        try {
+            const res  = await fetch('api/amigos.php?action=list');
+            const data = await res.json();
+            if (data.ok) {
+                data._ts = Date.now();
+                this._friendsCache = data;
+                // Update pending badge count
+                const prev = this._friendsPending;
+                this._friendsPending = data.pending_count || 0;
+                if (prev !== this._friendsPending) this._refreshFriendsBadge();
+            }
+            return data.ok ? data : { ok: true, friends: [], received: [], sent: [], pending_count: 0 };
+        } catch { return { ok: true, friends: [], received: [], sent: [], pending_count: 0 }; }
+    }
+
+    _refreshFriendsBadge() {
+        const n = this._friendsPending;
+        const label = n > 0 ? (n > 99 ? '99+' : String(n)) : null;
+        // Badge on conta sidebar button
+        document.querySelectorAll('.sidebar-btn[data-panel="conta"], .mobile-nav-btn[data-panel="conta"]').forEach(btn => {
+            if (label) btn.setAttribute('data-badge', label);
+            else btn.removeAttribute('data-badge');
+        });
+        // Badge on friends cat-hub button inside conta nav group
+        document.querySelectorAll('.cat-hub-btn').forEach(btn => {
+            if ((btn.getAttribute('onclick') || '').includes("'friends'")) {
+                let badge = btn.querySelector('.cat-hub-badge');
+                if (n > 0) {
+                    if (!badge) { badge = document.createElement('span'); badge.className = 'cat-hub-badge'; btn.insertBefore(badge, btn.firstChild); }
+                    badge.textContent = n > 99 ? '99+' : n;
+                    badge.style.display = '';
+                } else if (badge) badge.style.display = 'none';
+            }
+        });
+    }
+
+    _buildFriendsListHTML(container, data) {
+        const friends = data.friends || [];
+        if (!friends.length) {
+            container.innerHTML = `<div class="friends-empty">
+                <div style="font-size:32px;margin-bottom:10px">🤝</div>
+                <div style="margin-bottom:12px">Nenhum amigo ainda.</div>
+                <button class="fr-btn fr-btn--add" style="padding:8px 18px;font-size:12px"
+                    onclick="window.game.ui._setFriendsTab('search')">➕ Buscar e Adicionar Amigos</button>
+            </div>`; return;
+        }
+        container.innerHTML = `
+            <div style="display:flex;justify-content:flex-end;padding:6px 12px 0">
+                <button class="fr-btn fr-btn--add" style="font-size:10px"
+                    onclick="window.game.ui._setFriendsTab('search')">➕ Adicionar</button>
+            </div>
+            ${friends.map(f => this._buildFriendRow(f, true)).join('')}`;
+    }
+
+    _buildFriendsRequestsHTML(container, data) {
+        const recv = data.received || [], sent = data.sent || [];
+        let html = '';
+        if (recv.length) {
+            html += `<div class="friends-section-title">📨 Pedidos recebidos (${recv.length})</div>`;
+            html += recv.map(f => `
+                <div class="friend-row">
+                    ${this._friendAvatar(f)}
+                    <div class="friend-info">
+                        <div class="friend-name">${f.vip ? '<span class="fr-vip">👑</span>' : ''}${f.username}</div>
+                        <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'Online':'Offline'}</div>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">✓</button>
+                        <button class="fr-btn fr-btn--decline" onclick="window.game.ui._friendAction('decline',${f.id})">✗</button>
+                    </div>
+                </div>`).join('');
+        }
+        if (sent.length) {
+            html += `<div class="friends-section-title" style="margin-top:12px">📤 Pedidos enviados (${sent.length})</div>`;
+            html += sent.map(f => `
+                <div class="friend-row">
+                    ${this._friendAvatar(f)}
+                    <div class="friend-info">
+                        <div class="friend-name">${f.username}</div>
+                        <div class="friend-sub">Nv. ${f.nivel} · Aguardando resposta</div>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="fr-btn fr-btn--decline" onclick="window.game.ui._friendAction('decline',${f.id})">✗</button>
+                    </div>
+                </div>`).join('');
+        }
+        if (!recv.length && !sent.length) html = `<div class="friends-empty">Nenhum pedido pendente.</div>`;
+        container.innerHTML = html;
+    }
+
+    _renderFriendsSearchTab(container) {
+        const q = this._friendsSearchQ || '';
+        container.innerHTML = `
+            <div class="friends-search-bar">
+                <input class="friends-search-input" id="fr-search-input" type="text"
+                    placeholder="Buscar jogador por nome..." value="${q}"
+                    oninput="window.game.ui._onFriendSearch(this.value)">
+            </div>
+            <div id="fr-search-results" class="friends-search-results"></div>`;
+        if (q.length >= 2) this._doFriendSearch(q);
+    }
+
+    _onFriendSearch(q) {
+        this._friendsSearchQ = q;
+        clearTimeout(this._friendsSearchTimer);
+        const el = document.getElementById('fr-search-results');
+        if (!el) return;
+        if (q.length < 2) { el.innerHTML = '<div class="friends-empty">Digite ao menos 2 caracteres.</div>'; return; }
+        el.innerHTML = '<div class="friends-loading">⏳ Buscando...</div>';
+        this._friendsSearchTimer = setTimeout(() => this._doFriendSearch(q), 400);
+    }
+
+    async _doFriendSearch(q) {
+        const el = document.getElementById('fr-search-results');
+        if (!el) return;
+        try {
+            const res  = await fetch(`api/amigos.php?action=search&q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (!data.ok || !data.results.length) { el.innerHTML = '<div class="friends-empty">Nenhum jogador encontrado.</div>'; return; }
+            el.innerHTML = data.results.map(f => {
+                const btnHtml = {
+                    friend:   `<button class="fr-btn fr-btn--remove" onclick="window.game.ui._friendAction('remove',${f.id})">Remover</button>`,
+                    sent:     `<span class="fr-tag">Pendente</span>`,
+                    received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">Aceitar</button>`,
+                    none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${f.id})">+ Adicionar</button>`,
+                }[f.rel] || '';
+                return `<div class="friend-row">
+                    ${this._friendAvatar(f)}
+                    <div class="friend-info">
+                        <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
+                        <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'Online':'Offline'}</div>
+                    </div>
+                    <div class="friend-actions">${btnHtml}</div>
+                </div>`;
+            }).join('');
+        } catch { el.innerHTML = '<div class="friends-error">⚠️ Erro ao buscar.</div>'; }
+    }
+
+    _buildFriendRow(f, showActions = true) {
+        const actions = showActions ? `
+            <div class="friend-actions">
+                <button class="fr-btn fr-btn--view" onclick="window.game.ui._openFriendProfile(${f.id})" title="Ver Perfil">👤</button>
+                <button class="fr-btn fr-btn--compare" onclick="window.game.ui._openFriendCompare(${f.id})" title="Comparar Stats">📊</button>
+                <button class="fr-btn fr-btn--remove" onclick="window.game.ui._confirmRemoveFriend(${f.id},'${(f.username||'').replace(/'/g,'')}')" title="Remover Amigo">✗</button>
+            </div>` : '';
+        return `<div class="friend-row">
+            ${this._friendAvatar(f)}
+            <div class="friend-info" style="cursor:pointer" onclick="window.game.ui._openFriendProfile(${f.id})">
+                <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
+                <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'<span style="color:#00ff88">Online</span>':'Offline'}</div>
+            </div>
+            ${actions}
+        </div>`;
+    }
+
+    _friendAvatar(f) {
+        const src = f.foto ? `foto/${f.foto}` : 'foto/padrao.png';
+        return `<div class="friend-avatar-wrap">
+            <img class="friend-avatar" src="${src}" alt="" onerror="this.src='foto/padrao.png'">
+            <span class="status-dot status-dot--${f.online?'online':'offline'} friend-avatar-dot"></span>
+        </div>`;
+    }
+
+    _confirmRemoveFriend(id, username) {
+        const overlay  = document.getElementById('remove-friend-overlay');
+        const nameEl   = document.getElementById('rfc-username');
+        const confirmB = document.getElementById('rfc-confirm');
+        const cancelB  = document.getElementById('rfc-cancel');
+        if (!overlay) return;
+
+        if (nameEl) nameEl.textContent = username || 'este jogador';
+        overlay.style.display = 'flex';
+
+        // Clone buttons to drop stale listeners
+        const newConfirm = confirmB.cloneNode(true);
+        const newCancel  = cancelB.cloneNode(true);
+        confirmB.replaceWith(newConfirm);
+        cancelB.replaceWith(newCancel);
+
+        newConfirm.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            this._friendAction('remove', id);
+        });
+        newCancel.addEventListener('click', () => {
+            overlay.style.display = 'none';
+        });
+
+        // Close on overlay backdrop click
+        overlay.onclick = e => { if (e.target === overlay) overlay.style.display = 'none'; };
+    }
+
+    async _friendAction(action, friendId) {
+        try {
+            const res  = await fetch('api/amigos.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ action, friend_id: friendId }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this._friendsCache = null; // invalidate cache
+                const c = document.getElementById('modal-content'), tc = document.getElementById('modal-tabs');
+                if (c && this._activePanel === 'friends') {
+                    this._friendsView = 'tabs';
+                    this._renderFriends(c, tc);
+                }
+            }
+        } catch { /* ignore */ }
+    }
+
+    async _openFriendProfile(id) {
+        this._friendsProfileId = id;
+        this._friendsView = 'profile';
+        const c = document.getElementById('modal-content'), tc = document.getElementById('modal-tabs');
+        if (c) this._renderFriendProfileView(c, tc);
+    }
+
+    async _renderFriendProfileView(container, tabsContainer) {
+        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← Voltar</button>`;
+        container.innerHTML = '<div class="friends-loading">⏳ Carregando perfil...</div>';
+        try {
+            const res  = await fetch(`api/amigos.php?action=profile&id=${this._friendsProfileId}`);
+            const data = await res.json();
+            if (!data.ok) { container.innerHTML = `<div class="friends-error">⚠️ ${data.msg || 'Erro ao carregar perfil.'}</div>`; return; }
+            const p = data.profile;
+            const src = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
+            const since = new Date(p.criado_em).toLocaleDateString('pt-BR');
+            const isSelf    = p.id === this._game.account.getAccount()?.id;
+            const removeBtn = (!isSelf && p.rel === 'friend')
+                ? `<button class="fr-btn fr-btn--remove fp-remove-btn" onclick="window.game.ui._confirmRemoveFriend(${p.id},'${(p.username||'').replace(/'/g,'')}')" title="Remover Amigo">✗ Remover</button>`
+                : '';
+            const actionBtn = {
+                sent:     `<span class="fr-tag">Pedido Enviado</span>`,
+                received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${p.id})">Aceitar Pedido</button>`,
+                none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${p.id})">+ Adicionar Amigo</button>`,
+            }[p.rel] || '';
+            const compareBtn = '';
+
+            const dim  = `<span style="color:var(--text-dim)">—</span>`;
+            const row  = (label, val) =>
+                `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${val}</span></div>`;
+            const sec  = label => `<div class="stat-section-label">${label}</div>`;
+
+            container.innerHTML = `
+                <div class="friend-profile-card">
+                    <div class="fp-header">
+                        <div class="fp-avatar-wrap">
+                            <img class="fp-avatar" src="${src}" alt="" onerror="this.src='foto/padrao.png'">
+                            <span class="status-dot status-dot--${p.online?'online':'offline'} fp-status-dot"></span>
+                        </div>
+                        <div class="fp-info">
+                            <div class="fp-name">${p.vip?'<span class="fr-vip">👑</span>':''}${p.username}</div>
+                            <div class="fp-status ${p.online?'fp-status--online':'fp-status--offline'}">${p.online?'● Online':'○ Offline'}</div>
+                            <div class="fp-since">📅 Desde ${since}</div>
+                        </div>
+                        ${removeBtn}
+                    </div>
+                    <div style="margin-bottom:14px">
+                        ${sec('Progressão')}
+                        ${row('Nível',                p.nivel)}
+                        ${row('XP Total',             dim)}
+                        ${row('Prestígios',           p.total_prestigios)}
+                        ${row('Mult. de Prestígio',   dim)}
+                        ${row('Pontos de Habilidade', dim)}
+                        ${row('Diamantes',            formatNum(p.diamantes))}
+                        ${sec('Neurônios')}
+                        ${row('Neurônios Vitalícios', formatNum(p.neuronios_vitais) + ' ⚡')}
+                        ${row('Neurônios (Ciclo Atual)', dim)}
+                        ${row('Neurônios/seg',         dim)}
+                        ${row('Valor do Clique',       dim)}
+                        ${sec('Combate')}
+                        ${row('Total de Cliques',      formatNum(p.total_cliques))}
+                        ${row('Cliques Críticos',      dim)}
+                        ${row('Chance Crítica',        dim)}
+                        ${sec('Conquistas')}
+                        ${row('Conquistas',            dim)}
+                        ${row('Missões Resgatadas',    dim)}
+                        ${sec('Boss')}
+                        ${row('Nível do Chefe',        p.nivel_chefe)}
+                        ${row('Dano Total ao Chefe',   formatNum(p.total_dano) + ' ⚔')}
+                        ${row('Abates de Chefes',      p.abates + ' ☠')}
+                        ${sec('Geral')}
+                        ${row('Tempo de Jogo',         dim)}
+                    </div>
+                    ${(!isSelf && (actionBtn || compareBtn)) ? `<div class="fp-actions">${actionBtn}${compareBtn}</div>` : ''}
+                </div>`;
+        } catch { container.innerHTML = '<div class="friends-error">⚠️ Erro ao carregar perfil.</div>'; }
+    }
+
+    async _openFriendCompare(id) {
+        this._friendsCompareId = id;
+        this._friendsView = 'compare';
+        const c = document.getElementById('modal-content'), tc = document.getElementById('modal-tabs');
+        if (c) this._renderFriendCompareView(c, tc);
+    }
+
+    async _renderFriendCompareView(container, tabsContainer) {
+        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← Voltar</button>`;
+        container.innerHTML = '<div class="friends-loading">⏳ Carregando comparação...</div>';
+        try {
+            const res  = await fetch(`api/amigos.php?action=profile&id=${this._friendsCompareId}`);
+            const data = await res.json();
+            if (!data.ok) { container.innerHTML = `<div class="friends-error">⚠️ ${data.msg}</div>`; return; }
+            const p  = data.profile;
+            const g  = this._game;
+            const myName = g.account.getAccount()?.username || 'Você';
+            const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1) + '%';
+
+            // diff only for numeric pairs; null frVal means friend data unavailable
+            const diffHTML = (meN, frN) => {
+                if (frN === null) return '<span style="color:var(--text-dim)">—</span>';
+                const d = meN - frN;
+                if (d === 0) return '<span style="color:var(--text-dim)">—</span>';
+                return d > 0
+                    ? `<span style="color:#00ff88">▲ +${formatNum(d)}</span>`
+                    : `<span style="color:#ff4444">▼ ${formatNum(d)}</span>`;
+            };
+
+            // sections mirror _getStatsData() order
+            const sections = [
+                { title: 'Progressão', rows: [
+                    { label: 'Nível',               meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
+                    { label: 'XP Total',            meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
+                    { label: 'Prestígios',          meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
+                    { label: 'Mult. Prestígio',     meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
+                    { label: 'Pts. Habilidade',     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
+                    { label: 'Diamantes',           meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
+                ]},
+                { title: 'Neurônios', rows: [
+                    { label: 'Neurônios Vitalícios',meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
+                    { label: 'Neurônios (Ciclo)',   meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
+                    { label: 'Neurônios/seg',       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
+                    { label: 'Valor do Clique',     meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
+                ]},
+                { title: 'Combate', rows: [
+                    { label: 'Total de Cliques',    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
+                    { label: 'Cliques Críticos',    meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
+                    { label: 'Chance Crítica',      meV: critChance,                                  frV: null,               fmt: null },
+                ]},
+                { title: 'Boss', rows: [
+                    { label: 'Nível do Chefe',      meV: g.boss?.userBossLevel || 0,                 frV: p.nivel_chefe,      fmt: v => v },
+                    { label: 'Dano ao Chefe',       meV: g.boss?.lifetimeDamage || 0,                frV: p.total_dano,       fmt: formatNum },
+                    { label: 'Abates',              meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
+                ]},
+                { title: 'Conquistas', rows: [
+                    { label: 'Conquistas',          meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
+                    { label: 'Missões Resgatadas',  meV: g.missions.claims.size,                     frV: null,               fmt: null },
+                ]},
+                { title: 'Geral', rows: [
+                    { label: 'Tempo de Jogo',       meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
+                ]},
+            ];
+
+            const rowsHTML = sections.map(sec => `
+                <div class="compare-section-title">${sec.title}</div>
+                ${sec.rows.map(r => {
+                    const meStr  = r.fmt ? r.fmt(r.meV) : r.meV;
+                    const frStr  = r.frV !== null ? (r.fmt ? r.fmt(r.frV) : r.frV) : '<span style="color:var(--text-dim)">—</span>';
+                    const dStr   = (r.fmt && r.frV !== null) ? diffHTML(r.meV, r.frV) : '<span style="color:var(--text-dim)">—</span>';
+                    return `<div class="compare-row">
+                        <div class="compare-label">${r.label}</div>
+                        <div class="compare-val">${meStr}</div>
+                        <div class="compare-val">${frStr}</div>
+                        <div class="compare-diff">${dStr}</div>
+                    </div>`;
+                }).join('')}
+            `).join('');
+
+            const src = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
+            container.innerHTML = `
+                <div class="compare-panel">
+                    <div class="compare-header">
+                        <div class="compare-player">
+                            <img class="compare-avatar" src="${g.account.getPhotoUrl()}" alt="">
+                            <span>${myName}</span>
+                        </div>
+                        <div class="compare-vs">VS</div>
+                        <div class="compare-player">
+                            <img class="compare-avatar" src="${src}" alt="" onerror="this.src='foto/padrao.png'">
+                            <span>${p.username}</span>
+                        </div>
+                    </div>
+                    <div class="compare-table">
+                        <div class="compare-thead">
+                            <div>Estatísticas</div><div>Você</div><div>${p.username}</div><div>Diferença</div>
+                        </div>
+                        ${rowsHTML}
+                    </div>
+                </div>`;
+        } catch (e) { container.innerHTML = '<div class="friends-error">⚠️ Erro ao comparar.</div>'; }
+    }
+
+    _closeFriendSubview() {
+        this._friendsView = 'tabs';
+        const c = document.getElementById('modal-content'), tc = document.getElementById('modal-tabs');
+        if (c) this._renderFriends(c, tc);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     _renderNavGroup(container, groupId) {
         const counts = this._getBadgeCounts();
 
         const groups = {
             neural: [
-                { id: 'generators', icon: '🧬', label: 'Geradores',    sub: 'Fontes de Neurônios',  theme: 'neural'  },
-                { id: 'upgrades',   icon: '🚀', label: 'Melhorias',    sub: 'Poder e Eficiência',   theme: 'purple'  },
-                { id: 'skills',     icon: '✨', label: 'Habilidades',  sub: 'Pontos de Habilidade', theme: 'gold'    },
+                { id: 'generators', icon: '🔋', label: 'Geradores',    sub: 'Fontes de Neurônios',  theme: 'neural'  },
+                { id: 'upgrades',   icon: '🔧', label: 'Melhorias',    sub: 'Poder e Eficiência',   theme: 'purple'  },
+                { id: 'skills',     icon: '⚡', label: 'Habilidades',  sub: 'Pontos de Habilidade', theme: 'gold'    },
                 { id: 'rebirth',    icon: '♻️', label: 'Renascimento', sub: 'Prestígio Neural',     theme: 'purple'  },
             ],
             agenda: [
                 { id: 'missions',     icon: '📋', label: 'Missões',    sub: 'Diárias e Semanais', theme: 'green'  },
-                { id: 'achievements', icon: '🏆', label: 'Conquistas', sub: 'Marcos do Jogo',     theme: 'gold'   },
-                { id: 'leaderboard',  icon: '🏅', label: 'Placar',     sub: 'Ranking Global',     theme: 'neural' },
+                { id: 'achievements', icon: '🎯', label: 'Conquistas', sub: 'Marcos do Jogo',     theme: 'gold'   },
+                { id: 'leaderboard',  icon: '🏆', label: 'Placar',     sub: 'Ranking Global',     theme: 'neural' },
             ],
             conta: [
                 { id: 'profile',  icon: '👤', label: 'Perfil',          sub: 'Conta e Estatísticas', theme: 'neural' },
+                { id: 'friends',  icon: '👥', label: 'Amigos',          sub: 'Lista e Comparação',   theme: 'green'  },
                 { id: 'settings', icon: '⚙️', label: 'Configurações',   sub: 'Áudio e Save',         theme: 'neural' },
+            ],
+            boss: [
+                { id: 'boss_battle',   icon: '⚔️', label: 'Batalha',   sub: 'Combater o Boss',   theme: 'pink'   },
+                { id: 'boss_upgrades', icon: '💥', label: 'Melhorias', sub: 'Poder de Ataque',   theme: 'purple' },
+                { id: 'boss_ranking',  icon: '🏆', label: 'Placar',    sub: 'Ranking de Dano',   theme: 'gold'   },
             ],
         };
 
@@ -1511,13 +2107,13 @@ class UIManager {
         container.innerHTML = `
             <div style="display:flex; flex-direction:column; gap: 8px; padding-bottom: 20px;">
                 ${makeBtn('missions',      '📋', 'Missões')}
+                ${makeBtn('achievements',  '🎯', 'Conquistas')}
+                ${makeBtn('leaderboard',   '🏆', 'Placar Global')}
+                ${makeBtn('generators',    '🔋', 'Geradores Neurais')}
                 ${makeBtn('upgrades',      '🔧', 'Melhorias')}
-                ${makeBtn('generators',    '⚙️', 'Geradores Neurais')}
+                ${makeBtn('skills',        '⚡', 'Habilidades')}
                 ${makeBtn('rebirth',       '♻️', 'Renascimento')}
-                ${makeBtn('leaderboard',   '🏅', 'Placar Global')}
                 ${makeBtn('shop',          '🛒', 'Loja Neural')}
-                ${makeBtn('skills',        '✨', 'Habilidades')}
-                ${makeBtn('achievements',  '🏆', 'Conquistas')}
                 ${makeBtn('profile',       '👤', 'Perfil')}
                 ${makeBtn('settings',      '⚙️', 'Configurações')}
             </div>
@@ -1621,11 +2217,8 @@ class UIManager {
         const qty = this._boostModalQty || 1;
         if (this._game.shop.buy(this._boostModalId, qty)) {
             this._game.audio.upgrade?.();
-            this._game.notify(`Boost comprado${qty > 1 ? ' ×' + qty : ''}!`, 'success');
             this._hideBoostBuyModal();
             if (this._activePanel === 'shop') this._renderPanelContent('shop');
-        } else {
-            this._game.notify('Neurônios insuficientes!', 'error');
         }
     }
 
@@ -1668,10 +2261,12 @@ class UIManager {
             wrap.style.background  = rc + '10';
         }
 
-        // Preset button highlight
+        // Preset button highlight + disable when can't afford
         document.querySelectorAll('.bbc-preset').forEach(btn => {
-            const n = parseInt(btn.textContent.replace('×', ''));
+            const m = btn.getAttribute('onclick')?.match(/_setBoostQty\((\d+)\)/);
+            const n = m ? parseInt(m[1]) : 0;
             btn.classList.toggle('active', n === qty);
+            btn.disabled = n > 0 && !this._game.economy.canAfford(item.cost * n);
         });
 
         // Confirm button state
@@ -1733,7 +2328,7 @@ class UIManager {
                 <div class="pshop-info">
                     <div class="pshop-header-row">
                         <div class="pshop-title pshop-title-cyan">2× NEURÔNIO</div>
-                        <div class="pshop-pop-badge">🔥 POPULAR</div>
+                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">Premium</div>
                     </div>
                     <div class="pshop-subtitle">Dobra permanentemente todos os ganhos</div>
                     <div class="pshop-benefits">
@@ -1744,6 +2339,33 @@ class UIManager {
                     </div>
                 </div>
                 <div class="pshop-actions">${doubleAction}</div>
+            </div>`;
+
+        // ── 2× Dano no Boss ──
+        const hasDoubleDmg  = g.shop.purchased.has('perm_boss_dmg_x2');
+        const doubleDmgAction = hasDoubleDmg
+            ? `<div class="pshop-owned-badge" style="border-color:rgba(255,100,0,0.4);color:#ff6400">✓ ATIVO 2×</div>`
+            : `<div class="pshop-price" style="color:#ff6400">R$ 9,90</div>
+               <button class="pshop-buy-btn" style="border-color:rgba(255,100,0,0.4);color:#ff6400;background:rgba(255,100,0,0.08)"
+                       onclick="window.game.buyBossDamageX2()">Adquirir</button>`;
+        const doubleDmgCard = `
+            <div class="pshop-card pshop-card--double${hasDoubleDmg ? ' pshop-card--owned' : ''}">
+                <div class="pshop-card-glow" style="background:radial-gradient(ellipse at right,rgba(255,100,0,0.18) 0%,transparent 70%)"></div>
+                <div class="pshop-icon pshop-icon--double" style="background:rgba(255,100,0,0.1);border-color:rgba(255,100,0,0.28)">⚔️</div>
+                <div class="pshop-info">
+                    <div class="pshop-header-row">
+                        <div class="pshop-title" style="color:#ff6400">2× DANO</div>
+                        <div class="pshop-rarity-badge" style="--rc:#ff6400">Premium</div>
+                    </div>
+                    <div class="pshop-subtitle">Dobra permanentemente o dano no Boss</div>
+                    <div class="pshop-benefits">
+                        <div class="pshop-benefit">⚔️ 2× dano por clique no Boss</div>
+                        <div class="pshop-benefit">🌍 Aplica no Boss World e painel</div>
+                        <div class="pshop-benefit">♾ Permanente para sempre</div>
+                        <div class="pshop-benefit">💾 Salvo na conta</div>
+                    </div>
+                </div>
+                <div class="pshop-actions">${doubleDmgAction}</div>
             </div>`;
 
         // ── Skins ──
@@ -1795,7 +2417,6 @@ class UIManager {
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || skin.rarity}</div>
-                            <div class="pshop-skin-badge">${skin.badge}</div>
                         </div>
                         <div class="pshop-subtitle">${skin.desc}</div>
                     </div>
@@ -1860,13 +2481,10 @@ class UIManager {
         const diamonds = acc.getDiamonds?.() || 0;
         const packHTML = packs.map(pack => {
             const isMega    = pack.id === 'diamonds_mega';
-            const isPopular = pack.popular === true;
             const bonusTag  = pack.bonus
-                ? `<div class="dpack-bonus${isMega ? ' dpack-bonus--fire' : ''}">${pack.bonus}</div>`
+                ? `<div class="dpack-bonus">${pack.bonus}</div>`
                 : '';
-            const popTag = isPopular
-                ? `<div class="dpack-popular">⭐ POPULAR</div>`
-                : '';
+            const popTag = '';
             if (isMega) {
                 return `
                 <div class="dpack-card dpack-card--mega"
@@ -1886,9 +2504,9 @@ class UIManager {
                 </div>`;
             }
             return `
-                <div class="dpack-card${isPopular ? ' dpack-card--popular' : ''}"
+                <div class="dpack-card"
                      onclick="window.game.buyDiamondPack('${pack.id}')">
-                    ${bonusTag}${popTag}
+                    ${bonusTag}
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
                     <div class="dpack-unit">Diamantes</div>
@@ -1910,7 +2528,7 @@ class UIManager {
                         <span class="pshop-section-title">PREMIUM</span>
                         <span class="pshop-section-sub">Benefícios vitalícios exclusivos</span>
                     </div>
-                    ${vipCard}${doubleCard}
+                    ${vipCard}${doubleCard}${doubleDmgCard}
                 </div>
 
                 <div class="pshop-section pshop-section--diamonds">
@@ -2063,21 +2681,30 @@ class UIManager {
         if (el) el.textContent = this._game.skills.skillPoints + ' SP';
     }
 
-    async _renderLeaderboard(container) {
+    async _renderLeaderboard(container, tabsContainer) {
         const g   = this._game;
         const acc = g.account;
         const isOnline = acc.isLoggedIn() && !acc.isLocalOnly() && window.location.protocol !== 'file:';
 
-        // Clear any previous refresh timer
         if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
 
-        // Show loading immediately (sync)
-        container.innerHTML = `
-            <div class="lb-header-note">
-                <span class="lb-badge">PLACAR GLOBAL</span>
-                <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
-            </div>
-            <div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
+        const TABS = [
+            { id: 'neuronios',  label: 'Neurônios',  unit: ' ⚡', tipo: 'neuronios'  },
+            { id: 'cliques',    label: 'Cliques',    unit: ' 🖱', tipo: 'cliques'    },
+            { id: 'nivel',      label: 'Nível',      unit: ' Lv', tipo: 'nivel'      },
+            { id: 'prestigios', label: 'Prestígios', unit: ' ♻',  tipo: 'prestigios' },
+        ];
+        const tab = TABS.find(t => t.id === this._activeLbTab) || TABS[0];
+
+        // Render tabs in the sticky tab bar (same style as missions/shop tabs)
+        if (tabsContainer) {
+            tabsContainer.innerHTML = TABS.map(t =>
+                `<button class="tab-btn ${t.id === this._activeLbTab ? 'active' : ''}"
+                         onclick="window.game.ui._setLbTab('${t.id}')">${t.label}</button>`
+            ).join('');
+        }
+
+        container.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
 
         let entries = [], playerRank = null;
 
@@ -2085,62 +2712,70 @@ class UIManager {
             await g._syncLeaderboard();
             try {
                 const [topRes, rankRes] = await Promise.all([
-                    fetch('api/leaderboard.php?action=top&limit=50'),
-                    fetch('api/leaderboard.php?action=rank'),
+                    fetch(`api/leaderboard.php?action=top&limit=50&tipo=${tab.tipo}`),
+                    fetch(`api/leaderboard.php?action=rank&tipo=${tab.tipo}`),
                 ]);
                 const topData  = await topRes.json();
                 const rankData = await rankRes.json();
                 if (topData.ok)  entries    = topData.entries;
                 if (rankData.ok) playerRank = rankData.rank;
             } catch {
-                container.innerHTML = `
-                    <div class="lb-header-note">
-                        <span class="lb-badge">PLACAR GLOBAL</span>
-                        <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
-                    </div>
-                    <div class="lb-error">⚠️ Sem conexão com o servidor.<br>Verifique se o XAMPP está rodando.</div>`;
+                container.innerHTML += `<div class="lb-error">⚠️ Sem conexão com o servidor.</div>`;
                 return;
             }
         }
 
-        // Tag current player in server entries
         const uid = acc.getAccount()?.id;
         if (uid) entries.forEach(e => { if (e.id === uid) e.isPlayer = true; });
 
-        // Build local player entry (always available as fallback)
+        // Local player fallback entry
+        const localScore = (() => {
+            if (tab.id === 'neuronios')  return g.economy.lifetimeNeurons;
+            if (tab.id === 'cliques')    return g.stats.totalClicks;
+            if (tab.id === 'nivel')      return g.level.level;
+            if (tab.id === 'prestigios') return g.economy.totalPrestiges;
+            return 0;
+        })();
         const playerLocal = acc.isLoggedIn() ? {
-            id: uid, username: acc.getAccount().username, foto: acc.getAccount().foto,
-            lifetimeNeurons: g.economy.lifetimeNeurons, level: g.level.level,
-            totalPrestiges: g.economy.totalPrestiges, vip: acc.isVip(), isPlayer: true,
+            id: uid, username: acc.getAccount()?.username, foto: acc.getAccount()?.foto,
+            vip: acc.isVip(), score: localScore, nivel: g.level.level,
+            totalPrestiges: g.economy.totalPrestiges, isPlayer: true,
         } : null;
 
-        const top        = entries.slice(0, 50);
+        const top          = entries.slice(0, 50);
         const playerInList = top.some(e => e.isPlayer);
 
-        // Helpers
         const podiumClasses = ['lb-pod-1st','lb-pod-2nd','lb-pod-3rd'];
-        const podiumMedals  = ['🥇','🥈','🥉'];
+        const podiumMedals  = ['🏆','🥈','🥉'];
 
         const avatarEl = (entry) => {
-            if (entry.isPlayer)
-                return `<img class="lb-avatar-img" src="${acc.getPhotoUrl()}" alt="">`;
+            if (entry.isPlayer) return `<img class="lb-avatar-img" src="${acc.getPhotoUrl()}" alt="">`;
             const src = entry.foto ? `foto/${entry.foto}` : 'foto/padrao.png';
             return `<img class="lb-avatar-img" src="${src}" alt="">`;
         };
+
+        const fmtScore = (e) => {
+            const s = e.score ?? 0;
+            return `${formatNum(s)}${tab.unit}`;
+        };
+
+        const onlineDot = (e) => (e.isPlayer || e.online)
+            ? `<span class="status-dot status-dot--online lb-online-dot" title="Online"></span>`
+            : '';
 
         const buildPodiumSlot = (entry, rank) => {
             if (!entry) return `<div class="lb-pod-slot ${podiumClasses[rank-1]} lb-pod-empty"><div class="lb-pod-medal">${podiumMedals[rank-1]}</div><div class="lb-pod-card lb-pod-card--empty"><span>—</span></div><div class="lb-pod-pedestal"></div></div>`;
             const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
             const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
             const nameClass = entry.vip      ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            const dot       = onlineDot(entry);
             return `
                 <div class="lb-pod-slot ${podiumClasses[rank-1]}${entry.isPlayer?' lb-pod-you':''}">
                     <div class="lb-pod-medal">${podiumMedals[rank-1]}</div>
                     <div class="lb-pod-card">
-                        <div class="lb-pod-avatar">${avatarEl(entry)}</div>
+                        <div class="lb-pod-avatar-wrap">${avatarEl(entry)}${dot}</div>
                         <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
-                        <div class="lb-pod-score">${formatNum(entry.lifetimeNeurons)}<span class="lb-unit"> ⚡</span></div>
-                        <div class="lb-pod-sub">Lv ${entry.level} · ${entry.totalPrestiges} ♻</div>
+                        <div class="lb-pod-score">${fmtScore(entry)}</div>
                     </div>
                     <div class="lb-pod-pedestal"></div>
                 </div>`;
@@ -2150,61 +2785,46 @@ class UIManager {
             const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
             const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
             const nameClass = entry.vip      ? 'lb-name lb-name-vip' : 'lb-name';
+            const dot       = onlineDot(entry);
             return `
                 <div class="lb-row${entry.isPlayer?' lb-row-player':''}">
                     <div class="lb-rank">#${rank}</div>
                     <div class="lb-row-avatar">${avatarEl(entry)}</div>
+                    ${dot}
                     <div class="lb-info">
                         <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
-                        <div class="lb-sub">Lv ${entry.level} · ${entry.totalPrestiges} ♻</div>
                     </div>
-                    <div class="lb-score">${formatNum(entry.lifetimeNeurons)}<span class="lb-unit"> ⚡</span></div>
+                    <div class="lb-score">${fmtScore(entry)}</div>
                 </div>`;
         };
 
-        // ── Render podium ──
-        const podiumHTML = `
-            <div class="lb-podium">
-                ${buildPodiumSlot(top[0], 1)}
-                ${buildPodiumSlot(top[1], 2)}
-                ${buildPodiumSlot(top[2], 3)}
-            </div>`;
-
-        // ── Render rows 4+ ──
+        const podiumHTML = `<div class="lb-podium">${buildPodiumSlot(top[0],1)}${buildPodiumSlot(top[1],2)}${buildPodiumSlot(top[2],3)}</div>`;
         let rowsHTML = top.slice(3).map((e, i) => buildRow(e, i + 4)).join('');
 
         if (!playerInList && playerLocal) {
             const sep = top.length >= 3 ? `<div class="lb-separator">· · ·</div>` : '';
-            const rank = playerRank ?? (top.length + 1);
-            rowsHTML += sep + buildRow(playerLocal, rank);
+            rowsHTML += sep + buildRow(playerLocal, playerRank ?? (top.length + 1));
         }
-
         if (top.length === 0 && !playerLocal) {
             rowsHTML = `<div class="lb-empty">Nenhum jogador no ranking ainda.<br>Seja o primeiro!</div>`;
         }
 
-        // ── Footer ──
         const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const footer = isOnline
-            ? `🌐 Placar online · Atualizado às ${time} · Atualiza a cada 30s`
-            : (!acc.isLoggedIn()
-                ? '⚠️ Entre na sua conta para aparecer no ranking global'
-                : '⚠️ Conta local — crie uma conta online para entrar no ranking');
+            ? `🌐 Placar online · Atualizado às ${time}`
+            : (!acc.isLoggedIn() ? '⚠️ Entre na sua conta para aparecer no ranking global'
+                                 : '⚠️ Conta local — crie uma conta online para entrar no ranking');
 
         container.innerHTML = `
-            <div class="lb-header-note">
-                <span class="lb-badge">PLACAR GLOBAL</span>
-                <span class="lb-note">Neurônios vitalícios · não reseta com Prestígio</span>
-            </div>
             ${podiumHTML}
             <div class="lb-list">${rowsHTML}</div>
             <div class="lb-footer">${footer}</div>`;
 
-        // Auto-refresh every 30s while panel is open
         this._lbRefreshTimer = setInterval(() => {
             if (this._activePanel === 'leaderboard') {
-                const c = document.getElementById('modal-content');
-                if (c) this._renderLeaderboard(c);
+                const c  = document.getElementById('modal-content');
+                const tc = document.getElementById('modal-tabs');
+                if (c) this._renderLeaderboard(c, tc);
             } else {
                 clearInterval(this._lbRefreshTimer);
                 this._lbRefreshTimer = null;
@@ -2212,11 +2832,131 @@ class UIManager {
         }, 30_000);
     }
 
+    _setLbTab(id) {
+        this._activeLbTab = id;
+        const c  = document.getElementById('modal-content');
+        const tc = document.getElementById('modal-tabs');
+        if (c) this._renderLeaderboard(c, tc);
+    }
+
     // ── Boss Info Panel ──────────────────────────────────────────────────────
 
-    _renderBossInfo(container) {
-        container.innerHTML = '<div id="boss-info-panel"></div>';
+    // ── Boss Info Panel ──────────────────────────────────────────────────────
+
+    // ── Boss sub-panel wrappers (called from _renderPanelContent) ─────────────
+
+    _renderBossPanel(content) {
+        if (this._bossBattleTimerInterval) { clearInterval(this._bossBattleTimerInterval); this._bossBattleTimerInterval = null; }
+        content.innerHTML = '<div id="boss-info-panel"></div>';
+
+        // _initBossUI runs before _loadState, so level check fails and polling never starts.
+        // Force-start polling on first panel open (startPolling calls fetchState immediately).
+        const bm = this._game.boss;
+        if (!bm._pollTimer) bm.startPolling(5000);
+
         this._renderBossInfoContent();
+        // Dedicated 1s interval to tick only the timer element — avoids full re-renders
+        this._bossBattleTimerInterval = setInterval(() => {
+            if (this._activePanel !== 'boss_battle') {
+                clearInterval(this._bossBattleTimerInterval);
+                this._bossBattleTimerInterval = null;
+                return;
+            }
+            const bm = this._game.boss;
+            const b  = bm.boss;
+
+            // ── Cooldown countdown (no active boss) ──
+            if (!b) {
+                const rawCooldown = bm.cooldown || 0;
+                const cdEl = document.getElementById('binfo-cooldown-val');
+                if (!cdEl || rawCooldown <= 0) return;
+                const elapsed = Math.floor((Date.now() - bm._stateFetchedAt) / 1000);
+                const rem = Math.max(0, rawCooldown - elapsed);
+                const mm = String(Math.floor(rem / 60)).padStart(2, '0');
+                const ss = String(rem % 60).padStart(2, '0');
+                cdEl.textContent = `${mm}:${ss}`;
+                if (rem <= 0) bm.fetchState();
+                return;
+            }
+
+            // ── Active boss timer ──
+            const el  = document.getElementById('binfo-live-timer');
+            if (!el) return;
+            const serverRem = b.remaining ?? 300;
+            const defeated = b.status === 'defeated' || b.status === 'expired';
+            if (defeated) { el.textContent = '☠ Derrotado'; return; }
+            const rem = b._clientExpiry
+                ? Math.max(0, Math.floor((b._clientExpiry - Date.now()) / 1000))
+                : Math.max(0, serverRem);
+            if (rem <= 0) {
+                el.textContent = '00:00';
+                clearInterval(this._bossBattleTimerInterval);
+                this._bossBattleTimerInterval = null;
+                bm.fetchState();
+                return;
+            }
+            const mm = String(Math.floor(rem / 60)).padStart(2, '0');
+            const ss = String(rem % 60).padStart(2, '0');
+            el.textContent  = `${mm}:${ss}`;
+            const rc = (typeof BOSS_RARITY_COLORS !== 'undefined' && BOSS_RARITY_COLORS[b.rarity]) || '#00f5ff';
+            el.style.color  = rem < 60 ? '#ff4444' : (rem < 120 ? '#ffd700' : rc);
+        }, 1000);
+    }
+
+    _renderBossRankingPanel(content, tabsContainer) {
+        if (this._bossRankRefreshTimer) { clearInterval(this._bossRankRefreshTimer); this._bossRankRefreshTimer = null; }
+        const bm = this._game.boss;
+        if (!bm._pollTimer) bm.startPolling(5000);
+        if (tabsContainer) {
+            tabsContainer.innerHTML = `
+                <button class="tab-btn ${this._activeBossRankTab === 'dano' ? 'active' : ''}"
+                        onclick="window.game.ui._setBossRankTab('dano')">Dano Total</button>
+                <button class="tab-btn ${this._activeBossRankTab === 'abates' ? 'active' : ''}"
+                        onclick="window.game.ui._setBossRankTab('abates')">Abates</button>`;
+        }
+        content.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
+        this._renderBossRankingContent(content);
+    }
+
+    _setBossRankTab(id) {
+        this._activeBossRankTab = id;
+        const c  = document.getElementById('modal-content');
+        const tc = document.getElementById('modal-tabs');
+        if (c) this._renderBossRankingPanel(c, tc);
+    }
+
+    _renderBossUpgradesPanel(content) {
+        content.innerHTML = '<div id="boss-info-panel"></div>';
+        const bm = this._game.boss;
+        if (!bm._pollTimer) bm.startPolling(5000);
+        this._renderBossUpgrades();
+    }
+
+    _renderBossInfo(container, tabsContainer) {
+        if (!['boss', 'ranking', 'upgrades'].includes(this._activeBossTab)) this._activeBossTab = 'boss';
+        tabsContainer.innerHTML = `
+            <button class="tab-btn ${this._activeBossTab === 'boss' ? 'active' : ''}"
+                onclick="window.game.ui._activeBossTab='boss'; window.game.ui._renderPanelContent('boss')">Boss</button>
+            <button class="tab-btn ${this._activeBossTab === 'ranking' ? 'active' : ''}"
+                onclick="window.game.ui._activeBossTab='ranking'; window.game.ui._lastBossRankFetch=0; window.game.ui._renderPanelContent('boss')">Placar</button>
+            <button class="tab-btn ${this._activeBossTab === 'upgrades' ? 'active' : ''}"
+                onclick="window.game.ui._activeBossTab='upgrades'; window.game.ui._renderPanelContent('boss')">Melhorias</button>
+        `;
+        container.innerHTML = '<div id="boss-info-panel"></div>';
+        this._updateBossInfoPanel();
+    }
+
+    _updateBossInfoPanel() {
+        if (this._activeBossTab === 'boss') {
+            this._renderBossInfoContent();
+        } else if (this._activeBossTab === 'ranking') {
+            if (!this._lastBossRankFetch || Date.now() - this._lastBossRankFetch > 30_000) {
+                this._lastBossRankFetch = Date.now();
+                this._renderBossRankingContent();
+            }
+        } else if (this._activeBossTab === 'upgrades') {
+            this._renderBossUpgrades();
+        }
     }
 
     _renderBossInfoContent() {
@@ -2227,23 +2967,22 @@ class UIManager {
         const b   = bm.boss;
 
         if (!b) {
-            // No active boss — show countdown
             const wait = Math.max(0, bm.cooldown || 0);
-            const mm   = String(Math.floor(wait / 60)).padStart(2, '0');
-            const ss   = String(wait % 60).padStart(2, '0');
-            const next = wait > 0 ? `${mm}:${ss}` : 'Em breve…';
-            const key = `no-boss-${Math.floor(wait / 5)}`; // re-render every 5s
+            const key  = wait > 0 ? 'no-boss-cooldown' : 'no-boss-loading';
             if (panel._key === key) return;
             panel._key = key;
+            const mm   = String(Math.floor(wait / 60)).padStart(2, '0');
+            const ss   = String(wait % 60).padStart(2, '0');
             panel.innerHTML = `
                 <div class="binfo-no-boss">
                     <div class="binfo-no-boss-icon">🌐</div>
-                    <div class="binfo-no-boss-title">Nenhum Boss Ativo</div>
                     ${wait > 0
-                        ? `<div class="binfo-countdown">Próximo boss em <span class="binfo-countdown-val">${next}</span></div>`
-                        : `<div class="binfo-countdown">Preparando próxima ameaça…</div>`
+                        ? `<div class="binfo-no-boss-title">⏳ Recarga do Boss</div>
+                           <div class="binfo-level-progress" style="margin:8px 0;font-size:12px;color:var(--text-dim)">PRÓXIMO EM</div>
+                           <div class="binfo-countdown-val" id="binfo-cooldown-val" style="font-family:'Orbitron',monospace;font-size:24px;color:var(--cyan)">${String(Math.floor(wait/60)).padStart(2,'0')}:${String(wait%60).padStart(2,'0')}</div>
+                           <div class="binfo-hint" style="margin-top:10px;font-size:11px">Derrote o boss antes do tempo para avançar sem recarga!</div>`
+                        : `<div class="binfo-no-boss-title">Carregando Boss…</div>`
                     }
-                    <div class="binfo-hint">Os bosses aparecem automaticamente.<br>Uma notificação será exibida quando surgir.</div>
                 </div>`;
             return;
         }
@@ -2255,37 +2994,14 @@ class UIManager {
         const pct       = Math.max(0, Math.min(1, b.pct ?? (b.currentHp / b.maxHp)));
         const hpPct     = (pct * 100).toFixed(1);
         const hpColor   = pct > 0.5 ? '#00ff88' : pct > 0.25 ? '#ffd700' : '#ff4444';
-        const rem       = b.remaining ?? 0;
-        const mm        = String(Math.floor(rem / 60)).padStart(2, '0');
-        const ss        = String(rem % 60).padStart(2, '0');
-        const timerStr  = defeated ? (b.status === 'defeated' ? '☠ Derrotado' : '⌛ Expirou') : `${mm}:${ss}`;
-        const mult      = b.rarity === 'legendary' ? 3 : b.rarity === 'epic' ? 2 : 1;
 
-        const myDmgLine = acc.isLoggedIn() && bm.myDamage > 0
-            ? `<div class="binfo-my-dmg">Seu dano: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong>${bm.myRank ? ` · Rank <strong style="color:${rc}">#${bm.myRank}</strong>` : ''}</div>`
-            : '';
+        // Drift-free remaining: use absolute _clientExpiry timestamp when available
+        const serverRem = b._clientExpiry
+            ? Math.max(0, Math.floor((b._clientExpiry - Date.now()) / 1000))
+            : Math.max(0, b.remaining ?? 300);
 
-        const topHTML = bm.top.length === 0
-            ? '<div class="binfo-top-empty">Nenhum dano registrado ainda.</div>'
-            : bm.top.slice(0, 5).map((p, i) => {
-                const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                const isMe   = acc.isLoggedIn() && p.userId === acc.getAccount()?.id;
-                const barPct = b.maxHp > 0 ? Math.min(100, p.damage / b.maxHp * 100) : 0;
-                const av     = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
-                return `<div class="binfo-top-row${isMe ? ' binfo-top-row--me' : ''}">
-                    <span class="binfo-top-medal">${medal}</span>
-                    <img class="binfo-top-avatar" src="${av}" alt="">
-                    <span class="binfo-top-name">${p.username}</span>
-                    <div class="binfo-bar-wrap"><div class="binfo-bar" style="width:${barPct.toFixed(1)}%;background:${rc}"></div></div>
-                    <span class="binfo-top-dmg" style="color:${rc}">${formatNum(p.damage)}</span>
-                </div>`;
-            }).join('');
-
-        const battleBtn = !defeated
-            ? `<button class="binfo-battle-btn" style="border-color:${rc}88;color:${rc}" onclick="window.game.ui._openBossWorld()">⚔ Ir para Batalha</button>`
-            : '';
-
-        const newKey = `${b.id}-${Math.floor(rem / 3)}-${Math.floor(pct * 200)}`;
+        // Key includes myDamage so the panel re-renders after every server hit response
+        const newKey = `boss-${b.id}-${defeated ? 'dead' : Math.floor(bm.myDamage)}-${Math.floor(pct * 1000)}`;
         if (panel._key === newKey) return;
         panel._key = newKey;
 
@@ -2297,35 +3013,252 @@ class UIManager {
                     <div class="binfo-badges">
                         <span class="binfo-rarity" style="color:${rc};border-color:${rc}55">${rl}</span>
                         <span class="binfo-level">Lv.${b.level}</span>
-                        <span class="binfo-timer${defeated ? ' binfo-timer--dead' : ''}" style="${!defeated ? `color:${rc}` : ''}">${timerStr}</span>
                     </div>
                     <div class="binfo-desc">${def.desc || ''}</div>
                 </div>
             </div>
 
+            ${defeated
+                ? `<div class="binfo-timer-block binfo-timer-block--dead">
+                        <div class="binfo-timer-label">☠ DERROTADO</div>
+                        <div class="binfo-timer-val">00:00</div>
+                   </div>`
+                : (() => {
+                    const elp = bm._stateFetchedAt > 0 ? Math.max(0,(Date.now()-bm._stateFetchedAt)/1000) : 0;
+                    const r0  = Math.max(0, Math.floor(serverRem - elp));
+                    const tc  = r0 < 60 ? '#ff4444' : (r0 < 120 ? '#ffd700' : rc);
+                    const ts  = `${String(Math.floor(r0/60)).padStart(2,'0')}:${String(r0%60).padStart(2,'0')}`;
+                    return `<div class="binfo-timer-block">
+                                <div class="binfo-timer-label">TEMPO PARA MATAR</div>
+                                <div class="binfo-timer-val" id="binfo-live-timer" style="color:${tc};text-shadow:0 0 20px ${tc}88">${ts}</div>
+                            </div>`;
+                  })()
+            }
+
             <div class="binfo-hp-section">
                 <div class="binfo-hp-label">
                     <span>HP</span>
-                    <span>${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)} &nbsp; <strong style="color:${hpColor}">${hpPct}%</strong></span>
+                    <span>${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)} &nbsp;<strong style="color:${hpColor}">${hpPct}%</strong></span>
                 </div>
                 <div class="binfo-hp-track">
                     <div class="binfo-hp-fill" style="width:${hpPct}%;background:${hpColor};box-shadow:0 0 10px ${hpColor}88;transition:width .5s ease"></div>
                 </div>
             </div>
 
-            ${myDmgLine}
-            ${battleBtn}
 
-            <div class="binfo-rewards">
-                <span>🥇 ${30*mult}💎</span>
-                <span>🥈 ${15*mult}💎</span>
-                <span>🥉 ${5*mult}💎</span>
-                <span style="color:var(--text-dim)">+ Neurônios</span>
+            <div class="binfo-footer-stats">
+                ${acc.isLoggedIn() && bm.myDamage > 0 ? `<span>Dano nesta batalha: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>` : ''}
+                ${acc.isLoggedIn() && bm.lifetimeDamage > 0 ? `<span>Total: <strong style="color:var(--gold)">${formatNum(bm.lifetimeDamage)}</strong></span>` : ''}
             </div>
 
-            <div class="binfo-top-section">
-                <div class="binfo-top-title" style="color:${rc}">⚔ Top Dano</div>
-                ${topHTML}
+            ${!defeated ? `<button class="binfo-battle-btn" style="border-color:${rc}44;color:${rc};opacity:0.7;font-size:11px" onclick="window.game.ui._openBossWorld()">🌐 Entrar no Boss World</button>` : ''}`;
+    }
+
+    async _renderBossRankingContent(container) {
+        const g   = this._game;
+        const bm  = g.boss;
+        const acc = g.account;
+        const isOnline = acc.isLoggedIn() && !acc.isLocalOnly() && window.location.protocol !== 'file:';
+        const isDano   = this._activeBossRankTab !== 'abates';
+
+        let top = [], playerRank = null;
+
+        if (isOnline) {
+            const endpoint = isDano ? 'damage_top' : 'kills_top';
+            try {
+                const res  = await fetch(`api/boss.php?action=${endpoint}`);
+                const data = await res.json();
+                if (data.ok) top = data.top || [];
+            } catch {
+                container.innerHTML = `<div class="lb-error">⚠️ Sem conexão com o servidor.</div>`;
+                return;
+            }
+        }
+
+        const uid = acc.getAccount()?.id;
+        if (uid) top.forEach(e => { if (e.userId === uid) e.isPlayer = true; });
+
+        const localScore = isDano ? bm.lifetimeDamage : bm.bossKills;
+        const playerLocal = acc.isLoggedIn() && localScore > 0 ? {
+            userId: uid, username: acc.getAccount()?.username, foto: acc.getAccount()?.foto,
+            vip: acc.isVip(), damage: bm.lifetimeDamage, kills: bm.bossKills, isPlayer: true,
+        } : null;
+
+        const playerInList = top.some(e => e.isPlayer);
+        const podiumClasses = ['lb-pod-1st','lb-pod-2nd','lb-pod-3rd'];
+        const podiumMedals  = ['🏆','🥈','🥉'];
+        const unit          = isDano ? ' ⚔' : ' ☠';
+        const scoreOf       = e => isDano ? (e.damage ?? 0) : (e.kills ?? 0);
+
+        const avatarEl = (entry) => {
+            if (entry.isPlayer) return `<img class="lb-avatar-img" src="${acc.getPhotoUrl()}" alt="">`;
+            const src = entry.foto ? `foto/${entry.foto}` : 'foto/padrao.png';
+            return `<img class="lb-avatar-img" src="${src}" alt="">`;
+        };
+
+        const buildPodiumSlot = (entry, rank) => {
+            if (!entry) return `<div class="lb-pod-slot ${podiumClasses[rank-1]} lb-pod-empty"><div class="lb-pod-medal">${podiumMedals[rank-1]}</div><div class="lb-pod-card lb-pod-card--empty"><span>—</span></div><div class="lb-pod-pedestal"></div></div>`;
+            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
+            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
+            const nameClass = entry.vip      ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            return `
+                <div class="lb-pod-slot ${podiumClasses[rank-1]}${entry.isPlayer ? ' lb-pod-you' : ''}">
+                    <div class="lb-pod-medal">${podiumMedals[rank-1]}</div>
+                    <div class="lb-pod-card">
+                        <div class="lb-pod-avatar">${avatarEl(entry)}</div>
+                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="lb-pod-score" style="color:var(--gold)">${formatNum(scoreOf(entry))}<span class="lb-unit">${unit}</span></div>
+                    </div>
+                    <div class="lb-pod-pedestal"></div>
+                </div>`;
+        };
+
+        const buildRow = (entry, rank) => {
+            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
+            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
+            const nameClass = entry.vip      ? 'lb-name lb-name-vip' : 'lb-name';
+            return `
+                <div class="lb-row${entry.isPlayer ? ' lb-row-player' : ''}">
+                    <div class="lb-rank">#${rank}</div>
+                    <div class="lb-row-avatar">${avatarEl(entry)}</div>
+                    <div class="lb-info">
+                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                    </div>
+                    <div class="lb-score" style="color:var(--gold)">${formatNum(scoreOf(entry))}<span class="lb-unit">${unit}</span></div>
+                </div>`;
+        };
+
+        const podiumHTML = `<div class="lb-podium">${buildPodiumSlot(top[0],1)}${buildPodiumSlot(top[1],2)}${buildPodiumSlot(top[2],3)}</div>`;
+        let rowsHTML = top.slice(3).map((e, i) => buildRow(e, i + 4)).join('');
+
+        if (!playerInList && playerLocal) {
+            rowsHTML += `<div class="lb-separator">· · ·</div>` + buildRow(playerLocal, playerRank ?? (top.length + 1));
+        }
+        if (top.length === 0 && !playerLocal) {
+            rowsHTML = `<div class="lb-empty">Nenhum dado registrado ainda.<br>Derrote bosses para aparecer no ranking!</div>`;
+        }
+
+        const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const footer = isOnline
+            ? `🌐 Placar online · Atualizado às ${time}`
+            : (!acc.isLoggedIn() ? '⚠️ Entre na sua conta para aparecer no ranking'
+                                 : '⚠️ Conta local — crie uma conta online para entrar no ranking');
+
+        container.innerHTML = `
+            ${podiumHTML}
+            <div class="lb-list">${rowsHTML}</div>
+            <div class="lb-footer">${footer}</div>`;
+
+        if (this._bossRankRefreshTimer) clearInterval(this._bossRankRefreshTimer);
+        this._bossRankRefreshTimer = setInterval(() => {
+            if (this._activePanel === 'boss_ranking') {
+                const c = document.getElementById('modal-content');
+                if (c) this._renderBossRankingContent(c);
+            } else {
+                clearInterval(this._bossRankRefreshTimer);
+                this._bossRankRefreshTimer = null;
+            }
+        }, 30_000);
+    }
+
+    // ── Boss Upgrades Tab ─────────────────────────────────────────────────────
+
+    _renderBossUpgrades() {
+        const panel = document.getElementById('boss-info-panel');
+        if (!panel) return;
+        const bm  = this._game.boss;
+        const g   = this._game;
+        const upgrades = bm.upgradeDefs || [];
+        if (!upgrades.length) {
+            panel.innerHTML = '<div class="empty-msg">Nenhuma melhoria disponível.</div>';
+            return;
+        }
+
+        const qty   = this._bossUpgQty;
+        const mult  = g.shop?.getBossDamageMult?.() || 1;
+        const qtyRow = [1, 10, 25, 100].map(n =>
+            `<button class="gen-qty-btn${qty === n ? ' active' : ''}"
+                     onclick="window.game.ui.setBossUpgQty(${n})">×${n}</button>`
+        ).join('') +
+        `<button class="gen-qty-btn gen-qty-max${qty === 'max' ? ' active' : ''}"
+                 onclick="window.game.ui.setBossUpgQty('max')">MAX</button>`;
+
+        let html = `
+            <div class="binfo-upg-header">
+                <div class="binfo-upg-power">
+                    Poder: <strong style="color:var(--gold)">${formatNum(bm.bossPower)}</strong> dmg/clique
+                    ${mult > 1 ? `<span style="color:var(--pink)"> × ${mult}</span>` : ''}
+                </div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
+                    💎 <strong style="color:var(--gold)">${formatNum(g.economy.prestigeTokens)}</strong> diamantes disponíveis
+                </div>
+            </div>
+            <div class="gen-qty-row" style="margin:8px 0 4px">${qtyRow}</div>
+            <div id="boss-upgrades-list" style="display:flex;flex-direction:column;gap:5px">`;
+
+        const diamonds = g.economy.prestigeTokens;
+        upgrades.forEach(upg => {
+            const maxBuy = Math.max(0, Math.floor(diamonds / upg.cost));
+            const reqQty = qty === 'max' ? maxBuy : (typeof qty === 'number' ? qty : 1);
+
+            // Enabled only when can afford the FULL requested quantity
+            const canAfford = qty === 'max' ? maxBuy > 0 : maxBuy >= reqQty;
+
+            // Cost shown = full price for the requested qty (grayed when disabled so user sees what's needed)
+            const displayCost = upg.cost * (qty === 'max' ? Math.max(1, maxBuy) : reqQty);
+
+            html += `
+                <div class="upgrade-item${canAfford ? ' can-afford' : ''}">
+                    <span class="upg-icon">${upg.icon}</span>
+                    <div class="upg-info">
+                        <div class="upg-name">${upg.name}</div>
+                        <div class="upg-desc">${upg.desc}</div>
+                    </div>
+                    <button class="gen-buy-btn${canAfford ? ' can-afford' : ''}"
+                            style="min-width:90px;flex-shrink:0;white-space:nowrap"
+                            onclick="window.game.ui._buyBossUpgrade('${upg.id}')"
+                            ${canAfford ? '' : 'disabled'}>
+                        ${displayCost} 💎
+                    </button>
+                </div>`;
+        });
+
+        html += `</div>`;
+        panel.innerHTML = html;
+    }
+
+    setBossUpgQty(qty) {
+        this._bossUpgQty = qty;
+        if (this._activePanel === 'boss_upgrades') this._renderBossUpgrades();
+    }
+
+    _buyBossUpgrade(id) {
+        const bm  = this._game.boss;
+        const upg = bm.upgradeDefs.find(u => u.id === id);
+        if (!upg) return;
+        const qty    = this._bossUpgQty;
+        const maxBuy = Math.max(0, Math.floor(this._game.economy.prestigeTokens / upg.cost));
+        const reqQty = qty === 'max' ? maxBuy : (typeof qty === 'number' ? qty : 1);
+        // Only buy if can afford the full requested amount (MAX buys whatever is available)
+        const buyN = qty === 'max' ? maxBuy : (maxBuy >= reqQty ? reqQty : 0);
+        if (buyN <= 0) return;
+        const bought = bm.buyBossUpgradeN(id, buyN);
+        if (bought > 0) this._renderBossUpgrades();
+    }
+
+    // ── Boss lock ─────────────────────────────────────────────────────────────
+
+    _bossUnlocked() { return this._game.level.level >= 35; }
+
+    _renderBossLocked(content) {
+        const needed = Math.max(0, 35 - this._game.level.level);
+        content.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center">
+                <div style="font-size:52px;margin-bottom:16px">🔒</div>
+                <div style="font-family:'Orbitron',monospace;font-size:15px;color:var(--cyan);font-weight:700;margin-bottom:8px">NÍVEL 35 NECESSÁRIO</div>
+                <div style="font-size:12px;color:var(--text-dim);max-width:240px;line-height:1.5">Continue evoluindo para desafiar os Bosses Neurais!</div>
+                <div style="margin-top:24px;font-family:'Orbitron',monospace;font-size:22px;color:var(--gold);font-weight:700">Lv ${this._game.level.level}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${needed} ${needed !== 1 ? 'níveis' : 'nível'} para desbloquear</div>
             </div>`;
     }
 
@@ -2335,19 +3268,20 @@ class UIManager {
         const g   = this._game;
         const bm  = g.boss;
 
-        // Start global polling (boss is always checked, even outside boss world)
-        bm.startPolling(5000);
+        if (this._bossUnlocked()) bm.startPolling(5000);
 
-        // New boss appeared → show notification
+        // New boss appeared → show notification only if unlocked and not already in battle
         g.events.on('bossSpawned', ({ boss }) => {
+            if (!this._bossUnlocked()) return;
+            if (this._worldOpen) return; // player is already fighting — no popup needed
             this._showBossNotification(boss);
             g.audio.event?.();
         });
 
         // State updates → refresh world if open
-        g.events.on('bossStateUpdate', () => { if (this._worldOpen) this._updateBossWorld(); });
-        g.events.on('bossHit',         () => { if (this._worldOpen) this._updateBossWorld(); });
-        g.events.on('bossDefeated',    () => { if (this._worldOpen) this._updateBossWorld(); });
+        g.events.on('bossStateUpdate', () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
+        g.events.on('bossHit',         () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
+        g.events.on('bossDefeated',    () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
 
         // Notification buttons
         document.getElementById('bn-battle')?.addEventListener('click', () => {
@@ -2403,8 +3337,24 @@ class UIManager {
     // ── Boss World ────────────────────────────────────────────────────────────
 
     _openBossWorld() {
+        // Always dismiss the notification card first (regardless of how we got here)
+        this._hideBossNotification();
+
         const world = document.getElementById('boss-world');
         if (!world) return;
+        // Force-close any open modal panel immediately (no transition delay so it doesn't bleed through)
+        if (this._activePanel) {
+            if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
+            this._parentPanel = null;
+            this._activePanel = null;
+            document.querySelectorAll('.sidebar-btn, .mobile-nav-btn').forEach(b => b.classList.remove('active'));
+            const modalPanel    = document.getElementById('modal-panel');
+            const modalOverlay  = document.getElementById('modal-overlay');
+            if (modalPanel)   { modalPanel.classList.remove('open');   modalPanel.style.display   = 'none'; }
+            if (modalOverlay) { modalOverlay.style.display = 'none'; }
+            const mc = document.getElementById('modal-content');
+            if (mc) mc.innerHTML = '';
+        }
         this._worldOpen = true;
         this._game.boss.openBossWorld();
 
@@ -2416,6 +3366,7 @@ class UIManager {
 
     _closeBossWorld() {
         this._worldOpen = false;
+        if (this._bossWorldTimerInterval) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; }
         this._game.boss.closeBossWorld();
         const world = document.getElementById('boss-world');
         if (world) {
@@ -2448,6 +3399,8 @@ class UIManager {
     _renderBossWorld() {
         const content = document.getElementById('bw-content');
         if (!content) return;
+        // Reset _bwKey so _updateBossWorld always does a full rebuild, never partial
+        content._bwKey = null;
         content.innerHTML = '<div class="bw-loading">⚔️ Entrando na batalha…</div>';
         this._updateBossWorld();
     }
@@ -2458,13 +3411,65 @@ class UIManager {
         const bm  = this._game.boss;
         const acc = this._game.account;
 
+        // ── No boss: cooldown screen ──────────────────────────────────────────
         if (!bm.boss) {
-            content.innerHTML = `
-                <div class="bw-no-boss">
-                    <div class="bw-no-boss-icon">🌐</div>
-                    <div class="bw-no-boss-title">Nenhum Boss Ativo</div>
-                    <div class="bw-no-boss-sub">Próximo boss em breve…</div>
-                </div>`;
+            const wait = Math.max(0, bm.cooldown || 0);
+
+            // Rebuild structure only once on enter (key = 'no-boss')
+            if (content._bwKey !== 'no-boss') {
+                content._bwKey = 'no-boss';
+                if (this._bossWorldTimerInterval) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; }
+
+                // Render the correct time immediately — no --:-- flash
+                const _fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+                content.innerHTML = `
+                    <div class="bw-no-boss">
+                        <div class="bw-no-boss-icon">⏳</div>
+                        <div class="bw-no-boss-title">Recarga do Boss</div>
+                        <div class="bw-no-boss-timer">PRÓXIMO BOSS EM</div>
+                        <div class="bw-countdown" id="bw-cooldown-timer">${_fmt(wait)}</div>
+                        <div class="bw-no-boss-hint">Derrote o boss para avançar de nível sem recarga!</div>
+                    </div>`;
+
+                const cooldownFetchedAt = Date.now();
+                const cooldownStart     = wait;
+                this._bossWorldTimerInterval = setInterval(() => {
+                    if (!this._worldOpen) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                    const el = document.getElementById('bw-cooldown-timer');
+                    if (!el) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                    const rem = Math.max(0, Math.floor(cooldownStart - (Date.now() - cooldownFetchedAt) / 1000));
+                    el.textContent = _fmt(rem);
+                    el.style.color = rem < 60 ? '#ff4444' : rem < 120 ? '#ffd700' : '#00f5ff';
+                    if (rem <= 0) {
+                        el.textContent = '00:00';
+                        clearInterval(this._bossWorldTimerInterval);
+                        this._bossWorldTimerInterval = null;
+                        bm.fetchState();
+                    }
+                }, 1000);
+            }
+
+            // Update timer reference when server poll returns a fresher cooldown
+            // (avoids drift without rebuilding the whole structure)
+            else if (wait > 0) {
+                const el = document.getElementById('bw-cooldown-timer');
+                if (el && el._lastSyncWait !== wait) {
+                    el._lastSyncWait = wait;
+                    // Restart countdown from the updated server value
+                    if (this._bossWorldTimerInterval) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; }
+                    const _fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+                    const fetchedAt = Date.now();
+                    this._bossWorldTimerInterval = setInterval(() => {
+                        if (!this._worldOpen) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                        const el2 = document.getElementById('bw-cooldown-timer');
+                        if (!el2) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                        const rem = Math.max(0, Math.floor(wait - (Date.now() - fetchedAt) / 1000));
+                        el2.textContent = _fmt(rem);
+                        el2.style.color = rem < 60 ? '#ff4444' : rem < 120 ? '#ffd700' : '#00f5ff';
+                        if (rem <= 0) { el2.textContent = '00:00'; clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; bm.fetchState(); }
+                    }, 1000);
+                }
+            }
             return;
         }
 
@@ -2472,39 +3477,46 @@ class UIManager {
         const def      = (typeof BOSS_TYPES !== 'undefined' && BOSS_TYPES[b.type]) || {};
         const rc       = (typeof BOSS_RARITY_COLORS !== 'undefined' && BOSS_RARITY_COLORS[b.rarity]) || '#00f5ff';
         const rl       = (typeof BOSS_RARITY_LABELS !== 'undefined' && BOSS_RARITY_LABELS[b.rarity]) || b.rarity;
-        const defeated  = b.status === 'defeated' || b.status === 'expired';
-        const pct       = Math.max(0, Math.min(1, b.pct ?? (b.currentHp / b.maxHp)));
-        const hpPct     = (pct * 100).toFixed(2);
-        const hpColor   = pct > 0.5 ? '#00ff88' : pct > 0.25 ? '#ffd700' : '#ff4444';
-        const rem       = b.remaining ?? 0;
-        const mm        = String(Math.floor(rem / 60)).padStart(2, '0');
-        const ss        = String(rem % 60).padStart(2, '0');
-        const timerStr  = defeated ? (b.status === 'defeated' ? '☠ DERROTADO' : '⌛ EXPIRADO') : `${mm}:${ss}`;
-        const mult      = b.rarity === 'legendary' ? 3 : b.rarity === 'epic' ? 2 : 1;
+        const defeated = b.status === 'defeated' || b.status === 'expired';
+
+        // ── Only FULL rebuild when boss identity or defeat state changes ──────
+        const structKey = `boss-${b.id}-${defeated}`;
+        if (content._bwKey === structKey) {
+            // Partial update — never touch the arena element (prevents hover flicker)
+            const pct     = Math.max(0, Math.min(1, b.pct ?? (b.currentHp / b.maxHp)));
+            const hpPct   = (pct * 100).toFixed(2);
+            const hpColor = pct > 0.5 ? '#00ff88' : pct > 0.25 ? '#ffd700' : '#ff4444';
+            const hpFill  = document.getElementById('bw-hp-fill');
+            if (hpFill) { hpFill.style.width = hpPct + '%'; hpFill.style.background = hpColor; hpFill.style.boxShadow = `0 0 14px ${hpColor}88`; }
+            const hpText  = document.getElementById('bw-hp-text');
+            if (hpText) hpText.textContent = `${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)}`;
+            const dmgVal  = document.getElementById('bw-my-dmg-val');
+            if (dmgVal && bm.myDamage > 0) dmgVal.textContent = formatNum(bm.myDamage);
+            return;
+        }
+
+        // ── Full rebuild ──────────────────────────────────────────────────────
+        content._bwKey = structKey;
+        if (this._bossWorldTimerInterval) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; }
+
+        const pct      = Math.max(0, Math.min(1, b.pct ?? (b.currentHp / b.maxHp)));
+        const hpPct    = (pct * 100).toFixed(2);
+        const hpColor  = pct > 0.5 ? '#00ff88' : pct > 0.25 ? '#ffd700' : '#ff4444';
         const canAttack = !defeated && acc.isLoggedIn();
 
-        // Update boss-world theme
+        // Initial timer — drift-free via _clientExpiry
+        const bossRemWorld = b._clientExpiry
+            ? Math.max(0, Math.floor((b._clientExpiry - Date.now()) / 1000))
+            : Math.max(0, b.remaining ?? 300);
+        const timerInit = defeated
+            ? '☠ DERROTADO'
+            : `${String(Math.floor(bossRemWorld/60)).padStart(2,'0')}:${String(bossRemWorld%60).padStart(2,'0')}`;
+
         const world = document.getElementById('boss-world');
         if (world) world.setAttribute('data-type', b.type);
 
-        const topHTML = bm.top.length === 0
-            ? '<div class="bw-top-empty">Nenhum dano registrado ainda.</div>'
-            : bm.top.map((p, i) => {
-                const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                const isMe   = acc.isLoggedIn() && p.userId === acc.getAccount()?.id;
-                const barPct = b.maxHp > 0 ? Math.min(100, p.damage / b.maxHp * 100) : 0;
-                const av     = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
-                return `<div class="bw-top-row${isMe ? ' bw-top-row--me' : ''}">
-                    <span class="bw-top-medal">${medal}</span>
-                    <img class="bw-top-avatar" src="${av}" alt="">
-                    <span class="bw-top-name">${p.username}</span>
-                    <div class="bw-top-bar-wrap"><div class="bw-top-bar" style="width:${barPct.toFixed(1)}%;background:${rc}88"></div></div>
-                    <span class="bw-top-dmg" style="color:${rc}">${formatNum(p.damage)}</span>
-                </div>`;
-            }).join('');
-
-        const myInfoHTML = acc.isLoggedIn() && bm.myDamage > 0
-            ? `<span class="bw-my-dmg">Seu dano: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong>${bm.myRank ? ` &nbsp;·&nbsp; Rank <strong style="color:${rc}">#${bm.myRank}</strong>` : ''}</span>`
+        const myDmgHTML = acc.isLoggedIn() && bm.myDamage > 0
+            ? `<span class="bw-my-dmg">Seu dano: <strong id="bw-my-dmg-val" style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>`
             : (!acc.isLoggedIn() ? `<span class="bw-login-hint">⚠ Faça login para ganhar recompensas</span>` : '');
 
         content.innerHTML = `
@@ -2520,11 +3532,12 @@ class UIManager {
                              style="width:${hpPct}%;background:${hpColor};box-shadow:0 0 14px ${hpColor}88">
                         </div>
                     </div>
-                    <span class="bw-hp-text">${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)}</span>
+                    <span class="bw-hp-text" id="bw-hp-text">${formatNum(Math.max(0, b.currentHp))} / ${formatNum(b.maxHp)}</span>
                 </div>
                 <div class="bw-timer-row">
-                    <span class="bw-timer${defeated ? ' bw-timer--dead' : ''}" style="${!defeated ? `color:${rc}` : ''}">${timerStr}</span>
-                    ${myInfoHTML}
+                    <span class="bw-timer${defeated ? ' bw-timer--dead' : ''}" id="bw-live-timer-world"
+                          style="${!defeated ? `color:${rc}` : ''}">${timerInit}</span>
+                    ${myDmgHTML}
                 </div>
             </div>
 
@@ -2532,26 +3545,48 @@ class UIManager {
                 <div class="bw-arena-glow"></div>
                 <div class="bw-boss-icon" id="bw-boss-icon">${def.icon || '👾'}</div>
                 ${canAttack ? `<div class="bw-arena-hint">CLIQUE PARA ATACAR</div>` : ''}
-                ${defeated ? `<div class="bw-defeated-label">${b.status === 'defeated' ? '☠ DERROTADO' : '⌛ EXPIRADO'}</div>` : ''}
+                ${defeated ? `<div class="bw-defeated-label">☠ DERROTADO</div>` : ''}
             </div>
 
-            <div class="bw-rewards-row">
-                <span>🥇 ${30 * mult}💎</span>
-                <span>🥈 ${15 * mult}💎</span>
-                <span>🥉 ${5 * mult}💎</span>
-                <span style="color:var(--text-dim)">+ Neurônios</span>
-            </div>
-
-            <div class="bw-top-section">
-                <div class="bw-top-title" style="color:${rc}">⚔ Top Dano Global</div>
-                ${topHTML}
+            <div class="bw-info-row">
+                <span class="bw-level-badge">Progressão: <strong style="color:${rc}">Nível ${bm.globalBossLevel}</strong></span>
+                ${acc.isLoggedIn() ? `<span class="bw-my-level-badge">Seu nível: <strong>${bm.userBossLevel}</strong></span>` : ''}
             </div>`;
 
-        // Smooth HP bar after paint
         requestAnimationFrame(() => {
             const fill = document.getElementById('bw-hp-fill');
             if (fill) fill.style.transition = 'width 0.5s ease, background 0.4s';
         });
+
+        // Timer interval — ticks only this element, never rebuilds the arena
+        if (!defeated) {
+            this._bossWorldTimerInterval = setInterval(() => {
+                if (!this._worldOpen) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                const el   = document.getElementById('bw-live-timer-world');
+                if (!el)   { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; return; }
+                const cur  = bm.boss;
+                if (!cur || cur.status === 'defeated' || cur.status === 'expired') {
+                    el.textContent = cur?.status === 'defeated' ? '☠ DERROTADO' : '00:00';
+                    el.classList.add('bw-timer--dead');
+                    el.removeAttribute('style');
+                    clearInterval(this._bossWorldTimerInterval);
+                    this._bossWorldTimerInterval = null;
+                    return;
+                }
+                const rem = cur._clientExpiry
+                    ? Math.max(0, Math.floor((cur._clientExpiry - Date.now()) / 1000))
+                    : Math.max(0, cur.remaining ?? 300);
+                if (rem <= 0) {
+                    el.textContent = '00:00';
+                    clearInterval(this._bossWorldTimerInterval);
+                    this._bossWorldTimerInterval = null;
+                    bm.fetchState(); // server transitions to cooldown screen automatically
+                    return;
+                }
+                el.textContent = `${String(Math.floor(rem/60)).padStart(2,'0')}:${String(rem%60).padStart(2,'0')}`;
+                el.style.color = rem < 60 ? '#ff4444' : (rem < 120 ? '#ffd700' : rc);
+            }, 1000);
+        }
     }
 
     _spawnBossHit(arena) {
@@ -2564,7 +3599,7 @@ class UIManager {
         arena.appendChild(el);
         setTimeout(() => el.remove(), 700);
 
-        const dmg = this._game.economy.getClickValue() * this._game.combo.getMult();
+        const dmg = this._game.boss.bossPower * (this._game.shop?.getBossDamageMult?.() || 1);
         const num = document.createElement('div');
         num.className = 'bw-dmg-num';
         num.textContent = '-' + formatNum(dmg);
@@ -2575,9 +3610,10 @@ class UIManager {
         const icon = document.getElementById('bw-boss-icon');
         if (icon) {
             icon.classList.remove('bw-boss-icon--hit');
-            void icon.offsetWidth;
-            icon.classList.add('bw-boss-icon--hit');
-            setTimeout(() => icon.classList.remove('bw-boss-icon--hit'), 280);
+            requestAnimationFrame(() => {
+                icon.classList.add('bw-boss-icon--hit');
+                setTimeout(() => icon.classList.remove('bw-boss-icon--hit'), 280);
+            });
         }
     }
 
@@ -2698,7 +3734,7 @@ class UIManager {
         const boosts = this._game.boosts.getActiveBoosts();
 
         if (boosts.length === 0) {
-            container.innerHTML = '';
+            if (container.children.length > 0) container.innerHTML = '';
             container.style.display = 'none';
             return;
         }
@@ -2883,7 +3919,10 @@ class UIManager {
 
     _setEl(id, val) {
         const el = document.getElementById(id);
-        if (el) el.textContent = val;
+        if (el) {
+            const s = String(val);
+            if (el.textContent !== s) el.textContent = s;
+        }
     }
 
     _onResize() { 

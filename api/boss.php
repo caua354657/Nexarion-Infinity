@@ -1,4 +1,9 @@
 <?php
+/**
+ * Nexarion Infinity — Sistema de chefes individuais por jogador.
+ * Cada jogador tem seu próprio chefe; derrotá-lo avança seu nível.
+ */
+
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/db.php';
@@ -9,243 +14,345 @@ function out(array $d, int $c = 200): void {
     exit;
 }
 
-// ── Ensure tables exist ────────────────────────────────────────────────────
-try {
-    $pdo = db();
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `bosses` (
-            `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `boss_type`   VARCHAR(50)  NOT NULL,
-            `level`       INT UNSIGNED NOT NULL DEFAULT 1,
-            `rarity`      ENUM('rare','epic','legendary') NOT NULL DEFAULT 'rare',
-            `max_hp`      DOUBLE NOT NULL,
-            `current_hp`  DOUBLE NOT NULL,
-            `starts_at`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `ends_at`     TIMESTAMP NOT NULL,
-            `defeated_at` TIMESTAMP NULL DEFAULT NULL,
-            `status`      ENUM('active','defeated','expired') NOT NULL DEFAULT 'active',
-            PRIMARY KEY (`id`),
-            KEY `idx_status` (`status`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `boss_damage` (
-            `boss_id`         INT UNSIGNED NOT NULL,
-            `user_id`         INT UNSIGNED NOT NULL,
-            `damage`          DOUBLE       NOT NULL DEFAULT 0,
-            `hits`            INT UNSIGNED NOT NULL DEFAULT 0,
-            `rewards_claimed` TINYINT(1)   NOT NULL DEFAULT 0,
-            `updated_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`boss_id`, `user_id`),
-            CONSTRAINT `fk_bde_boss` FOREIGN KEY (`boss_id`) REFERENCES `bosses`(`id`) ON DELETE CASCADE,
-            CONSTRAINT `fk_bde_user` FOREIGN KEY (`user_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-} catch (PDOException $e) { /* already exist */ }
-
 $uid = $_SESSION['uid'] ?? null;
-
-$ct    = $_SERVER['CONTENT_TYPE'] ?? '';
+$ct  = $_SERVER['CONTENT_TYPE'] ?? '';
 $input = strpos($ct, 'application/json') !== false
        ? (json_decode(file_get_contents('php://input'), true) ?? [])
        : $_POST;
 $action = $input['action'] ?? $_GET['action'] ?? '';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function getActiveBoss(PDO $pdo): ?array {
-    // Expire old bosses first
-    $pdo->exec("UPDATE bosses SET status='expired' WHERE status='active' AND ends_at <= NOW()");
-    $s = $pdo->prepare("SELECT * FROM bosses WHERE status='active' LIMIT 1");
-    $s->execute();
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function bossPool(): array {
+    return [
+        ['tipo' => 'cyber_boss',      'raridade' => 'rare'],
+        ['tipo' => 'glitch_entity',   'raridade' => 'rare'],
+        ['tipo' => 'neural_titan',    'raridade' => 'epic'],
+        ['tipo' => 'circuit_phantom', 'raridade' => 'epic'],
+        ['tipo' => 'data_colossus',   'raridade' => 'legendary'],
+    ];
+}
+
+function bossHpMax(int $nivel): float {
+    return 10_000 * pow(max(1, $nivel), 1.5);
+}
+
+const BOSS_TIMER_SECS    = 300; // 5 min para derrotar o boss
+const BOSS_COOLDOWN_SECS = 300; // 5 min de recarga após expirar
+
+// ── Busca com todos os campos calculados pelo MySQL (sem strtotime PHP) ──────────
+function fetchChefe(PDO $pdo, int $uid): ?array {
+    $s = $pdo->prepare("
+        SELECT *,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), expira_em))  AS remaining_sec,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), proximo_em)) AS cooldown_sec
+        FROM chefes_jogador
+        WHERE user_id = ?
+    ");
+    $s->execute([$uid]);
     return $s->fetch() ?: null;
 }
 
-function spawnBoss(PDO $pdo): array {
-    // All bosses last 5 min (300s) — feel like world events that come and go fast
-    $pool = [
-        ['type'=>'cyber_boss',      'rarity'=>'rare',      'dur'=>300],
-        ['type'=>'glitch_entity',   'rarity'=>'rare',      'dur'=>300],
-        ['type'=>'neural_titan',    'rarity'=>'epic',      'dur'=>420],
-        ['type'=>'circuit_phantom', 'rarity'=>'epic',      'dur'=>420],
-        ['type'=>'data_colossus',   'rarity'=>'legendary', 'dur'=>600],
-    ];
-    $t = $pool[array_rand($pool)];
+function criarChefe(PDO $pdo, int $uid, int $nivel): array {
+    $pool    = bossPool();
+    $entrada = $pool[($nivel - 1) % count($pool)];
+    $hp      = bossHpMax($nivel);
 
-    $row   = $pdo->query("SELECT COALESCE(MAX(level),0)+1 AS lvl FROM bosses")->fetch();
-    $level = min((int)$row['lvl'], 999);
+    $pdo->prepare("
+        INSERT INTO chefes_jogador (user_id, nivel, tipo, raridade, hp_max, hp_atual, expira_em, proximo_em, iniciado_em)
+        VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL " . BOSS_TIMER_SECS . " SECOND), NULL, NOW())
+        ON DUPLICATE KEY UPDATE
+            nivel       = VALUES(nivel),       tipo        = VALUES(tipo),
+            raridade    = VALUES(raridade),    hp_max      = VALUES(hp_max),
+            hp_atual    = VALUES(hp_atual),    expira_em   = VALUES(expira_em),
+            proximo_em  = NULL,                iniciado_em = NOW()
+    ")->execute([$uid, $nivel, $entrada['tipo'], $entrada['raridade'], $hp, $hp]);
 
-    // HP: 2M base, scales by level^1.35
-    $hp = 2_000_000 * pow(max(1, $level), 1.35);
-
-    $pdo->prepare(
-        "INSERT INTO bosses (boss_type,level,rarity,max_hp,current_hp,ends_at,status)
-         VALUES (?,?,?,?,?,DATE_ADD(NOW(),INTERVAL ? SECOND),'active')"
-    )->execute([$t['type'], $level, $t['rarity'], $hp, $hp, $t['dur']]);
-
-    $id = (int)$pdo->lastInsertId();
-    $s  = $pdo->prepare("SELECT * FROM bosses WHERE id=?");
-    $s->execute([$id]);
-    return $s->fetch();
+    return fetchChefe($pdo, $uid);
 }
 
-function formatBoss(array $b): array {
-    $remaining = max(0, strtotime($b['ends_at']) - time());
+// ── Resolve o estado atual do chefe usando MySQL para comparações de tempo ────────
+function resolveChefe(PDO $pdo, int $uid): array {
+    $rec = fetchChefe($pdo, $uid);
+
+    // Sem registro → primeiro boss
+    if (!$rec) {
+        return ['fase' => 'ativo', 'rec' => criarChefe($pdo, $uid, 1), 'cooldown' => 0];
+    }
+
+    // Em cooldown (proximo_em definido e no futuro — verificado pelo MySQL)
+    if (!empty($rec['proximo_em']) && $rec['cooldown_sec'] > 0) {
+        return ['fase' => 'cooldown', 'rec' => $rec, 'cooldown' => (int)$rec['cooldown_sec']];
+    }
+
+    // Cooldown acabou (proximo_em definido mas já passou)
+    if (!empty($rec['proximo_em']) && $rec['cooldown_sec'] <= 0) {
+        return ['fase' => 'ativo', 'rec' => criarChefe($pdo, $uid, (int)$rec['nivel']), 'cooldown' => 0];
+    }
+
+    // Boss ativo expirou (remaining_sec = 0, sem proximo_em) → iniciar cooldown
+    if (!empty($rec['expira_em']) && $rec['remaining_sec'] <= 0) {
+        $pdo->prepare("
+            UPDATE chefes_jogador
+            SET proximo_em = DATE_ADD(NOW(), INTERVAL " . BOSS_COOLDOWN_SECS . " SECOND)
+            WHERE user_id = ?
+        ")->execute([$uid]);
+        return ['fase' => 'cooldown', 'rec' => $rec, 'cooldown' => BOSS_COOLDOWN_SECS];
+    }
+
+    // Boss ativo normal
+    return ['fase' => 'ativo', 'rec' => $rec, 'cooldown' => 0];
+}
+
+function formatChefe(array $b): array {
+    $pct       = $b['hp_max'] > 0 ? round($b['hp_atual'] / $b['hp_max'], 6) : 0;
+    // remaining_sec vem do MySQL (TIMESTAMPDIFF) — sem dependência de timezone do PHP
+    $remaining = isset($b['remaining_sec']) ? (int)$b['remaining_sec'] : BOSS_TIMER_SECS;
     return [
-        'id'        => (int)$b['id'],
-        'type'      => $b['boss_type'],
-        'level'     => (int)$b['level'],
-        'rarity'    => $b['rarity'],
-        'maxHp'     => (float)$b['max_hp'],
-        'currentHp' => (float)$b['current_hp'],
-        'pct'       => $b['max_hp'] > 0 ? round($b['current_hp'] / $b['max_hp'], 6) : 0,
+        'nivel'     => (int)$b['nivel'],
+        'type'      => $b['tipo'],
+        'rarity'    => $b['raridade'],
+        'maxHp'     => (float)$b['hp_max'],
+        'currentHp' => (float)$b['hp_atual'],
+        'pct'       => $pct,
+        'status'    => 'active',
         'remaining' => $remaining,
-        'status'    => $b['status'],
     ];
 }
 
-function getTopDamage(PDO $pdo, int $bossId): array {
-    $s = $pdo->prepare("
-        SELECT bd.user_id, u.nome_usuario AS username, u.foto,
-               bd.damage, bd.hits, bd.rewards_claimed
-        FROM boss_damage bd
-        INNER JOIN usuarios u ON bd.user_id = u.id
-        WHERE bd.boss_id = ?
-        ORDER BY bd.damage DESC LIMIT 10
-    ");
-    $s->execute([$bossId]);
-    return array_map(fn($r) => [
-        'userId'   => (int)$r['user_id'],
-        'username' => $r['username'],
-        'foto'     => $r['foto'],
-        'damage'   => (float)$r['damage'],
-        'hits'     => (int)$r['hits'],
-        'claimed'  => (bool)$r['rewards_claimed'],
-    ], $s->fetchAll(PDO::FETCH_ASSOC));
+function getDanoVitalicio(PDO $pdo, int $uid): array {
+    $s = $pdo->prepare("SELECT total_dano, abates FROM dano_chefe_vitalicio WHERE user_id = ?");
+    $s->execute([$uid]);
+    $row = $s->fetch();
+    return ['totalDano' => (float)($row['total_dano'] ?? 0), 'abates' => (int)($row['abates'] ?? 0)];
 }
 
-function calcRewards(array $boss, float $myDmg, int $myRank): array {
-    if ($myDmg <= 0) return ['neurons' => 0, 'diamonds' => 0];
-    $pct      = $boss['max_hp'] > 0 ? ($myDmg / $boss['max_hp']) : 0;
-    $neurons  = (int)($boss['max_hp'] * $pct * 2);          // 2× damage as neurons
-    $diamonds = match(true) {
-        $myRank === 1  => 30,
-        $myRank <= 10  => 15,
-        $myRank <= 100 => 5,
-        default        => 2,
-    };
-    // Rarity bonus
-    $rarityMult = match($boss['rarity']) { 'legendary' => 3, 'epic' => 2, default => 1 };
-    return ['neurons' => $neurons * $rarityMult, 'diamonds' => $diamonds * $rarityMult];
-}
-
-// ── Routes ─────────────────────────────────────────────────────────────────
+// ── Rotas ─────────────────────────────────────────────────────────────────────
 switch ($action) {
 
+// ── Estado atual do chefe do jogador ─────────────────────────────────────────
 case 'state': {
     try {
-        $pdo  = db();
-        $boss = getActiveBoss($pdo);
+        $pdo = db();
 
-        // Auto-spawn: 60s cooldown between bosses → new boss ~every 5 min
-        if (!$boss) {
-            $r    = $pdo->query("SELECT MAX(COALESCE(defeated_at,ends_at)) AS last FROM bosses")->fetch();
-            $last = $r['last'] ? strtotime($r['last']) : 0;
-            if (time() - $last >= 60) {
-                $boss = spawnBoss($pdo);
-            }
+        if (!$uid) {
+            // Boss simulado para visitantes — remaining fixo (não persiste)
+            out([
+                'ok'              => true,
+                'boss'            => ['nivel'=>1,'type'=>'cyber_boss','rarity'=>'rare','maxHp'=>10000,'currentHp'=>10000,'pct'=>1,'status'=>'active','remaining'=>BOSS_TIMER_SECS],
+                'cooldown'        => 0,
+                'lifetimeDamage'  => 0,
+                'bossKills'       => 0,
+                'userBossLevel'   => 1,
+                'globalBossLevel' => 1,
+            ]);
         }
 
-        if (!$boss) {
-            $r    = $pdo->query("SELECT MAX(COALESCE(defeated_at,ends_at)) AS last FROM bosses")->fetch();
-            $last = $r && $r['last'] ? strtotime($r['last']) : time();
-            $wait = max(0, 60 - (time() - $last));
-            out(['ok' => true, 'boss' => null, 'cooldown' => $wait]);
+        $resolved = resolveChefe($pdo, $uid);
+        $stats    = getDanoVitalicio($pdo, $uid);
+        $nivel    = (int)$resolved['rec']['nivel'];
+
+        if ($resolved['fase'] === 'cooldown') {
+            out([
+                'ok'              => true,
+                'boss'            => null,
+                'cooldown'        => $resolved['cooldown'],
+                'userBossLevel'   => $nivel,
+                'globalBossLevel' => $nivel,
+                'lifetimeDamage'  => $stats['totalDano'],
+                'bossKills'       => $stats['abates'],
+            ]);
         }
 
-        $bossId = (int)$boss['id'];
-
-        // Player info
-        $myDmg = 0; $myRank = null; $rewards = null;
-        if ($uid) {
-            $s = $pdo->prepare("SELECT damage, rewards_claimed FROM boss_damage WHERE boss_id=? AND user_id=?");
-            $s->execute([$bossId, $uid]);
-            $row = $s->fetch();
-            $myDmg    = $row ? (float)$row['damage'] : 0;
-            $claimed  = $row ? (bool)$row['rewards_claimed'] : false;
-
-            if ($myDmg > 0) {
-                $s2 = $pdo->prepare("SELECT COUNT(*)+1 AS r FROM boss_damage WHERE boss_id=? AND damage>?");
-                $s2->execute([$bossId, $myDmg]);
-                $myRank = (int)$s2->fetch()['r'];
-            }
-
-            // Grant rewards if boss defeated and not yet claimed
-            if ($boss['status'] === 'defeated' && $myDmg > 0 && !$claimed) {
-                $rewards = calcRewards($boss, $myDmg, $myRank ?? 999);
-                $pdo->prepare("UPDATE boss_damage SET rewards_claimed=1 WHERE boss_id=? AND user_id=?")
-                    ->execute([$bossId, $uid]);
-            }
-        }
-
-        out(['ok'       => true,
-             'boss'     => formatBoss($boss),
-             'myDamage' => $myDmg,
-             'myRank'   => $myRank,
-             'top'      => getTopDamage($pdo, $bossId),
-             'rewards'  => $rewards]);
+        out([
+            'ok'              => true,
+            'boss'            => formatChefe($resolved['rec']),
+            'cooldown'        => 0,
+            'rewards'         => null,
+            'lifetimeDamage'  => $stats['totalDano'],
+            'bossKills'       => $stats['abates'],
+            'userBossLevel'   => $nivel,
+            'globalBossLevel' => $nivel,
+        ]);
     } catch (PDOException $ex) {
         out(['ok' => false, 'msg' => $ex->getMessage()], 500);
     }
     break;
 }
 
+// ── Atacar o chefe ────────────────────────────────────────────────────────────
 case 'attack': {
     if (!$uid) out(['ok' => false, 'msg' => 'Login necessário.'], 401);
 
     $dmg = max(0.0, (float)($input['damage'] ?? 0));
     if ($dmg <= 0) out(['ok' => false, 'msg' => 'Dano inválido.']);
-    $dmg = min($dmg, 1e18);                                 // hard cap
+    $dmg = min($dmg, 1e18);
 
     try {
-        $pdo  = db();
-        $boss = getActiveBoss($pdo);
-        if (!$boss || $boss['status'] !== 'active') out(['ok' => false, 'msg' => 'Sem boss ativo.']);
+        $pdo      = db();
+        $resolved = resolveChefe($pdo, $uid);
 
-        $bossId = (int)$boss['id'];
-
-        $pdo->prepare("UPDATE bosses SET current_hp=GREATEST(0,current_hp-?) WHERE id=? AND status='active'")
-            ->execute([$dmg, $bossId]);
-
-        $pdo->prepare("
-            INSERT INTO boss_damage (boss_id,user_id,damage,hits) VALUES (?,?,?,1)
-            ON DUPLICATE KEY UPDATE damage=damage+VALUES(damage), hits=hits+1
-        ")->execute([$bossId, $uid, $dmg]);
-
-        $s = $pdo->prepare("SELECT current_hp, max_hp, status FROM bosses WHERE id=?");
-        $s->execute([$bossId]);
-        $upd = $s->fetch();
-
-        $defeated = false;
-        if ((float)$upd['current_hp'] <= 0 && $upd['status'] === 'active') {
-            $pdo->prepare("UPDATE bosses SET status='defeated', defeated_at=NOW(), current_hp=0 WHERE id=?")
-                ->execute([$bossId]);
-            $defeated = true;
+        if ($resolved['fase'] === 'cooldown') {
+            out(['ok' => false, 'msg' => 'Boss em recarga.', 'cooldown' => $resolved['cooldown']]);
         }
 
-        $s2 = $pdo->prepare("SELECT damage FROM boss_damage WHERE boss_id=? AND user_id=?");
-        $s2->execute([$bossId, $uid]);
-        $myDmg = (float)($s2->fetch()['damage'] ?? 0);
+        $boss   = $resolved['rec'];
+        $novoHp = max(0.0, (float)$boss['hp_atual'] - $dmg);
+        $derrotado = $novoHp <= 0;
 
-        $hp  = max(0.0, (float)$upd['current_hp']);
-        $max = (float)$upd['max_hp'];
-        out(['ok'        => true,
-             'currentHp' => $hp,
-             'maxHp'     => $max,
-             'pct'       => $max > 0 ? round($hp / $max, 6) : 0,
-             'defeated'  => $defeated,
-             'myDamage'  => $myDmg]);
+        // Atualizar HP do chefe
+        $pdo->prepare("UPDATE chefes_jogador SET hp_atual = ? WHERE user_id = ?")
+            ->execute([$novoHp, $uid]);
+
+        // Acumular dano vitalício
+        $pdo->prepare("
+            INSERT INTO dano_chefe_vitalicio (user_id, total_dano, abates) VALUES (?, ?, 0)
+            ON DUPLICATE KEY UPDATE total_dano = total_dano + VALUES(total_dano)
+        ")->execute([$uid, $dmg]);
+
+        $novoNivel = (int)$boss['nivel'];
+        $novoBoss  = null;
+        $recompensa = null;
+
+        if ($derrotado) {
+            // Avançar nível e spawnar novo chefe
+            $novoNivel++;
+
+            // Registrar abate
+            $pdo->prepare("
+                INSERT INTO dano_chefe_vitalicio (user_id, total_dano, abates) VALUES (?, 0, 1)
+                ON DUPLICATE KEY UPDATE abates = abates + 1
+            ")->execute([$uid]);
+
+            // Atualizar placar (user_boss_level via chefes_jogador já atualiza)
+            $novoBossData = criarChefe($pdo, $uid, $novoNivel);
+            $novoBoss     = formatChefe($novoBossData);
+
+            // Recompensas por derrota
+            $rarityMult = match($boss['raridade']) { 'legendary' => 3, 'epic' => 2, default => 1 };
+            $hpMax      = (float)$boss['hp_max'];
+            $pct        = $hpMax > 0 ? min(1.0, $dmg / $hpMax) : 0;
+            $recompensa = [
+                'neurons'  => (int)($hpMax * $pct * 2) * $rarityMult,
+                'diamonds' => (2 + ($boss['raridade'] === 'legendary' ? 8 : ($boss['raridade'] === 'epic' ? 4 : 0))),
+            ];
+        }
+
+        $stats = getDanoVitalicio($pdo, $uid);
+
+        out([
+            'ok'            => true,
+            'currentHp'     => $novoHp,
+            'maxHp'         => (float)$boss['hp_max'],
+            'pct'           => $boss['hp_max'] > 0 ? round($novoHp / $boss['hp_max'], 6) : 0,
+            'defeated'      => $derrotado,
+            'myDamage'      => $dmg,
+            'userBossLevel' => $novoNivel,
+            'newBoss'       => $novoBoss,
+            'rewards'       => $recompensa,
+            'lifetimeDamage'=> $stats['totalDano'],
+            'bossKills'     => $stats['abates'],
+        ]);
     } catch (PDOException $ex) {
         out(['ok' => false, 'msg' => 'Erro ao registrar ataque.'], 500);
+    }
+    break;
+}
+
+// ── Ranking: maior dano vitalício ─────────────────────────────────────────────
+case 'damage_top': {
+    try {
+        $pdo = db();
+        $s = $pdo->query("
+            SELECT d.user_id, u.nome_usuario AS username, u.foto,
+                   COALESCE(p.vip, 0) AS vip,
+                   d.total_dano AS damage, d.abates AS kills
+            FROM dano_chefe_vitalicio d
+            INNER JOIN usuarios u ON d.user_id = u.id
+            LEFT JOIN placar p ON d.user_id = p.user_id
+            ORDER BY d.total_dano DESC
+            LIMIT 50
+        ");
+        $top = []; $rank = 1;
+        while ($row = $s->fetch(PDO::FETCH_ASSOC)) {
+            $top[] = [
+                'rank'     => $rank++,
+                'userId'   => (int)$row['user_id'],
+                'username' => $row['username'],
+                'foto'     => $row['foto'],
+                'vip'      => (bool)$row['vip'],
+                'damage'   => (float)$row['damage'],
+                'kills'    => (int)$row['kills'],
+            ];
+        }
+        out(['ok' => true, 'top' => $top]);
+    } catch (PDOException $ex) {
+        out(['ok' => false, 'msg' => $ex->getMessage()], 500);
+    }
+    break;
+}
+
+// ── Ranking: maior número de abates ──────────────────────────────────────────
+case 'kills_top': {
+    try {
+        $pdo = db();
+        $s = $pdo->query("
+            SELECT d.user_id, u.nome_usuario AS username, u.foto,
+                   COALESCE(p.vip, 0) AS vip,
+                   d.abates AS kills, d.total_dano AS damage
+            FROM dano_chefe_vitalicio d
+            INNER JOIN usuarios u ON d.user_id = u.id
+            LEFT JOIN placar p ON d.user_id = p.user_id
+            WHERE d.abates > 0
+            ORDER BY d.abates DESC
+            LIMIT 50
+        ");
+        $top = []; $rank = 1;
+        while ($row = $s->fetch(PDO::FETCH_ASSOC)) {
+            $top[] = [
+                'rank'     => $rank++,
+                'userId'   => (int)$row['user_id'],
+                'username' => $row['username'],
+                'foto'     => $row['foto'],
+                'vip'      => (bool)$row['vip'],
+                'kills'    => (int)$row['kills'],
+                'damage'   => (float)$row['damage'],
+            ];
+        }
+        out(['ok' => true, 'top' => $top]);
+    } catch (PDOException $ex) {
+        out(['ok' => false, 'msg' => $ex->getMessage()], 500);
+    }
+    break;
+}
+
+// ── Posição individual de dano / abates ───────────────────────────────────────
+case 'damage_rank': {
+    if (!$uid) out(['ok' => false, 'msg' => 'Login necessário.'], 401);
+    try {
+        $pdo = db();
+        $s   = $pdo->prepare("SELECT total_dano, abates FROM dano_chefe_vitalicio WHERE user_id = ?");
+        $s->execute([$uid]);
+        $row = $s->fetch();
+        $myDmg    = $row ? (float)$row['total_dano'] : 0.0;
+        $myKills  = $row ? (int)$row['abates'] : 0;
+        $dmgRank  = null;
+        $killRank = null;
+
+        if ($myDmg > 0) {
+            $s2 = $pdo->prepare("SELECT COUNT(*)+1 AS r FROM dano_chefe_vitalicio WHERE total_dano > ?");
+            $s2->execute([$myDmg]);
+            $dmgRank = (int)$s2->fetch()['r'];
+        }
+        if ($myKills > 0) {
+            $s3 = $pdo->prepare("SELECT COUNT(*)+1 AS r FROM dano_chefe_vitalicio WHERE abates > ?");
+            $s3->execute([$myKills]);
+            $killRank = (int)$s3->fetch()['r'];
+        }
+
+        out(['ok' => true, 'damage' => $myDmg, 'kills' => $myKills, 'rank' => $dmgRank, 'killRank' => $killRank]);
+    } catch (PDOException $ex) {
+        out(['ok' => false, 'msg' => $ex->getMessage()], 500);
     }
     break;
 }

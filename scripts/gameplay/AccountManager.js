@@ -78,9 +78,9 @@ class AccountManager {
     getAccount()  { return this._user; }
 
     isVip()          { return this._user?.vip === true; }
-    setVip()         { if (this._user) { this._user.vip = true; this._persist(); } }
+    setVip()         { if (this._user) { this._user.vip = true; this._persist(); this._saveCompras(); } }
     hasDoubleNeuron(){ return this._user?.doubleNeuron === true; }
-    setDoubleNeuron(){ if (this._user) { this._user.doubleNeuron = true; this._persist(); } }
+    setDoubleNeuron(){ if (this._user) { this._user.doubleNeuron = true; this._persist(); this._saveCompras(); } }
     hasSkin(id)      { return (this._user?.skins || []).includes(id); }
     getActiveSkin()  { return this._user?.activeSkin || null; }
     getDiamonds()    { return this._user?.diamonds || 0; }
@@ -90,25 +90,36 @@ class AccountManager {
         if (!this._user.skins) this._user.skins = [];
         if (!this._user.skins.includes(id)) this._user.skins.push(id);
         this._persist();
+        this._saveCompras();
     }
 
     setActiveSkin(id) {
         if (!this._user) return;
         this._user.activeSkin = id;
         this._persist();
+        this._saveCompras();
     }
 
     addDiamonds(n) {
         if (!this._user) return;
         this._user.diamonds = (this._user.diamonds || 0) + Math.max(0, n);
         this._persist();
+        this._saveCompras();
     }
 
     spendDiamonds(n) {
         if (!this._user || this.getDiamonds() < n) return false;
         this._user.diamonds -= n;
         this._persist();
+        this._saveCompras();
         return true;
+    }
+
+    resetDiamonds() {
+        if (!this._user) return;
+        this._user.diamonds = 0;
+        this._persist();
+        this._saveCompras();
     }
 
     getPhotoUrl() {
@@ -149,11 +160,15 @@ class AccountManager {
         }
 
         try {
+            const ctrl  = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 5000); // 5s timeout for session check
             const res  = await fetch('api/auth.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'check' }),
+                signal: ctrl.signal,
             });
+            clearTimeout(timer);
             const data = await res.json();
             if (data.ok && data.user) {
                 this._mergeUser(data.user);
@@ -164,7 +179,7 @@ class AccountManager {
                 localStorage.removeItem(this._cacheKey);
             }
         } catch {
-            // Network offline — keep cached state
+            // Network offline or timeout — keep cached state, game remains playable
         }
         this._ready = true;
         return this._loggedIn;
@@ -227,21 +242,12 @@ class AccountManager {
     }
 
     async logout() {
-        // Save skins/diamonds before wiping — restored automatically on next login
-        if (this._user && !this._user._localOnly) {
-            try {
-                localStorage.setItem('nexuscore_backup', JSON.stringify({
-                    skins:        this._user.skins        || [],
-                    activeSkin:   this._user.activeSkin   || null,
-                    diamonds:     this._user.diamonds     || 0,
-                    vip:          this._user.vip          || false,
-                    doubleNeuron: this._user.doubleNeuron || false,
-                }));
-            } catch { /* ignore */ }
-        }
+        // Purchases are synced to the server via compras.php — no local backup needed.
+        // We do a full page reload after logout so no state leaks between accounts.
         this._loggedIn = false;
-        localStorage.removeItem(this._cacheKey);
         this._user = null;
+        localStorage.removeItem(this._cacheKey);
+        localStorage.removeItem('nexuscore_backup'); // clear any stale backup
         try {
             await fetch('api/auth.php', {
                 method: 'POST',
@@ -289,23 +295,38 @@ class AccountManager {
     // ── Internal helpers ────────────────────────────────────────────────────
 
     _mergeUser(serverUser) {
-        const local  = this._user || {};
-        // Also pull in any backup saved from a previous local/server account
-        let backup = {};
-        try { backup = JSON.parse(localStorage.getItem('nexuscore_backup') || '{}') || {}; } catch {}
-        const mergedSkins = [...new Set([...(backup.skins || []), ...(local.skins || [])])];
-        this._user = {
-            skins:        mergedSkins,
-            activeSkin:   local.activeSkin   || backup.activeSkin  || null,
-            diamonds:     Math.max(local.diamonds || 0, backup.diamonds || 0),
-            vip:          local.vip          || backup.vip          || false,
-            doubleNeuron: local.doubleNeuron || backup.doubleNeuron || false,
-            createdAt:    local.createdAt    || Date.now(),
-            ...serverUser,
-            _localOnly: false,
-        };
+        // Purchases come directly from the server (api/auth.php + api/compras.php).
+        // No local backup needed — it would contaminate other accounts.
         localStorage.removeItem('nexuscore_backup');
+        this._user = {
+            createdAt:    Date.now(),
+            ...serverUser,
+            _localOnly:   false,
+            vip:          serverUser.vip          ?? false,
+            doubleNeuron: serverUser.doubleNeuron  ?? false,
+            diamonds:     serverUser.diamantes     ?? serverUser.diamonds ?? 0,
+            skins:        serverUser.skins         ?? [],
+            activeSkin:   serverUser.skinAtiva     ?? serverUser.activeSkin ?? null,
+        };
         this._persist();
+    }
+
+    // ── Sync purchases to server (fire-and-forget) ────────────────────────────
+    _saveCompras() {
+        if (!this._user || this._user._localOnly) return;
+        if (window.location.protocol === 'file:') return;
+        fetch('api/compras.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action:       'salvar',
+                vip:          this._user.vip          || false,
+                doubleNeuron: this._user.doubleNeuron || false,
+                diamantes:    this._user.diamonds      || 0,
+                skins:        this._user.skins         || [],
+                skinAtiva:    this._user.activeSkin    || null,
+            }),
+        }).catch(() => { /* ignore */ });
     }
 
     _persist() {

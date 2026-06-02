@@ -62,3 +62,16 @@ const BOSS_RARITY_LABELS = {
     epic:      'ÉPICO',
     legendary: 'LENDÁRIO',
 };
+
+// Dano aditivo: bossPower = 1 (base) + soma de todos os 'add' comprados
+// Custo em DIAMANTES (💎) — calibrado para ser acessível durante o jogo normal
+const BOSS_UPGRADES_DATA = [
+    { id: 'bup_1', name: 'Punho de Dados',    icon: '⚡', cost: 1,   add: 1,    desc: '+1 dmg/clique'    },
+    { id: 'bup_2', name: 'Chip Básico',       icon: '🔧', cost: 3,   add: 3,    desc: '+3 dmg/clique'    },
+    { id: 'bup_3', name: 'Blaster Neural',    icon: '💥', cost: 8,   add: 8,    desc: '+8 dmg/clique'    },
+    { id: 'bup_4', name: 'Núcleo Tático',     icon: '🔥', cost: 20,  add: 25,   desc: '+25 dmg/clique'   },
+    { id: 'bup_5', name: 'Protocolo Alpha',   icon: '🌌', cost: 50,  add: 80,   desc: '+80 dmg/clique'   },
+    { id: 'bup_6', name: 'Módulo Omega',      icon: '⚙️', cost: 120, add: 250,  desc: '+250 dmg/clique'  },
+    { id: 'bup_7', name: 'Núcleo Divino',     icon: '🌀', cost: 280, add: 800,  desc: '+800 dmg/clique'  },
+    { id: 'bup_8', name: 'Singularidade',     icon: '💀', cost: 600, add: 2500, desc: '+2500 dmg/clique' },
+];

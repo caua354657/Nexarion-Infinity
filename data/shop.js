@@ -72,6 +72,13 @@ const SHOP_ITEMS = [
         effect: 'token_bonus', effectValue: 0.2,
         category: 'permanent', rarity: 'legendary'
     },
+    {
+        id: 'perm_boss_dmg_x2', name: '2× Dano no Boss', icon: '⚔️',
+        desc: 'Dobra permanentemente todo o dano causado em batalhas de boss.',
+        type: 'permanent', cost: 50, currency: 'tokens',
+        effect: 'boss_damage_mult', effectValue: 2,
+        category: 'premium', rarity: 'epic'
+    },
 ];
 
 // ── Pacotes de Diamantes (moeda premium) ──────────────────────────────────────

@@ -83,56 +83,75 @@ class ParticleSystem {
     }
 
     update() {
-        for (let i = this._particles.length - 1; i >= 0; i--) {
+        // Swap-remove dead particles (O(1) removal vs O(n) splice)
+        let i = this._particles.length;
+        while (i--) {
             const p = this._particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.15;
+            p.vy += 0.12;
             p.vx *= 0.97;
             p.life -= p.decay;
-            if (p.life <= 0) this._particles.splice(i, 1);
+            if (p.life <= 0) {
+                this._particles[i] = this._particles[this._particles.length - 1];
+                this._particles.pop();
+            }
         }
-        for (let i = this._floatTexts.length - 1; i >= 0; i--) {
+        i = this._floatTexts.length;
+        while (i--) {
             const t = this._floatTexts[i];
             t.y += t.vy;
             t.vy *= 0.97;
             t.life -= 0.025;
-            if (t.life <= 0) this._floatTexts.splice(i, 1);
+            if (t.life <= 0) {
+                this._floatTexts[i] = this._floatTexts[this._floatTexts.length - 1];
+                this._floatTexts.pop();
+            }
         }
 
         if (this._particles.length > Config.PARTICLE_MAX) {
-            this._particles.splice(0, this._particles.length - Config.PARTICLE_MAX);
+            this._particles.length = Config.PARTICLE_MAX;
         }
     }
 
     draw() {
         const ctx = this._ctx;
-        this._particles.forEach(p => {
-            ctx.save();
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 8;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        });
-        this._floatTexts.forEach(t => {
-            ctx.save();
-            ctx.globalAlpha = t.life;
-            ctx.fillStyle = t.color;
-            ctx.shadowColor = t.color;
-            ctx.shadowBlur = t.isCrit ? 20 : 10;
-            ctx.font = `bold ${t.size}px 'Orbitron', monospace`;
-            ctx.textAlign = 'center';
-            if (t.isCrit) {
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 3;
-                ctx.strokeText(t.text, t.x, t.y);
+        if (this._particles.length === 0 && this._floatTexts.length === 0) return;
+
+        // One outer save/restore for the entire draw call instead of one per particle
+        ctx.save();
+
+        // Particles — all use the same shadowBlur so set it once
+        if (this._particles.length > 0) {
+            ctx.shadowBlur = 4;
+            for (const p of this._particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle   = p.color;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
             }
-            ctx.fillText(t.text, t.x, t.y);
-            ctx.restore();
-        });
+        }
+
+        // Float texts
+        if (this._floatTexts.length > 0) {
+            ctx.textAlign = 'center';
+            for (const t of this._floatTexts) {
+                ctx.globalAlpha = t.life;
+                ctx.fillStyle   = t.color;
+                ctx.shadowColor = t.color;
+                ctx.shadowBlur  = t.isCrit ? 20 : 10;
+                ctx.font        = `bold ${t.size}px 'Orbitron', monospace`;
+                if (t.isCrit) {
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth   = 3;
+                    ctx.strokeText(t.text, t.x, t.y);
+                }
+                ctx.fillText(t.text, t.x, t.y);
+            }
+        }
+
+        ctx.restore();
     }
 }

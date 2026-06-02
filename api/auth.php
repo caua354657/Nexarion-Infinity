@@ -52,7 +52,8 @@ case 'register': {
         $id = (int)$pdo->lastInsertId();
 
         $_SESSION['uid'] = $id;
-        out(['ok'=>true,'user'=>['id'=>$id,'username'=>$u,'email'=>$e,'foto'=>$foto]]);
+        out(['ok'=>true,'user'=>['id'=>$id,'username'=>$u,'email'=>$e,'foto'=>$foto,
+            'vip'=>false,'doubleNeuron'=>false,'diamantes'=>0,'skins'=>[],'skinAtiva'=>null]]);
     } catch (PDOException $ex) {
         out(['ok'=>false,'msg'=>'Erro no banco de dados.'], 500);
     }
@@ -65,13 +66,24 @@ case 'login': {
     if (!$id || !$p) out(['ok'=>false,'msg'=>'Preencha todos os campos.']);
 
     try {
-        $s = db()->prepare('SELECT id,nome_usuario,email,senha,foto FROM usuarios WHERE email=? OR nome_usuario=? LIMIT 1');
+        $s = db()->prepare('SELECT id,nome_usuario,email,senha,foto,vip,double_neuron,diamantes,skins,skin_ativa FROM usuarios WHERE email=? OR nome_usuario=? LIMIT 1');
         $s->execute([$id, $id]);
         $r = $s->fetch();
         if (!$r || !password_verify($p, $r['senha'])) out(['ok'=>false,'msg'=>'Usuário ou senha incorretos.']);
 
         $_SESSION['uid'] = (int)$r['id'];
-        out(['ok'=>true,'user'=>['id'=>(int)$r['id'],'username'=>$r['nome_usuario'],'email'=>$r['email'],'foto'=>$r['foto']]]);
+        $skinsArr = $r['skins'] ? (json_decode($r['skins'], true) ?: []) : [];
+        out(['ok'=>true,'user'=>[
+            'id'          => (int)$r['id'],
+            'username'    => $r['nome_usuario'],
+            'email'       => $r['email'],
+            'foto'        => $r['foto'],
+            'vip'         => (bool)$r['vip'],
+            'doubleNeuron'=> (bool)$r['double_neuron'],
+            'diamantes'   => (int)$r['diamantes'],
+            'skins'       => $skinsArr,
+            'skinAtiva'   => $r['skin_ativa'],
+        ]]);
     } catch (PDOException $ex) {
         out(['ok'=>false,'msg'=>'Erro no banco de dados.'], 500);
     }
@@ -81,10 +93,23 @@ case 'login': {
 case 'check': {
     if (empty($_SESSION['uid'])) { out(['ok'=>false]); }
     try {
-        $s = db()->prepare('SELECT id,nome_usuario,email,foto FROM usuarios WHERE id=? LIMIT 1');
+        $s = db()->prepare('SELECT id,nome_usuario,email,foto,vip,double_neuron,diamantes,skins,skin_ativa FROM usuarios WHERE id=? LIMIT 1');
         $s->execute([$_SESSION['uid']]);
         $r = $s->fetch();
-        if ($r) out(['ok'=>true,'user'=>['id'=>(int)$r['id'],'username'=>$r['nome_usuario'],'email'=>$r['email'],'foto'=>$r['foto']]]);
+        if ($r) {
+            $skinsArr = $r['skins'] ? (json_decode($r['skins'], true) ?: []) : [];
+            out(['ok'=>true,'user'=>[
+                'id'          => (int)$r['id'],
+                'username'    => $r['nome_usuario'],
+                'email'       => $r['email'],
+                'foto'        => $r['foto'],
+                'vip'         => (bool)$r['vip'],
+                'doubleNeuron'=> (bool)$r['double_neuron'],
+                'diamantes'   => (int)$r['diamantes'],
+                'skins'       => $skinsArr,
+                'skinAtiva'   => $r['skin_ativa'],
+            ]]);
+        }
     } catch (PDOException $ex) {}
     out(['ok'=>false]);
     break;

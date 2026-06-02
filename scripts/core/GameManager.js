@@ -27,22 +27,31 @@ class GameManager {
         this._bg         = null;
         this._particles  = null;
         this._aura       = null;
+        this._fgCtx          = null;
         this._lastTime       = 0;
         this._lastClickTime  = 0;
         this._autoSaveTimer  = 0;
+        this._serverSyncTimer = 0;
         this._tickAccum      = 0;
+        this._saveDebounce   = null;
         this._running        = false;
+        this._loopQueued     = false; // guards against duplicate rAF loops
         this._wasPrestigeReady = false;
         this._noSave     = false;
+        this._achieveAccum   = 0;
+        this._missionsAccum  = 0;
+
+        this.saveManager._game = this; // link back for server sync
     }
 
-    init() {
+    async init() {
         this._bgCanvas   = document.getElementById('bg-canvas');
         this._fgCanvas   = document.getElementById('fg-canvas');
         this._auraCanvas = document.getElementById('prestige-aura-canvas');
         this._bg         = new NeuralBackground(this._bgCanvas);
         this._particles  = new ParticleSystem(this._fgCanvas);
         this._aura       = new PrestigeAura(this._auraCanvas);
+        this._fgCtx      = this._fgCanvas.getContext('2d');
         this._resizeFG();
         window.addEventListener('resize', () => this._resizeFG());
 
@@ -50,10 +59,14 @@ class GameManager {
         this.ui.init();
         this.tutorial.init();
 
-        const saved = this.saveManager.load();
+        // Carrega save e aplica estado imediatamente
+        let saved = null;
+        try { saved = await this.saveManager.load(); } catch(e) { console.error('[Load]', e); }
         if (saved) {
             this._loadState(saved);
             this._calcOffline(saved.savedAt);
+            // Salva imediatamente após carregar para sincronizar LS↔IDB
+            setTimeout(() => this.save(), 500);
         }
 
         if (this.account.isVip()) this.shop.applyVipBonus();
@@ -61,11 +74,28 @@ class GameManager {
         const activeSkin = this.account.getActiveSkin();
         if (activeSkin) this._applyActiveSkin(activeSkin);
 
-        window.addEventListener('beforeunload', () => { if (!this._noSave) this.save(); });
+        const _flushSave = () => { if (!this._noSave) this.save(); };
+        window.addEventListener('beforeunload',  _flushSave);
+        window.addEventListener('pagehide',      _flushSave);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') _flushSave();
+        });
 
         this._running = true;
+        this._restoring = false;
         this.audio.startAmbient();
-        requestAnimationFrame(t => this._loop(t));
+        this._scheduleLoop();
+
+        // Watchdog: only restarts if no rAF is already queued (prevents duplicate loops)
+        setInterval(() => {
+            if (this._running && !this._loopQueued && !this._noSave) {
+                const now = performance.now();
+                if (this._lastTime > 0 && now - this._lastTime > 4000) {
+                    console.warn('[Watchdog] Loop restarted');
+                    this._scheduleLoop();
+                }
+            }
+        }, 4000);
     }
 
     _resizeFG() {
@@ -92,15 +122,26 @@ class GameManager {
         this.events.on('bossHit',       () => {});
     }
 
+    _scheduleLoop() {
+        if (this._loopQueued) return; // never queue more than one rAF
+        this._loopQueued = true;
+        requestAnimationFrame(t => this._loop(t));
+    }
+
     _loop(timestamp) {
+        this._loopQueued = false;
         if (!this._running) return;
         const dt = Math.min((timestamp - this._lastTime) / 1000, 0.1);
         this._lastTime = timestamp;
         this.stats.playTime += dt;
 
-        this._update(dt);
-        this._draw();
-        requestAnimationFrame(t => this._loop(t));
+        try {
+            this._update(dt);
+            this._draw();
+        } catch (e) {
+            console.error('[GameLoop]', e);
+        }
+        this._scheduleLoop();
     }
 
     _update(dt) {
@@ -123,6 +164,12 @@ class GameManager {
             this._autoSaveTimer = 0;
             this.save();
         }
+
+        this._serverSyncTimer += dt;
+        if (this._serverSyncTimer >= Config.SERVER_SYNC_INTERVAL / 1000) {
+            this._serverSyncTimer = 0;
+            this._syncToServer();
+        }
     }
 
     _tick(dt) {
@@ -135,8 +182,20 @@ class GameManager {
             this.level.addXP(this.level.xpFromNeurons(earned) * xpMult);
             this.missions.onEarn(earned);
         }
-        this.missions.updateFromStats(this.stats, this.economy, this.upgradeManager, this.combo);
-        this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
+
+        // Mission completion check: 4 Hz is enough (max 250ms detection delay)
+        this._missionsAccum += dt;
+        if (this._missionsAccum >= 0.25) {
+            this._missionsAccum = 0;
+            this.missions.updateFromStats(this.stats, this.economy, this.upgradeManager, this.combo);
+        }
+
+        // Achievement check: 1 Hz is enough (achievements don't need real-time feedback)
+        this._achieveAccum += dt;
+        if (this._achieveAccum >= 1.0) {
+            this._achieveAccum = 0;
+            this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
+        }
 
         const prestigeProgress = Math.min(1, this.economy.totalNeurons / this.economy.getPrestigeCost());
         this._wasPrestigeReady = prestigeProgress >= 1;
@@ -144,8 +203,7 @@ class GameManager {
 
     _draw() {
         this._bg.draw();
-        const ctx = this._fgCanvas.getContext('2d');
-        ctx.clearRect(0, 0, this._fgCanvas.width, this._fgCanvas.height);
+        this._fgCtx.clearRect(0, 0, this._fgCanvas.width, this._fgCanvas.height);
         this._particles.draw();
     }
 
@@ -186,22 +244,25 @@ class GameManager {
         this._particles.spawnClick(x, y, value, isCrit);
 
         this._animateClickBtn(isCrit);
-        this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
+        // Achievement check is handled by the 1Hz tick — no need to run it per click
     }
 
     _animateClickBtn(isCrit) {
         const btn = document.getElementById('click-btn');
         if (!btn) return;
+        const cls = isCrit ? 'crit-anim' : 'click-anim';
+        // Remove both classes, then defer re-add to next frame — avoids forced layout reflow
+        // (void offsetWidth was forcing a synchronous full-page relayout on every click)
         btn.classList.remove('click-anim', 'crit-anim');
-        void btn.offsetWidth;
-        btn.classList.add(isCrit ? 'crit-anim' : 'click-anim');
+        requestAnimationFrame(() => btn.classList.add(cls));
 
         const orb = document.getElementById('prestige-char');
         if (orb && orb.dataset.stage !== 'hidden') {
             orb.classList.remove('click-sync');
-            void orb.offsetWidth;
-            orb.classList.add('click-sync');
-            orb.addEventListener('animationend', () => orb.classList.remove('click-sync'), { once: true });
+            requestAnimationFrame(() => {
+                orb.classList.add('click-sync');
+                orb.addEventListener('animationend', () => orb.classList.remove('click-sync'), { once: true });
+            });
         }
     }
 
@@ -216,13 +277,15 @@ class GameManager {
             this.audio.buy();
             for (let i = 0; i < bought; i++) this.missions.onBuyGenerator();
             this.economy.neuronsPerSec = um.getNPS();
-            this.achievements.check(this.stats, this.economy, um, this.combo.getLevel(), this.missions);
+            this._achieveAccum = 1.0;
+            this._debouncedSave();
         }
     }
 
     upgradeSkill(skillId) {
         if (this.skills.upgrade(skillId)) {
             this.audio.upgrade?.();
+            this.save();
             if (this.ui._activePanel === 'skills') this.ui._renderPanelContent('skills');
         }
     }
@@ -240,6 +303,17 @@ class GameManager {
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
+    buyBossDamageX2() {
+        if (this.shop.purchased.has('perm_boss_dmg_x2')) return;
+        if (!this.account.isLoggedIn()) { this.notify('Faça login para comprar!', 'error'); return; }
+        this.shop.purchased.add('perm_boss_dmg_x2');
+        this.shop._bossDamageMult *= 2;
+        this.save();
+        this.notify('⚔️ 2× Dano no Boss ativado! Seu dano foi dobrado para sempre.', 'gold');
+        this.audio.levelUp?.();
+        if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
+    }
+
     buySkin(id) {
         if (this.account.hasSkin(id)) return;
         if (!this.account.isLoggedIn()) {
@@ -249,7 +323,7 @@ class GameManager {
         const skin = (typeof PREMIUM_SKINS !== 'undefined') ? PREMIUM_SKINS.find(s => s.id === id) : null;
         if (!skin) return;
         this.account.buySkin(id);
-        this.notify(`🎨 ${skin.name} desbloqueada!`, 'success');
+        this.notify(`🎨 Skin ${skin.name} desbloqueada!`, 'success');
         this.audio.upgrade?.();
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
@@ -259,14 +333,14 @@ class GameManager {
         this.account.setActiveSkin(id);
         this._applyActiveSkin(id);
         const skin = (typeof PREMIUM_SKINS !== 'undefined') ? PREMIUM_SKINS.find(s => s.id === id) : null;
-        this.notify(`🎨 Skin "${skin?.name}" equipada!`, 'info');
+        // Skin equipada — sem notificação (ação visual imediata já comunica)
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
     resetSkin() {
         this.account.setActiveSkin(null);
         this._applyActiveSkin(null);
-        this.notify('🧠 Tema padrão ativado!', 'info');
+        // Tema resetado — sem notificação
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
@@ -305,10 +379,7 @@ class GameManager {
     buyShopItem(id, qty = 1) {
         if (this.shop.buy(id, qty)) {
             this.audio.upgrade?.();
-            this.notify(`Item comprado${qty > 1 ? ' ×' + qty : ''}!`, 'success');
             if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
-        } else {
-            this.notify('Neurônios insuficientes!', 'error');
         }
     }
 
@@ -323,7 +394,8 @@ class GameManager {
 
         // ── Credit tokens directly into the economy (saved in game save) ─
         this.economy.addTokens(pack.diamonds);
-        this.save(); // persist immediately so reload retains the balance
+        this.save();
+        this._syncToServer(); // critical: sync diamond purchase to server immediately
 
         // ── Update HUD token counter right away ───────────────────────────
         this.ui._updateHUD();
@@ -351,7 +423,8 @@ class GameManager {
             this.missions.onBuyUpgrade();
             const nps = this.upgradeManager.getNPS();
             this.economy.neuronsPerSec = nps;
-            this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
+            this._achieveAccum = 1.0;
+            this.save();
         }
     }
 
@@ -361,6 +434,8 @@ class GameManager {
         if (tokens > 0) {
             this._lbSyncAt = 0; // bypass debounce — prestige is an important milestone
             this._syncLeaderboard();
+            this.save();
+            this._serverSyncTimer = Config.SERVER_SYNC_INTERVAL; // force next server sync immediately
             this.economy.neuronsPerSec = this.upgradeManager.getNPS();
             this._wasPrestigeReady = false;
 
@@ -374,7 +449,7 @@ class GameManager {
             this.audio.prestige();
             const themeName = PrestigeAura.THEMES[this.economy.totalPrestiges % PrestigeAura.THEMES.length].name;
             this.notify(`♻ Renascimento #${this.economy.totalPrestiges}! +${tokens} 💎 · ${themeName}`, 'levelup');
-            this.achievements.check(this.stats, this.economy, this.upgradeManager, this.combo.getLevel(), this.missions);
+            this._achieveAccum = 1.0; // force check on next tick
         }
     }
 
@@ -394,22 +469,42 @@ class GameManager {
         this.events.emit('notification', { msg, type });
     }
 
-    save() {
-        const state = {
-            economy: this.economy.getState(),
-            upgrades: this.upgradeManager.getState(),
-            achievements: this.achievements.getState(),
-            level: this.level.getState(),
-            boosts: this.boosts.getState(),
-            missions: this.missions.getState(),
-            shop: this.shop.getState(),
-            skills: this.skills.getState(),
-            events: this.randomEvents.getState(),
-            tutorial: this.tutorial.getState(),
-            stats: { ...this.stats },
-            audio: this.audio.getState(),
+    _debouncedSave() {
+        clearTimeout(this._saveDebounce);
+        this._saveDebounce = setTimeout(() => this.save(), 800);
+    }
+
+    _buildState() {
+        const safe = (fn) => { try { return fn(); } catch(e) { console.error('[buildState]', e); return null; } };
+        return {
+            economy:      safe(() => this.economy.getState()),
+            upgrades:     safe(() => this.upgradeManager.getState()),
+            achievements: safe(() => this.achievements.getState()),
+            level:        safe(() => this.level.getState()),
+            boosts:       safe(() => this.boosts.getState()),
+            missions:     safe(() => this.missions.getState()),
+            shop:         safe(() => this.shop.getState()),
+            skills:       safe(() => this.skills.getState()),
+            events:       safe(() => this.randomEvents.getState()),
+            tutorial:     safe(() => this.tutorial.getState()),
+            boss:         safe(() => this.boss.getState()),
+            stats:        { ...this.stats },
+            audio:        safe(() => this.audio.getState()),
         };
-        this.saveManager.save(state);
+    }
+
+    save() {
+        try {
+            const state = this._buildState();
+            this.saveManager.save(state);
+        } catch(e) {
+            console.error('[Save] falhou:', e);
+        }
+    }
+
+    _syncToServer() {
+        const state = this._buildState();
+        this.saveManager.saveToServer(state);
         this._syncLeaderboard();
     }
 
@@ -420,6 +515,8 @@ class GameManager {
         if (this._lbSyncAt && now - this._lbSyncAt < 60_000) return;
         this._lbSyncAt = now;
         try {
+            const ctrl  = new AbortController();
+            setTimeout(() => ctrl.abort(), 8000);
             await fetch('api/leaderboard.php', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -428,39 +525,79 @@ class GameManager {
                     lifetime_neurons: this.economy.lifetimeNeurons,
                     level:            this.level.level,
                     total_prestiges:  this.economy.totalPrestiges,
+                    total_clicks:     this.stats.totalClicks,
                     vip:              this.account.isVip(),
                 }),
+                signal: ctrl.signal,
             });
-        } catch { /* ignore network errors */ }
+        } catch { /* ignore network errors or timeout */ }
+    }
+
+    async _restoreFromServer() {
+        if (!this.account.isLoggedIn() || this.account.isLocalOnly()) return false;
+        if (window.location.protocol === 'file:') return false;
+        if (this._restoring) return false; // guard against concurrent calls
+        this._restoring = true;
+        try {
+            const saved = await this.saveManager.loadFromServer();
+            if (!saved) return false;
+            this._loadState(saved);
+            this._calcOffline(saved.savedAt);
+            // Re-apply account-specific settings after restore
+            if (this.account.isVip()) this.shop.applyVipBonus();
+            if (this.account.hasDoubleNeuron()) this.economy.setPremiumMult(2);
+            const skin = this.account.getActiveSkin();
+            if (skin) this._applyActiveSkin(skin);
+            this.economy.neuronsPerSec = this.upgradeManager.getNPS();
+            // Progresso restaurado silenciosamente
+            this.ui._updateHUD();
+            return true;
+        } catch (e) {
+            console.error('[RestoreFromServer]', e);
+            return false;
+        } finally {
+            this._restoring = false;
+            // Always ensure loop is alive after any restore attempt
+            if (!this._running) {
+                this._running = true;
+                this._scheduleLoop();
+            }
+        }
     }
 
     wipeSave() {
         this._running = false;
         this._noSave  = true;
+        // Clear diamonds (earned in-game) but keep VIP / DoubleNeuron / Skins
+        this.account.resetDiamonds();
         if (this.account.isLoggedIn()) {
             fetch('api/leaderboard.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete' }),
             }).catch(() => {});
+            this.saveManager.wipeServer();
         }
         this.saveManager.wipe();
         location.reload();
     }
 
     _loadState(s) {
-        this.economy.loadState(s.economy);
-        this.upgradeManager.loadState(s.upgrades, this.economy);
-        this.achievements.loadState(s.achievements, this.economy);
-        this.level.loadState(s.level);
-        this.boosts.loadState(s.boosts);
-        this.missions.loadState(s.missions);
-        this.shop.loadState(s.shop);
-        this.skills.loadState(s.skills);
-        this.randomEvents.loadState(s.events);
-        this.tutorial.loadState(s.tutorial);
-        if (s.stats) Object.assign(this.stats, s.stats);
-        if (s.audio) this.audio.loadState(s.audio);
+        if (!s) return;
+        const ld = (fn) => { try { fn(); } catch(e) { console.error('[loadState]', e); } };
+        ld(() => this.economy.loadState(s.economy));
+        ld(() => this.upgradeManager.loadState(s.upgrades, this.economy));
+        ld(() => this.achievements.loadState(s.achievements, this.economy));
+        ld(() => this.level.loadState(s.level));
+        ld(() => this.boosts.loadState(s.boosts));
+        ld(() => this.missions.loadState(s.missions));
+        ld(() => this.shop.loadState(s.shop));
+        ld(() => this.skills.loadState(s.skills));
+        ld(() => this.randomEvents.loadState(s.events));
+        ld(() => this.tutorial.loadState(s.tutorial));
+        ld(() => { if (s.boss) this.boss.loadState(s.boss); });
+        ld(() => { if (s.stats) Object.assign(this.stats, s.stats); });
+        ld(() => { if (s.audio) this.audio.loadState(s.audio); });
         this.economy.neuronsPerSec = this.upgradeManager.getNPS();
     }
 
@@ -473,9 +610,7 @@ class GameManager {
         const earned = nps * elapsed * offlineMult;
         if (earned > 0) {
             this.economy.addNeurons(earned);
-            setTimeout(() => {
-                this.notify(`Bem-vindo de volta! Ganhou ${formatNum(earned)} ⚡ offline (${Math.floor(elapsed / 60)}min).`, 'info');
-            }, 1500);
+            // Ganho offline aplicado silenciosamente
         }
     }
 }

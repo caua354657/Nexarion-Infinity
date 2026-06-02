@@ -4,12 +4,13 @@ class ShopManager {
         this._boosts  = boosts;
         this.purchased = new Set();
 
-        this._offlineBonus = 0;
-        this._critBonus    = 0;
-        this._xpMult       = 1;
-        this._globalBonus  = 0;
-        this._tokenBonus   = 0;
-        this._vipBonus     = 0;
+        this._offlineBonus   = 0;
+        this._critBonus      = 0;
+        this._xpMult         = 1;
+        this._globalBonus    = 0;
+        this._tokenBonus     = 0;
+        this._vipBonus       = 0;
+        this._bossDamageMult = 1;
     }
 
     canBuy(item, qty = 1) {
@@ -53,23 +54,25 @@ class ShopManager {
 
     _applyPermanent(item) {
         switch (item.effect) {
-            case 'offline_bonus': this._offlineBonus += item.effectValue; break;
-            case 'crit_bonus':    this._critBonus    += item.effectValue; break;
-            case 'xp_mult':       this._xpMult       *= item.effectValue; break;
+            case 'offline_bonus':    this._offlineBonus   += item.effectValue; break;
+            case 'crit_bonus':       this._critBonus       += item.effectValue; break;
+            case 'xp_mult':          this._xpMult          *= item.effectValue; break;
             case 'global_bonus':
                 this._globalBonus += item.effectValue;
                 this._economy.setShopGlobalMult(1 + this._globalBonus + this._vipBonus);
                 break;
-            case 'token_bonus': this._tokenBonus += item.effectValue; break;
+            case 'token_bonus':      this._tokenBonus      += item.effectValue; break;
+            case 'boss_damage_mult': this._bossDamageMult  *= item.effectValue; break;
         }
     }
 
     _reapplyAll() {
-        this._offlineBonus = 0;
-        this._critBonus    = 0;
-        this._xpMult       = 1;
-        this._globalBonus  = 0;
-        this._tokenBonus   = 0;
+        this._offlineBonus   = 0;
+        this._critBonus      = 0;
+        this._xpMult         = 1;
+        this._globalBonus    = 0;
+        this._tokenBonus     = 0;
+        this._bossDamageMult = 1;
         SHOP_ITEMS.filter(x => x.type === 'permanent' && this.purchased.has(x.id))
             .forEach(item => this._applyPermanent(item));
         this._economy.setShopGlobalMult(1 + this._globalBonus + this._vipBonus);
@@ -80,10 +83,11 @@ class ShopManager {
         this._economy.setShopGlobalMult(1 + this._globalBonus + this._vipBonus);
     }
 
-    getOfflineBonus() { return this._offlineBonus; }
-    getCritBonus()    { return this._critBonus;    }
-    getXpMult()       { return this._xpMult;       }
-    getTokenBonus()   { return this._tokenBonus;   }
+    getOfflineBonus()   { return this._offlineBonus;   }
+    getCritBonus()      { return this._critBonus;      }
+    getXpMult()         { return this._xpMult;         }
+    getTokenBonus()     { return this._tokenBonus;     }
+    getBossDamageMult() { return this._bossDamageMult; }
 
     getState()  { return { purchased: [...this.purchased] }; }
 
