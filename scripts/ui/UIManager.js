@@ -80,6 +80,18 @@ class UIManager {
         this._friendsCache      = null;    // cached list data
         this._friendsSearchQ    = '';
         this._friendsPending    = 0;       // pending received requests count (for badge)
+
+        // Click battle state
+        this._battleState            = null;
+        this._battlePollTimer        = null;
+        this._battleClicks           = 0;
+        this._battleSyncTimer        = null;
+        this._battleCountdownTimer   = null;
+        this._battleArenaStartTime   = null;
+        this._battleInitialRemaining = 60;
+        this._battleDismissedIds     = new Set(
+            JSON.parse(sessionStorage.getItem('nx_btl_dismissed') || '[]')
+        );
     }
 
     init() {
@@ -95,6 +107,8 @@ class UIManager {
 
         this._updateHUD();
         this._checkAuthWall();
+
+        this._startBattlePolling();
 
         // Poll pending friend requests every 60s to keep badge updated
         setInterval(() => {
@@ -595,6 +609,10 @@ class UIManager {
         const btn   = document.getElementById('auth-reg-btn');
         const photoFile = document.getElementById('auth-reg-photo')?.files?.[0] || null;
 
+        if (user.length > 12) {
+            if (err) { err.style.color = ''; err.textContent = 'Nome de usuário pode ter no máximo 12 caracteres.'; }
+            return;
+        }
         if (btn) { btn.disabled = true; btn.textContent = 'Criando…'; }
         const result = await this._game.account.createAccount(user, email, pass, photoFile);
         if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
@@ -635,6 +653,10 @@ class UIManager {
         const msg       = document.getElementById('profile-auth-msg');
         const btn       = document.getElementById('profile-reg-btn');
         const photoFile = document.getElementById('profile-reg-photo')?.files?.[0] || null;
+        if (user.length > 12) {
+            if (msg) { msg.textContent = 'Nome de usuário pode ter no máximo 12 caracteres.'; msg.classList.add('profile-auth-error'); }
+            return;
+        }
         if (btn) { btn.disabled = true; btn.textContent = 'Criando…'; }
         const result = await this._game.account.createAccount(user, email, pass, photoFile);
         if (btn) { btn.disabled = false; btn.textContent = 'Criar Conta'; }
@@ -773,13 +795,34 @@ class UIManager {
 
         if (this._friendsPending > 0) badges.friends = this._friendsPending;
 
+        // Skills: contagem por categoria e total
+        if (typeof SKILLS !== 'undefined') {
+            const sp = g.skills.skillPoints;
+            if (sp > 0) {
+                const catCounts = {};
+                SKILLS.forEach(skill => {
+                    if (g.skills.canUpgrade(skill.id)) {
+                        catCounts[skill.category] = (catCounts[skill.category] || 0) + 1;
+                    }
+                });
+                const skillTotal = Object.values(catCounts).reduce((s, n) => s + n, 0);
+                if (skillTotal > 0) {
+                    badges.skills           = skillTotal;
+                    badges.skills_click     = catCounts['click']       || 0;
+                    badges.skills_generator = catCounts['generator']   || 0;
+                    badges.skills_progress  = catCounts['progression'] || 0;
+                    badges.neural = (badges.neural || 0) + skillTotal;
+                }
+            }
+        }
+
         return badges;
     }
 
     _updateBadges() {
         const counts = this._getBadgeCounts();
         const btns   = this._badgeBtns;
-        ['neural', 'agenda', 'generators', 'upgrades', 'missions', 'rebirth', 'more'].forEach(p => {
+        ['neural', 'agenda', 'generators', 'upgrades', 'missions', 'rebirth', 'more', 'skills'].forEach(p => {
             const count   = counts[p];
             const label   = count > 0 ? (count > 99 ? '99+' : String(count)) : null;
             const btnList = btns ? btns[p] : document.querySelectorAll(`.sidebar-btn[data-panel="${p}"], .mobile-nav-btn[data-panel="${p}"]`);
@@ -1425,7 +1468,7 @@ class UIManager {
                         </label>
                         <input type="file" id="profile-reg-photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
                     </div>
-                    <input class="profile-input" id="profile-reg-user" type="text" placeholder="Nome de usuário (mín. 3 chars)" autocomplete="username">
+                    <input class="profile-input" id="profile-reg-user" type="text" placeholder="Nome de usuário (3–12 chars)" autocomplete="username" maxlength="12">
                     <input class="profile-input" id="profile-reg-email" type="email" placeholder="Email" autocomplete="email">
                     <input class="profile-input" id="profile-reg-pass" type="password" placeholder="Senha (mín. 6 chars)" autocomplete="new-password">
                     <button class="profile-submit-btn" id="profile-reg-btn">Criar Conta Online</button>
@@ -1437,10 +1480,10 @@ class UIManager {
 
         const stats = this._getStatsData();
         const statsHTML = stats.map((s, i) => {
-            if (s[1] === '' && s[0].startsWith('—')) {
-                return `<div class="stat-section-label" id="stat-val-${i}">${s[0].replaceAll('—','').trim()}</div>`;
+            if (!s[0]) {
+                return `<div class="stat-section-label">${s[1]}</div>`;
             }
-            return `<div class="stat-row"><span class="stat-key">${s[0]}</span><span class="stat-val" id="stat-val-${i}">${s[1]}</span></div>`;
+            return `<div class="stat-card"><span class="stat-icon">${s[0]}</span><span class="stat-label">${s[1]}</span><span class="stat-value" id="stat-val-${i}">${s[2]}</span></div>`;
         }).join('');
 
         container.innerHTML = accountSection + `
@@ -1489,46 +1532,48 @@ class UIManager {
         if (!list) return;
         const stats = this._getStatsData();
         stats.forEach((s, i) => {
+            if (!s[0]) return; // skip section labels
             const el = document.getElementById('stat-val-' + i);
-            if (el && el.textContent !== s[1]) el.textContent = s[1];
+            if (el && el.textContent !== String(s[2])) el.textContent = s[2];
         });
     }
 
     _getStatsData() {
         const g = this._game;
         const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1);
+        // [icon, label, value]  — icon='' marks a section header
         return [
             // ── Progressão
-            ['— Progressão —',            ''],
-            ['Nível',                     g.level.level],
-            ['XP Total',                  formatNum(g.level.totalXp)],
-            ['Prestígios',                g.economy.totalPrestiges],
-            ['Mult. de Prestígio',        g.economy._prestigeMult.toFixed(2) + '×'],
-            ['Pontos de Habilidade',      g.skills.skillPoints + ' SP'],
-            ['Diamantes',                 g.economy.prestigeTokens],
+            ['', 'Progressão', ''],
+            ['⭐', 'Nível',                  g.level.level],
+            ['📊', 'XP Total',               formatNum(g.level.totalXp)],
+            ['👑', 'Prestígios',             g.economy.totalPrestiges],
+            ['✦',  'Mult. de Prestígio',     g.economy._prestigeMult.toFixed(2) + '×'],
+            ['🧬', 'Pontos de Habilidade',   g.skills.skillPoints + ' SP'],
+            ['💎', 'Diamantes',              g.economy.prestigeTokens],
             // ── Neurônios
-            ['— Neurônios —',             ''],
-            ['Neurônios Vitalícios',      formatNum(g.economy.lifetimeNeurons) + ' ⚡'],
-            ['Neurônios (Ciclo Atual)',    formatNum(g.economy.totalNeurons) + ' ⚡'],
-            ['Neurônios/seg',             formatNum(g.economy.getEffectiveNPS()) + '/s'],
-            ['Valor do Clique',           formatNum(g.economy.getClickValue())],
+            ['', 'Neurônios', ''],
+            ['🧠', 'Neurônios Vitalícios',   formatNum(g.economy.lifetimeNeurons)],
+            ['⚡', 'Neurônios (Ciclo Atual)', formatNum(g.economy.totalNeurons)],
+            ['⚡', 'Neurônios/seg',           formatNum(g.economy.getEffectiveNPS()) + '/s'],
+            ['👆', 'Valor do Clique',         formatNum(g.economy.getClickValue())],
             // ── Combate
-            ['— Combate —',               ''],
-            ['Total de Cliques',          formatNum(g.stats.totalClicks)],
-            ['Cliques Críticos',          formatNum(g.stats.critClicks)],
-            ['Chance Crítica',            critChance + '%'],
+            ['', 'Combate', ''],
+            ['🖱️', 'Total de Cliques',       formatNum(g.stats.totalClicks)],
+            ['💥', 'Cliques Críticos',        formatNum(g.stats.critClicks)],
+            ['🎯', 'Chance Crítica',          critChance + '%'],
             // ── Conquistas
-            ['— Conquistas —',            ''],
-            ['Conquistas',                g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
-            ['Missões Resgatadas',        g.missions.claims.size],
+            ['', 'Conquistas', ''],
+            ['🏆', 'Conquistas',              g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
+            ['✅', 'Missões Resgatadas',      g.missions.claims.size],
             // ── Boss
-            ['— Boss —',                  ''],
-            ['Nível do Chefe',            g.boss.userBossLevel],
-            ['Dano Total ao Chefe',       formatNum(g.boss.lifetimeDamage) + ' ⚔'],
-            ['Abates de Chefes',          g.boss.bossKills + ' ☠'],
-            // ── Geral (último)
-            ['— Geral —',                 ''],
-            ['Tempo de Jogo',             formatTime(g.stats.playTime)],
+            ['', 'Boss', ''],
+            ['🗡️', 'Nível do Chefe',         g.boss.userBossLevel],
+            ['⚔️', 'Dano Total ao Chefe',     formatNum(g.boss.lifetimeDamage)],
+            ['💀', 'Abates de Chefes',        g.boss.bossKills],
+            // ── Geral
+            ['', 'Geral', ''],
+            ['🕐', 'Tempo de Jogo',           formatTime(g.stats.playTime)],
         ];
     }
 
@@ -1707,10 +1752,10 @@ class UIManager {
             html += `<div class="friends-section-title">📨 Pedidos recebidos (${recv.length})</div>`;
             html += recv.map(f => `
                 <div class="friend-row">
-                    ${this._friendAvatar(f)}
+                    ${this._friendAvatar(f, false)}
                     <div class="friend-info">
                         <div class="friend-name">${f.vip ? '<span class="fr-vip">👑</span>' : ''}${f.username}</div>
-                        <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'Online':'Offline'}</div>
+                        <div class="friend-sub">Nv. ${f.nivel}</div>
                     </div>
                     <div class="friend-actions">
                         <button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">✓</button>
@@ -1722,7 +1767,7 @@ class UIManager {
             html += `<div class="friends-section-title" style="margin-top:12px">📤 Pedidos enviados (${sent.length})</div>`;
             html += sent.map(f => `
                 <div class="friend-row">
-                    ${this._friendAvatar(f)}
+                    ${this._friendAvatar(f, false)}
                     <div class="friend-info">
                         <div class="friend-name">${f.username}</div>
                         <div class="friend-sub">Nv. ${f.nivel} · Aguardando resposta</div>
@@ -1772,11 +1817,12 @@ class UIManager {
                     received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">Aceitar</button>`,
                     none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${f.id})">+ Adicionar</button>`,
                 }[f.rel] || '';
+                const isFriend = f.rel === 'friend';
                 return `<div class="friend-row">
-                    ${this._friendAvatar(f)}
+                    ${this._friendAvatar(f, isFriend)}
                     <div class="friend-info">
                         <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
-                        <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'Online':'Offline'}</div>
+                        <div class="friend-sub">Nv. ${f.nivel}</div>
                     </div>
                     <div class="friend-actions">${btnHtml}</div>
                 </div>`;
@@ -1787,25 +1833,29 @@ class UIManager {
     _buildFriendRow(f, showActions = true) {
         const actions = showActions ? `
             <div class="friend-actions">
-                <button class="fr-btn fr-btn--view" onclick="window.game.ui._openFriendProfile(${f.id})" title="Ver Perfil">👤</button>
-                <button class="fr-btn fr-btn--compare" onclick="window.game.ui._openFriendCompare(${f.id})" title="Comparar Stats">📊</button>
-                <button class="fr-btn fr-btn--remove" onclick="window.game.ui._confirmRemoveFriend(${f.id},'${(f.username||'').replace(/'/g,'')}')" title="Remover Amigo">✗</button>
+                <button class="fr-btn fr-btn--view"    onclick="window.game.ui._openFriendProfile(${f.id})"  title="Ver Perfil">👤</button>
+                <button class="fr-btn fr-btn--compare" onclick="window.game.ui._openFriendCompare(${f.id})"  title="Comparar Stats">📊</button>
+                <button class="fr-btn fr-btn--battle"  onclick="window.game.ui._sendBattleInvite(${f.id},'${(f.username||'').replace(/'/g,'')}')" title="Batalha de Cliques">⚔️</button>
+                <button class="fr-btn fr-btn--remove"  onclick="window.game.ui._confirmRemoveFriend(${f.id},'${(f.username||'').replace(/'/g,'')}')" title="Remover Amigo">✗</button>
             </div>` : '';
         return `<div class="friend-row">
             ${this._friendAvatar(f)}
             <div class="friend-info" style="cursor:pointer" onclick="window.game.ui._openFriendProfile(${f.id})">
                 <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
-                <div class="friend-sub">Nv. ${f.nivel} · <span class="status-dot ${f.online?'status-dot--online':'status-dot--offline'}"></span> ${f.online?'<span style="color:#00ff88">Online</span>':'Offline'}</div>
+                <div class="friend-sub">Nv. ${f.nivel}</div>
             </div>
             ${actions}
         </div>`;
     }
 
-    _friendAvatar(f) {
+    _friendAvatar(f, showStatus = true) {
         const src = f.foto ? `foto/${f.foto}` : 'foto/padrao.png';
+        const dot = showStatus
+            ? `<span class="status-dot status-dot--${f.online?'online':'offline'} friend-avatar-dot"></span>`
+            : '';
         return `<div class="friend-avatar-wrap">
             <img class="friend-avatar" src="${src}" alt="" onerror="this.src='foto/padrao.png'">
-            <span class="status-dot status-dot--${f.online?'online':'offline'} friend-avatar-dot"></span>
+            ${dot}
         </div>`;
     }
 
@@ -1884,9 +1934,9 @@ class UIManager {
             }[p.rel] || '';
             const compareBtn = '';
 
-            const dim  = `<span style="color:var(--text-dim)">—</span>`;
-            const row  = (label, val) =>
-                `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${val}</span></div>`;
+            const dim  = `<span style="color:rgba(255,255,255,0.2)">—</span>`;
+            const card = (icon, label, val) =>
+                `<div class="stat-card"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span><span class="stat-value">${val}</span></div>`;
             const sec  = label => `<div class="stat-section-label">${label}</div>`;
 
             container.innerHTML = `
@@ -1898,37 +1948,32 @@ class UIManager {
                         </div>
                         <div class="fp-info">
                             <div class="fp-name">${p.vip?'<span class="fr-vip">👑</span>':''}${p.username}</div>
-                            <div class="fp-status ${p.online?'fp-status--online':'fp-status--offline'}">${p.online?'● Online':'○ Offline'}</div>
+                            <div class="fp-status ${p.online?'fp-status--online':'fp-status--offline'}">${p.online?'● Online':'● Offline'}</div>
                             <div class="fp-since">📅 Desde ${since}</div>
                         </div>
                         ${removeBtn}
                     </div>
                     <div style="margin-bottom:14px">
                         ${sec('Progressão')}
-                        ${row('Nível',                p.nivel)}
-                        ${row('XP Total',             dim)}
-                        ${row('Prestígios',           p.total_prestigios)}
-                        ${row('Mult. de Prestígio',   dim)}
-                        ${row('Pontos de Habilidade', dim)}
-                        ${row('Diamantes',            formatNum(p.diamantes))}
+                        ${card('⭐', 'Nível',                p.nivel)}
+                        ${card('📊', 'XP Total',             formatNum(p.total_xp))}
+                        ${card('👑', 'Prestígios',           p.total_prestigios)}
+                        ${card('🧬', 'Pontos de Habilidade', p.skill_points + ' SP')}
+                        ${card('💎', 'Diamantes',            formatNum(p.diamantes))}
                         ${sec('Neurônios')}
-                        ${row('Neurônios Vitalícios', formatNum(p.neuronios_vitais) + ' ⚡')}
-                        ${row('Neurônios (Ciclo Atual)', dim)}
-                        ${row('Neurônios/seg',         dim)}
-                        ${row('Valor do Clique',       dim)}
+                        ${card('🧠', 'Neurônios Vitalícios', formatNum(p.neuronios_vitais))}
                         ${sec('Combate')}
-                        ${row('Total de Cliques',      formatNum(p.total_cliques))}
-                        ${row('Cliques Críticos',      dim)}
-                        ${row('Chance Crítica',        dim)}
+                        ${card('🖱️', 'Total de Cliques',  formatNum(p.total_cliques))}
+                        ${card('💥', 'Cliques Críticos',  formatNum(p.crit_clicks))}
                         ${sec('Conquistas')}
-                        ${row('Conquistas',            dim)}
-                        ${row('Missões Resgatadas',    dim)}
+                        ${card('🏆', 'Conquistas',         p.ach_count)}
+                        ${card('✅', 'Missões Resgatadas', p.miss_count)}
                         ${sec('Boss')}
-                        ${row('Nível do Chefe',        p.nivel_chefe)}
-                        ${row('Dano Total ao Chefe',   formatNum(p.total_dano) + ' ⚔')}
-                        ${row('Abates de Chefes',      p.abates + ' ☠')}
+                        ${card('🗡️', 'Nível do Chefe',      p.nivel_chefe)}
+                        ${card('⚔️', 'Dano Total ao Chefe', formatNum(p.total_dano))}
+                        ${card('💀', 'Abates de Chefes',    p.abates)}
                         ${sec('Geral')}
-                        ${row('Tempo de Jogo',         dim)}
+                        ${card('🕐', 'Tempo de Jogo', formatTime(p.play_time))}
                     </div>
                     ${(!isSelf && (actionBtn || compareBtn)) ? `<div class="fp-actions">${actionBtn}${compareBtn}</div>` : ''}
                 </div>`;
@@ -1966,47 +2011,47 @@ class UIManager {
 
             // sections mirror _getStatsData() order
             const sections = [
-                { title: 'Progressão', rows: [
-                    { label: 'Nível',               meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
-                    { label: 'XP Total',            meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
-                    { label: 'Prestígios',          meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
-                    { label: 'Mult. Prestígio',     meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
-                    { label: 'Pts. Habilidade',     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
-                    { label: 'Diamantes',           meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
+                { title: 'Progressão', icon: '⭐', rows: [
+                    { icon: '⭐', label: 'Nível',               meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
+                    { icon: '📊', label: 'XP Total',            meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
+                    { icon: '👑', label: 'Prestígios',          meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
+                    { icon: '✦',  label: 'Mult. Prestígio',     meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
+                    { icon: '🧬', label: 'Pts. Habilidade',     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
+                    { icon: '💎', label: 'Diamantes',           meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
                 ]},
-                { title: 'Neurônios', rows: [
-                    { label: 'Neurônios Vitalícios',meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
-                    { label: 'Neurônios (Ciclo)',   meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
-                    { label: 'Neurônios/seg',       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
-                    { label: 'Valor do Clique',     meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
+                { title: 'Neurônios', icon: '🧠', rows: [
+                    { icon: '🧠', label: 'Neurônios Vitalícios',meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
+                    { icon: '⚡', label: 'Neurônios (Ciclo)',   meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
+                    { icon: '⚡', label: 'Neurônios/seg',       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
+                    { icon: '👆', label: 'Valor do Clique',     meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
                 ]},
-                { title: 'Combate', rows: [
-                    { label: 'Total de Cliques',    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
-                    { label: 'Cliques Críticos',    meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
-                    { label: 'Chance Crítica',      meV: critChance,                                  frV: null,               fmt: null },
+                { title: 'Combate', icon: '🖱️', rows: [
+                    { icon: '🖱️', label: 'Total de Cliques',    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
+                    { icon: '💥', label: 'Cliques Críticos',    meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
+                    { icon: '🎯', label: 'Chance Crítica',      meV: critChance,                                  frV: null,               fmt: null },
                 ]},
-                { title: 'Boss', rows: [
-                    { label: 'Nível do Chefe',      meV: g.boss?.userBossLevel || 0,                 frV: p.nivel_chefe,      fmt: v => v },
-                    { label: 'Dano ao Chefe',       meV: g.boss?.lifetimeDamage || 0,                frV: p.total_dano,       fmt: formatNum },
-                    { label: 'Abates',              meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
+                { title: 'Boss', icon: '⚔️', rows: [
+                    { icon: '🗡️', label: 'Nível do Chefe',      meV: g.boss?.userBossLevel || 0,                 frV: p.nivel_chefe,      fmt: v => v },
+                    { icon: '⚔️', label: 'Dano ao Chefe',       meV: g.boss?.lifetimeDamage || 0,                frV: p.total_dano,       fmt: formatNum },
+                    { icon: '💀', label: 'Abates',              meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
                 ]},
-                { title: 'Conquistas', rows: [
-                    { label: 'Conquistas',          meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
-                    { label: 'Missões Resgatadas',  meV: g.missions.claims.size,                     frV: null,               fmt: null },
+                { title: 'Conquistas', icon: '🏆', rows: [
+                    { icon: '🏆', label: 'Conquistas',          meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
+                    { icon: '✅', label: 'Missões Resgatadas',  meV: g.missions.claims.size,                     frV: null,               fmt: null },
                 ]},
-                { title: 'Geral', rows: [
-                    { label: 'Tempo de Jogo',       meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
+                { title: 'Geral', icon: '🕐', rows: [
+                    { icon: '🕐', label: 'Tempo de Jogo',       meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
                 ]},
             ];
 
             const rowsHTML = sections.map(sec => `
-                <div class="compare-section-title">${sec.title}</div>
+                <div class="compare-section-title">${sec.icon} ${sec.title}</div>
                 ${sec.rows.map(r => {
                     const meStr  = r.fmt ? r.fmt(r.meV) : r.meV;
                     const frStr  = r.frV !== null ? (r.fmt ? r.fmt(r.frV) : r.frV) : '<span style="color:var(--text-dim)">—</span>';
                     const dStr   = (r.fmt && r.frV !== null) ? diffHTML(r.meV, r.frV) : '<span style="color:var(--text-dim)">—</span>';
                     return `<div class="compare-row">
-                        <div class="compare-label">${r.label}</div>
+                        <div class="compare-label"><span class="compare-row-icon">${r.icon}</span>${r.label}</div>
                         <div class="compare-val">${meStr}</div>
                         <div class="compare-val">${frStr}</div>
                         <div class="compare-diff">${dStr}</div>
@@ -2082,13 +2127,21 @@ class UIManager {
                 ? `<span class="cat-hub-badge">${count > 99 ? '99+' : count}</span>`
                 : '';
             const fullRow = (isOdd && idx === items.length - 1) ? ' cat-last-full' : '';
+            let sub = item.sub;
+            if (item.id === 'skills' && count > 0) {
+                const cats = [];
+                if (counts.skills_click     > 0) cats.push('Cliques');
+                if (counts.skills_generator > 0) cats.push('Geradores');
+                if (counts.skills_progress  > 0) cats.push('Progressão');
+                if (cats.length > 0) sub = cats.join(' · ');
+            }
             return `
                 <button class="cat-hub-btn cat-theme-${item.theme}${fullRow}"
                         onclick="window.game.ui.openSubPanel('${item.id}')">
                     ${badge}
                     <div class="cat-hub-icon">${item.icon}</div>
                     <div class="cat-hub-label">${item.label}</div>
-                    <div class="cat-hub-sub">${item.sub}</div>
+                    <div class="cat-hub-sub">${sub}</div>
                 </button>`;
         };
 
@@ -2294,7 +2347,7 @@ class UIManager {
         const vipAction = isVip
             ? `<div class="pshop-owned-badge pshop-owned-vip">✓ VIP ATIVO</div>`
             : `<div class="pshop-price pshop-price-gold">R$ 9,90</div>
-               <button class="pshop-buy-btn pshop-buy-gold" onclick="window.game.buyVip()">Adquirir</button>`;
+               <button class="pshop-buy-btn pshop-buy-gold" data-pay-item="vip" onclick="window.game.iniciarPagamento('vip')">Adquirir</button>`;
         const vipCard = `
             <div class="pshop-card pshop-card--vip${isVip ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow"></div>
@@ -2320,7 +2373,7 @@ class UIManager {
         const doubleAction = hasDouble
             ? `<div class="pshop-owned-badge pshop-owned-double">✓ ATIVO 2×</div>`
             : `<div class="pshop-price pshop-price-cyan">R$ 12,90</div>
-               <button class="pshop-buy-btn pshop-buy-cyan" onclick="window.game.buyDoubleNeuron()">Adquirir</button>`;
+               <button class="pshop-buy-btn pshop-buy-cyan" data-pay-item="double_neuron" onclick="window.game.iniciarPagamento('double_neuron')">Adquirir</button>`;
         const doubleCard = `
             <div class="pshop-card pshop-card--double${hasDouble ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow pshop-card-glow--double"></div>
@@ -2347,7 +2400,7 @@ class UIManager {
             ? `<div class="pshop-owned-badge" style="border-color:rgba(255,100,0,0.4);color:#ff6400">✓ ATIVO 2×</div>`
             : `<div class="pshop-price" style="color:#ff6400">R$ 9,90</div>
                <button class="pshop-buy-btn" style="border-color:rgba(255,100,0,0.4);color:#ff6400;background:rgba(255,100,0,0.08)"
-                       onclick="window.game.buyBossDamageX2()">Adquirir</button>`;
+                       data-pay-item="boss_damage_x2" onclick="window.game.iniciarPagamento('boss_damage_x2')">Adquirir</button>`;
         const doubleDmgCard = `
             <div class="pshop-card pshop-card--double${hasDoubleDmg ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow" style="background:radial-gradient(ellipse at right,rgba(255,100,0,0.18) 0%,transparent 70%)"></div>
@@ -2406,7 +2459,7 @@ class UIManager {
                           <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">Equipar</button>`;
             } else {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
-                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" onclick="window.game.buySkin('${skin.id}')">Adquirir</button>`;
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
             }
             return `
                 <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
@@ -2487,8 +2540,7 @@ class UIManager {
             const popTag = '';
             if (isMega) {
                 return `
-                <div class="dpack-card dpack-card--mega"
-                     onclick="window.game.buyDiamondPack('${pack.id}')">
+                <div class="dpack-card dpack-card--mega">
                     ${bonusTag}
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-info">
@@ -2497,23 +2549,22 @@ class UIManager {
                         <div class="dpack-name">${pack.name}</div>
                         <div class="dpack-price">${pack.price}</div>
                     </div>
-                    <button class="dpack-buy-btn"
-                            onclick="event.stopPropagation(); window.game.buyDiamondPack('${pack.id}')">
+                    <button class="dpack-buy-btn" data-pay-item="${pack.id}"
+                            onclick="window.game.iniciarPagamento('${pack.id}')">
                         COMPRAR
                     </button>
                 </div>`;
             }
             return `
-                <div class="dpack-card"
-                     onclick="window.game.buyDiamondPack('${pack.id}')">
+                <div class="dpack-card">
                     ${bonusTag}
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
                     <div class="dpack-unit">Diamantes</div>
                     <div class="dpack-name">${pack.name}</div>
                     <div class="dpack-price">${pack.price}</div>
-                    <button class="dpack-buy-btn"
-                            onclick="event.stopPropagation(); window.game.buyDiamondPack('${pack.id}')">
+                    <button class="dpack-buy-btn" data-pay-item="${pack.id}"
+                            onclick="window.game.iniciarPagamento('${pack.id}')">
                         COMPRAR
                     </button>
                 </div>`;
@@ -2624,17 +2675,22 @@ class UIManager {
     _renderSkills(container, tabsContainer) {
         const g = this._game;
         const categories = [
-            { id: 'click',       name: 'Cliques',    icon: '👆' },
-            { id: 'generator',   name: 'Geradores',  icon: '⚙️' },
-            { id: 'progression', name: 'Progressão', icon: '📈' },
+            { id: 'click',       name: 'Cliques',    icon: '👆', badgeKey: 'skills_click'     },
+            { id: 'generator',   name: 'Geradores',  icon: '⚙️', badgeKey: 'skills_generator' },
+            { id: 'progression', name: 'Progressão', icon: '📈', badgeKey: 'skills_progress'  },
         ];
         if (!['click', 'generator', 'progression'].includes(this._activeSkillTab)) this._activeSkillTab = 'click';
 
-        tabsContainer.innerHTML = categories.map(c => `
-            <button class="tab-btn ${this._activeSkillTab === c.id ? 'active' : ''}"
+        const counts = this._getBadgeCounts();
+        tabsContainer.innerHTML = categories.map(c => {
+            const n = counts[c.badgeKey] || 0;
+            const badge = n > 0 ? `<span class="skill-tab-badge">${n}</span>` : '';
+            return `<button class="tab-btn ${this._activeSkillTab === c.id ? 'active' : ''}"
+                    id="skill-tab-${c.id}"
                     onclick="window.game.ui._activeSkillTab='${c.id}'; window.game.ui._renderPanelContent('skills')">
-                ${c.icon} ${c.name}
-            </button>`).join('');
+                ${c.icon} ${c.name}${badge}
+            </button>`;
+        }).join('');
 
         const sp = g.skills.skillPoints;
         const skills = SKILLS.filter(s => s.category === this._activeSkillTab);
@@ -2761,20 +2817,18 @@ class UIManager {
 
         const onlineDot = (e) => (e.isPlayer || e.online)
             ? `<span class="status-dot status-dot--online lb-online-dot" title="Online"></span>`
-            : '';
+            : `<span class="status-dot status-dot--offline lb-online-dot" title="Offline"></span>`;
 
         const buildPodiumSlot = (entry, rank) => {
             if (!entry) return `<div class="lb-pod-slot ${podiumClasses[rank-1]} lb-pod-empty"><div class="lb-pod-medal">${podiumMedals[rank-1]}</div><div class="lb-pod-card lb-pod-card--empty"><span>—</span></div><div class="lb-pod-pedestal"></div></div>`;
-            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
-            const nameClass = entry.vip      ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            const nameClass = entry.vip ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
             const dot       = onlineDot(entry);
             return `
                 <div class="lb-pod-slot ${podiumClasses[rank-1]}${entry.isPlayer?' lb-pod-you':''}">
                     <div class="lb-pod-medal">${podiumMedals[rank-1]}</div>
                     <div class="lb-pod-card">
                         <div class="lb-pod-avatar-wrap">${avatarEl(entry)}${dot}</div>
-                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="${nameClass}">${entry.username}</div>
                         <div class="lb-pod-score">${fmtScore(entry)}</div>
                     </div>
                     <div class="lb-pod-pedestal"></div>
@@ -2782,9 +2836,7 @@ class UIManager {
         };
 
         const buildRow = (entry, rank) => {
-            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
-            const nameClass = entry.vip      ? 'lb-name lb-name-vip' : 'lb-name';
+            const nameClass = entry.vip ? 'lb-name lb-name-vip' : 'lb-name';
             const dot       = onlineDot(entry);
             return `
                 <div class="lb-row${entry.isPlayer?' lb-row-player':''}">
@@ -2792,7 +2844,7 @@ class UIManager {
                     <div class="lb-row-avatar">${avatarEl(entry)}</div>
                     ${dot}
                     <div class="lb-info">
-                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="${nameClass}">${entry.username}</div>
                     </div>
                     <div class="lb-score">${fmtScore(entry)}</div>
                 </div>`;
@@ -3096,17 +3148,20 @@ class UIManager {
             return `<img class="lb-avatar-img" src="${src}" alt="">`;
         };
 
+        const onlineDot = (e) => (e.isPlayer || e.online)
+            ? `<span class="status-dot status-dot--online lb-online-dot" title="Online"></span>`
+            : `<span class="status-dot status-dot--offline lb-online-dot" title="Offline"></span>`;
+
         const buildPodiumSlot = (entry, rank) => {
             if (!entry) return `<div class="lb-pod-slot ${podiumClasses[rank-1]} lb-pod-empty"><div class="lb-pod-medal">${podiumMedals[rank-1]}</div><div class="lb-pod-card lb-pod-card--empty"><span>—</span></div><div class="lb-pod-pedestal"></div></div>`;
-            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
-            const nameClass = entry.vip      ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            const nameClass = entry.vip ? 'lb-pod-name lb-name-vip' : 'lb-pod-name';
+            const dot       = onlineDot(entry);
             return `
                 <div class="lb-pod-slot ${podiumClasses[rank-1]}${entry.isPlayer ? ' lb-pod-you' : ''}">
                     <div class="lb-pod-medal">${podiumMedals[rank-1]}</div>
                     <div class="lb-pod-card">
-                        <div class="lb-pod-avatar">${avatarEl(entry)}</div>
-                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="lb-pod-avatar-wrap">${avatarEl(entry)}${dot}</div>
+                        <div class="${nameClass}">${entry.username}</div>
                         <div class="lb-pod-score" style="color:var(--gold)">${formatNum(scoreOf(entry))}<span class="lb-unit">${unit}</span></div>
                     </div>
                     <div class="lb-pod-pedestal"></div>
@@ -3114,15 +3169,15 @@ class UIManager {
         };
 
         const buildRow = (entry, rank) => {
-            const vipBadge  = entry.vip      ? `<span class="lb-vip-badge">VIP</span>` : '';
-            const youTag    = entry.isPlayer ? `<span class="lb-you-tag">VOCÊ</span>`  : '';
-            const nameClass = entry.vip      ? 'lb-name lb-name-vip' : 'lb-name';
+            const nameClass = entry.vip ? 'lb-name lb-name-vip' : 'lb-name';
+            const dot       = onlineDot(entry);
             return `
                 <div class="lb-row${entry.isPlayer ? ' lb-row-player' : ''}">
                     <div class="lb-rank">#${rank}</div>
                     <div class="lb-row-avatar">${avatarEl(entry)}</div>
+                    ${dot}
                     <div class="lb-info">
-                        <div class="${nameClass}">${entry.username}${vipBadge}${youTag}</div>
+                        <div class="${nameClass}">${entry.username}</div>
                     </div>
                     <div class="lb-score" style="color:var(--gold)">${formatNum(scoreOf(entry))}<span class="lb-unit">${unit}</span></div>
                 </div>`;
@@ -3300,9 +3355,12 @@ class UIManager {
             this._spawnBossHit(e.target.closest('.bw-arena'));
         });
 
-        // Keyboard: Escape closes boss world
+        // Keyboard: Escape closes boss world (or dismisses reward card)
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && this._worldOpen) this._closeBossWorld();
+            if (e.key !== 'Escape') return;
+            const overlay = document.getElementById('bw-reward-overlay');
+            if (overlay) { document.getElementById('bw-reward-claim-btn')?.click(); return; }
+            if (this._worldOpen) this._closeBossWorld();
         });
     }
 
@@ -3365,16 +3423,384 @@ class UIManager {
     }
 
     _closeBossWorld() {
+        // If reward card is already showing, ignore (Escape/click handled by card itself)
+        if (document.getElementById('bw-reward-overlay')) return;
+        const r = this._game.boss._sessionRewards;
+        const hasRewards = r && (r.neurons > 0 || r.diamonds > 0 || r.kills > 0);
+        if (hasRewards) {
+            this._showBossRewardSummary(r, true, () => this._doCloseBossWorld());
+        } else {
+            this._doCloseBossWorld();
+        }
+    }
+
+    _doCloseBossWorld() {
         this._worldOpen = false;
         if (this._bossWorldTimerInterval) { clearInterval(this._bossWorldTimerInterval); this._bossWorldTimerInterval = null; }
         this._game.boss.closeBossWorld();
         const world = document.getElementById('boss-world');
         if (world) {
             world.classList.remove('open');
-            // Clear particles
+            document.getElementById('bw-reward-overlay')?.remove();
             const p = document.getElementById('bw-particles');
             if (p) p.innerHTML = '';
         }
+    }
+
+    // isExit=true → "Resgatar e Sair" + fecha o mundo; isExit=false → "Resgatar" + fica
+    // ── Modal de seleção de método de pagamento ──────────────────────────────
+
+    _showPaymentMethodModal(itemId, itemLabel, itemPrice) {
+        document.getElementById('pay-method-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'pay-method-overlay';
+        overlay.className = 'pay-overlay';
+        overlay.innerHTML = `
+            <div class="pay-modal pay-method-modal">
+                <div class="pay-method-title">Como você quer pagar?</div>
+                <div class="pay-method-item">${itemLabel} · <strong>${itemPrice}</strong></div>
+                <div class="pay-method-options">
+                    <button class="pay-method-btn pay-method-btn--pix" id="pay-opt-pix">
+                        <span class="pay-method-icon">💚</span>
+                        <span class="pay-method-info">
+                            <span class="pay-method-name">PIX</span>
+                            <span class="pay-method-sub">Aprovação instantânea</span>
+                        </span>
+                    </button>
+                    <button class="pay-method-btn pay-method-btn--card" id="pay-opt-card">
+                        <span class="pay-method-icon">💳</span>
+                        <span class="pay-method-info">
+                            <span class="pay-method-name">Cartão / Outros</span>
+                            <span class="pay-method-sub">Crédito, débito, boleto</span>
+                        </span>
+                    </button>
+                </div>
+                <button class="pay-btn pay-btn--cancel" id="pay-method-cancel">Cancelar</button>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        document.getElementById('pay-opt-pix')?.addEventListener('click', () => {
+            overlay.remove();
+            this._game.iniciarPix(itemId);
+        });
+        document.getElementById('pay-opt-card')?.addEventListener('click', () => {
+            overlay.remove();
+            this._game._iniciarCheckoutPro(itemId);
+        });
+        document.getElementById('pay-method-cancel')?.addEventListener('click', () => overlay.remove());
+    }
+
+    // ── Modal do PIX com QR code ──────────────────────────────────────────────
+
+    _showPixModal(itemId, txId, paymentId, qrCode, qrBase64) {
+        document.getElementById('pay-pix-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'pay-pix-overlay';
+        overlay.className = 'pay-overlay';
+
+        const qrWrapInner = qrBase64
+            ? `<img class="pix-qr-img" src="data:image/png;base64,${qrBase64}" alt="QR Code PIX">`
+            : `<div class="pix-qr-canvas-host"></div>`;
+
+        overlay.innerHTML = `
+            <div class="pay-modal pix-modal">
+                <div class="pix-header">
+                    <span class="pix-logo">💚</span>
+                    <div>
+                        <div class="pix-title">Pague com PIX</div>
+                        <div class="pix-sub">Escaneie o QR Code ou copie o código</div>
+                    </div>
+                </div>
+                <div class="pix-qr-wrap">${qrWrapInner}</div>
+                <div class="pix-copy-section">
+                    <div class="pix-code-label">PIX Copia e Cola:</div>
+                    <div class="pix-code-box">${qrCode}</div>
+                    <button class="pix-copy-btn">📋 Copiar código</button>
+                </div>
+                <div class="pay-status-msg">Aguardando pagamento...</div>
+                <div class="pay-actions">
+                    <button class="pay-btn pay-btn--check">🔄 Já paguei — Verificar</button>
+                    <button class="pay-btn pay-btn--cancel">Cancelar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        // Referências diretas — zero ambiguidade com getElementById
+        const qHost  = overlay.querySelector('.pix-qr-canvas-host');
+        const msgEl  = overlay.querySelector('.pay-status-msg');
+        const setMsg = (msg, ok = false) => { if (msgEl) { msgEl.textContent = msg; msgEl.style.color = ok ? '#00ff88' : ''; } };
+
+        // QR code síncrono (window.innerWidth sempre disponível)
+        if (!qrBase64 && qrCode && qHost) {
+            if (typeof QRCode !== 'undefined') {
+                const sz = Math.min(200, window.innerWidth - 90);
+                new QRCode(qHost, { text: qrCode, width: sz, height: sz,
+                    colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+            } else {
+                qHost.innerHTML = `<div class="pix-qr-placeholder">📷 QR indisponível</div>`;
+            }
+        }
+
+        overlay.querySelector('.pix-copy-btn')?.addEventListener('click', () => {
+            navigator.clipboard?.writeText(qrCode).then(() => {
+                const btn = overlay.querySelector('.pix-copy-btn');
+                if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar código'; }, 2000); }
+            });
+        });
+
+        let polling = null, done = false;
+        const checkStatus = async () => {
+            if (done) return;
+            setMsg('Verificando...');
+            try {
+                const res  = await fetch(`api/pagamento.php?action=status&id=${txId}`);
+                const data = await res.json();
+                if (data.status === 'approved') {
+                    done = true; clearInterval(polling);
+                    setMsg('✓ PIX recebido! Liberando...', true);
+                    setTimeout(() => { overlay.remove(); if (data.item_id) this._game._entregarItem(data.item_id); }, 900);
+                    return;
+                }
+                if (['rejected', 'cancelled', 'refunded'].includes(data.status)) {
+                    done = true; clearInterval(polling);
+                    overlay.remove(); this._game.notify('Pagamento não aprovado.', 'error');
+                    return;
+                }
+                setMsg('Aguardando pagamento PIX...');
+            } catch { setMsg('Verificando conexão...'); }
+        };
+        polling = setInterval(checkStatus, 5000);
+
+        overlay.querySelector('.pay-btn--check')?.addEventListener('click', checkStatus);
+        overlay.querySelector('.pay-btn--cancel')?.addEventListener('click', () => {
+            done = true; clearInterval(polling); overlay.remove();
+        });
+    }
+
+    // ── PIX estático (fallback quando MP retorna unauthorized) ──────────────
+
+    _showPixModalEstatico(itemId, txId) {
+        document.getElementById('pay-pix-overlay')?.remove();
+
+        const PIX_STATIC = '00020126330014BR.GOV.BCB.PIX0111045117310475204000053039865802BR5901N6001C62070503***63042FCA';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'pay-pix-overlay';
+        overlay.className = 'pay-overlay';
+        overlay.innerHTML = `
+            <div class="pay-modal pix-modal">
+                <div class="pix-header">
+                    <span class="pix-logo">💚</span>
+                    <div>
+                        <div class="pix-title">Pague com PIX</div>
+                        <div class="pix-sub">Escaneie o QR Code ou copie o código</div>
+                    </div>
+                </div>
+                <div class="pix-qr-wrap">
+                    <div class="pix-qr-canvas-host"></div>
+                </div>
+                <div class="pix-copy-section">
+                    <div class="pix-code-label">PIX Copia e Cola:</div>
+                    <div class="pix-code-box">${PIX_STATIC}</div>
+                    <button class="pix-copy-btn">📋 Copiar código</button>
+                </div>
+                <div class="pay-status-msg">Aguardando pagamento PIX...</div>
+                <div class="pay-actions">
+                    <button class="pay-btn pay-btn--check">🔄 Já paguei — Verificar</button>
+                    <button class="pay-btn pay-btn--cancel">Cancelar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        // Referências diretas pelo overlay — sem getElementById
+        const qHost  = overlay.querySelector('.pix-qr-canvas-host');
+        const msgEl  = overlay.querySelector('.pay-status-msg');
+        const setMsg = (msg, ok = false) => { if (msgEl) { msgEl.textContent = msg; msgEl.style.color = ok ? '#00ff88' : ''; } };
+
+        // QR code síncrono
+        if (qHost) {
+            if (typeof QRCode !== 'undefined') {
+                const sz = Math.min(200, window.innerWidth - 90);
+                new QRCode(qHost, { text: PIX_STATIC, width: sz, height: sz,
+                    colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+            } else {
+                qHost.innerHTML = `<div class="pix-qr-placeholder">📷 QR indisponível</div>`;
+            }
+        }
+
+        overlay.querySelector('.pix-copy-btn')?.addEventListener('click', () => {
+            navigator.clipboard?.writeText(PIX_STATIC).then(() => {
+                const btn = overlay.querySelector('.pix-copy-btn');
+                if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar código'; }, 2000); }
+            });
+        });
+
+        let done = false, polling = null;
+        const checkStatus = async () => {
+            if (done) return;
+            setMsg('Verificando...');
+            try {
+                const res  = await fetch(`api/pagamento.php?action=verificar_pix_estatico&tx_id=${txId}`);
+                const data = await res.json();
+                if (data.status === 'approved') {
+                    done = true; clearInterval(polling);
+                    setMsg('✓ Pagamento confirmado! Liberando...', true);
+                    setTimeout(() => { overlay.remove(); if (data.item_id) this._game._entregarItem(data.item_id); }, 900);
+                    return;
+                }
+                setMsg('Aguardando confirmação do pagamento...');
+            } catch {
+                setMsg('Erro de conexão. Tente novamente.');
+            }
+        };
+
+        polling = setInterval(checkStatus, 5000);
+        overlay.querySelector('.pay-btn--check')?.addEventListener('click', checkStatus);
+        overlay.querySelector('.pay-btn--cancel')?.addEventListener('click', () => {
+            done = true; clearInterval(polling); overlay.remove();
+        });
+    }
+
+    // ── Modal de espera de pagamento ─────────────────────────────────────────
+
+    _setPaymentBtnLoading(itemId, loading) {
+        // Desabilita/habilita o botão enquanto cria a preferência no MP
+        document.querySelectorAll('[data-pay-item]').forEach(btn => {
+            if (btn.dataset.payItem === itemId) {
+                btn.disabled = loading;
+                if (loading) btn.dataset.origText = btn.textContent;
+                btn.textContent = loading ? '⏳ Aguarde...' : (btn.dataset.origText || 'Adquirir');
+            }
+        });
+    }
+
+    _showPaymentWaitModal(itemId, txId) {
+        document.getElementById('pay-wait-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'pay-wait-overlay';
+        overlay.className = 'pay-overlay';
+        overlay.innerHTML = `
+            <div class="pay-modal">
+                <div class="pay-icon">💳</div>
+                <div class="pay-title">Aguardando Pagamento</div>
+                <div class="pay-sub">Finalize a compra na janela do Mercado Pago.<br>Esta janela atualiza automaticamente.</div>
+                <div class="pay-spinner"></div>
+                <div class="pay-status-msg" id="pay-status-msg">Verificando...</div>
+                <div class="pay-actions">
+                    <button class="pay-btn pay-btn--check" id="pay-check-now">🔄 Já paguei — Verificar agora</button>
+                    <button class="pay-btn pay-btn--cancel" id="pay-cancel">Cancelar</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        let polling = null;
+        let done    = false;
+
+        const setMsg = (msg, ok = false) => {
+            const el = document.getElementById('pay-status-msg');
+            if (el) { el.textContent = msg; el.style.color = ok ? '#00ff88' : ''; }
+        };
+
+        const checkStatus = async () => {
+            if (done) return;
+            setMsg('Verificando...');
+            try {
+                const res  = await fetch(`api/pagamento.php?action=status&id=${txId}`);
+                const data = await res.json();
+                if (!data.ok) { setMsg('Erro ao verificar. Tentando...'); return; }
+
+                if (data.status === 'approved') {
+                    done = true;
+                    clearInterval(polling);
+                    setMsg('✓ Pagamento aprovado!', true);
+                    setTimeout(() => {
+                        overlay.remove();
+                        if (data.item_id) this._game._entregarItem(data.item_id);
+                    }, 900);
+                    return;
+                }
+                if (['rejected','cancelled','refunded'].includes(data.status)) {
+                    done = true;
+                    clearInterval(polling);
+                    overlay.remove();
+                    this._game.notify('Pagamento não aprovado. Tente novamente.', 'error');
+                    return;
+                }
+                setMsg('Aguardando confirmação do Mercado Pago...');
+            } catch {
+                setMsg('Sem conexão. Tentando novamente...');
+            }
+        };
+
+        polling = setInterval(checkStatus, 5000);
+
+        document.getElementById('pay-check-now')?.addEventListener('click', checkStatus);
+        document.getElementById('pay-cancel')?.addEventListener('click', () => {
+            done = true;
+            clearInterval(polling);
+            overlay.remove();
+        });
+
+        // Timeout: fecha após 15 minutos sem confirmação
+        setTimeout(() => {
+            if (!done) {
+                done = true;
+                clearInterval(polling);
+                overlay?.remove();
+            }
+        }, 15 * 60 * 1000);
+    }
+
+    _showBossRewardSummary(rewards, isExit, onClaim) {
+        const world = document.getElementById('boss-world');
+        if (!world) return;
+        document.getElementById('bw-reward-overlay')?.remove();
+
+        const fmt = typeof formatNum === 'function' ? formatNum : n => n.toLocaleString('pt-BR');
+        const btnLabel = isExit ? '✓ Resgatar e Sair' : '✓ Resgatar';
+
+        const killRow = rewards.kills > 0 ? `
+            <div class="bw-rc-row">
+                <span class="bw-rc-icon">💀</span>
+                <span class="bw-rc-label">Bosses derrotados</span>
+                <span class="bw-rc-val bw-rc-kills">${rewards.kills}</span>
+            </div>` : '';
+        const neuronRow = rewards.neurons > 0 ? `
+            <div class="bw-rc-row">
+                <span class="bw-rc-icon">🧠</span>
+                <span class="bw-rc-label">Neurônios</span>
+                <span class="bw-rc-val bw-rc-gold">+${fmt(rewards.neurons)}</span>
+            </div>` : '';
+        const diamondRow = rewards.diamonds > 0 ? `
+            <div class="bw-rc-row">
+                <span class="bw-rc-icon">💎</span>
+                <span class="bw-rc-label">Diamantes</span>
+                <span class="bw-rc-val bw-rc-cyan">+${rewards.diamonds}</span>
+            </div>` : '';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'bw-reward-overlay';
+        overlay.id = 'bw-reward-overlay';
+        overlay.innerHTML = `
+            <div class="bw-reward-card">
+                <div class="bw-rc-header">
+                    <div class="bw-rc-title">⚔ Recompensas da Batalha</div>
+                    <div class="bw-rc-sub">${isExit ? 'Saindo da batalha' : 'Tempo esgotado'}</div>
+                </div>
+                <div class="bw-rc-rows">
+                    ${killRow}${neuronRow}${diamondRow}
+                </div>
+                <button class="bw-rc-btn" id="bw-reward-claim-btn">${btnLabel}</button>
+            </div>`;
+        world.appendChild(overlay);
+
+        document.getElementById('bw-reward-claim-btn')?.addEventListener('click', () => {
+            overlay.remove();
+            if (onClaim) onClaim();
+        });
     }
 
     _spawnWorldParticles() {
@@ -3515,6 +3941,11 @@ class UIManager {
         const world = document.getElementById('boss-world');
         if (world) world.setAttribute('data-type', b.type);
 
+        const sr          = bm._sessionRewards || { neurons: 0, diamonds: 0, kills: 0 };
+        const sessKills   = sr.kills    || 0;
+        const sessNeurons = sr.neurons  || 0;
+        const sessDiamonds= sr.diamonds || 0;
+
         const myDmgHTML = acc.isLoggedIn() && bm.myDamage > 0
             ? `<span class="bw-my-dmg">Seu dano: <strong id="bw-my-dmg-val" style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>`
             : (!acc.isLoggedIn() ? `<span class="bw-login-hint">⚠ Faça login para ganhar recompensas</span>` : '');
@@ -3546,6 +3977,13 @@ class UIManager {
                 <div class="bw-boss-icon" id="bw-boss-icon">${def.icon || '👾'}</div>
                 ${canAttack ? `<div class="bw-arena-hint">CLIQUE PARA ATACAR</div>` : ''}
                 ${defeated ? `<div class="bw-defeated-label">☠ DERROTADO</div>` : ''}
+            </div>
+
+            <div class="bw-drop-row">
+                <span class="bw-drop-label">Sessão:</span>
+                ${sessKills > 0 ? `<span class="bw-drop-item bw-drop-kills">💀 ${sessKills}</span>` : ''}
+                <span class="bw-drop-item bw-drop-gold">🧠 ${sessNeurons > 0 ? formatNum(sessNeurons) : '—'}</span>
+                <span class="bw-drop-item bw-drop-cyan">💎 ${sessDiamonds > 0 ? sessDiamonds : '—'}</span>
             </div>
 
             <div class="bw-info-row">
@@ -3580,7 +4018,13 @@ class UIManager {
                     el.textContent = '00:00';
                     clearInterval(this._bossWorldTimerInterval);
                     this._bossWorldTimerInterval = null;
-                    bm.fetchState(); // server transitions to cooldown screen automatically
+                    bm.fetchState();
+                    const r = bm._sessionRewards;
+                    if (r && (r.neurons > 0 || r.diamonds > 0 || r.kills > 0)) {
+                        this._showBossRewardSummary(r, false, () => this._doCloseBossWorld());
+                    } else {
+                        this._doCloseBossWorld();
+                    }
                     return;
                 }
                 el.textContent = `${String(Math.floor(rem/60)).padStart(2,'0')}:${String(rem%60).padStart(2,'0')}`;
@@ -3917,6 +4361,318 @@ class UIManager {
         }
     }
 
+    // ── Click Battle System ───────────────────────────────────────────────────
+
+    _startBattlePolling() {
+        if (this._battlePollTimer) return;
+        this._battlePollTimer = setInterval(() => this._pollBattle(), 1000);
+        setTimeout(() => this._pollBattle(), 800);
+    }
+
+    async _pollBattle() {
+        if (!this._game.account.isLoggedIn() || this._game.account.isLocalOnly()
+            || window.location.protocol === 'file:') return;
+        try {
+            const res  = await fetch('api/batalha.php?action=poll');
+            const data = await res.json();
+            if (!data.ok) return;
+            const b = data.battle;
+            if (!b || this._battleDismissedIds.has(b.id)) {
+                this._hideBattleOverlay();
+                return;
+            }
+            this._battleState = b;
+            this._showBattleOverlay(b);
+        } catch {}
+    }
+
+    _showBattleOverlay(b) {
+        let ov = document.getElementById('battle-overlay');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'battle-overlay';
+            document.body.appendChild(ov);
+        }
+        ov.style.display = 'flex';
+
+        if (b.status === 'pending') {
+            if (b.is_challenger) {
+                ov.innerHTML = `
+                    <div class="battle-modal">
+                        <div class="battle-modal-title">⚔️ Desafio Enviado</div>
+                        <div class="battle-modal-sub">Aguardando <strong>${b.opp_name}</strong> aceitar...</div>
+                        <div class="battle-spinner"></div>
+                        <button class="battle-btn battle-btn--cancel" onclick="window.game.ui._cancelBattle(${b.id})">Cancelar</button>
+                    </div>`;
+            } else {
+                ov.innerHTML = `
+                    <div class="battle-modal">
+                        <div class="battle-modal-title">⚔️ Desafio de Batalha!</div>
+                        <div class="battle-modal-sub"><strong>${b.opp_name}</strong> te desafiou!</div>
+                        <div class="battle-modal-desc">Quem clica mais em <strong>1 minuto</strong> vence!</div>
+                        <div class="battle-modal-actions">
+                            <button class="battle-btn battle-btn--accept" onclick="window.game.ui._respondBattle(${b.id},true)">⚔️ Aceitar</button>
+                            <button class="battle-btn battle-btn--decline" onclick="window.game.ui._respondBattle(${b.id},false)">✗ Recusar</button>
+                        </div>
+                    </div>`;
+            }
+            return;
+        }
+
+        if (b.status === 'active') {
+            // If arena already rendered, only refresh opponent score from server
+            if (ov.querySelector('.battle-arena')) {
+                const oppEl = document.getElementById('battle-opp-score');
+                if (oppEl) oppEl.textContent = b.opp_clicks;
+                return;
+            }
+            this._renderBattleArena(ov, b);
+            return;
+        }
+
+        if (b.status === 'finished') {
+            this._stopBattleTimers();
+            const myScore  = b.my_clicks;
+            const oppScore = b.opp_clicks;
+            let resultHTML;
+            if (b.is_draw)    resultHTML = `<div class="battle-result battle-result--draw">🤝 Empate!</div>`;
+            else if (b.i_won) resultHTML = `<div class="battle-result battle-result--win">🏆 Você Ganhou!</div>`;
+            else              resultHTML = `<div class="battle-result battle-result--lose">😢 Você Perdeu!</div>`;
+
+            ov.innerHTML = `
+                <div class="battle-modal">
+                    <div class="battle-modal-title">⚔️ Batalha Encerrada</div>
+                    ${resultHTML}
+                    <div class="battle-final-scores">
+                        <div class="battle-final-block">
+                            <div class="battle-final-label">Você</div>
+                            <div class="battle-final-num">${myScore}</div>
+                        </div>
+                        <div class="battle-vs" style="font-size:18px">VS</div>
+                        <div class="battle-final-block">
+                            <div class="battle-final-label">${b.opp_name}</div>
+                            <div class="battle-final-num">${oppScore}</div>
+                        </div>
+                    </div>
+                    <div class="battle-final-sub">cliques em 60 segundos</div>
+                    <button class="battle-btn battle-btn--close" onclick="window.game.ui._dismissBattle(${b.id})">Fechar</button>
+                </div>`;
+            return;
+        }
+
+        if (b.status === 'declined') {
+            this._stopBattleTimers();
+            ov.innerHTML = `
+                <div class="battle-modal">
+                    <div class="battle-modal-title">⚔️ Desafio Recusado</div>
+                    <div class="battle-modal-sub"><strong>${b.opp_name}</strong> recusou o desafio.</div>
+                    <button class="battle-btn battle-btn--close" onclick="window.game.ui._dismissBattle(${b.id})">Fechar</button>
+                </div>`;
+        }
+    }
+
+    _renderBattleArena(ov, b) {
+        this._battleClicks           = b.my_clicks || 0;
+        this._battleArenaStartTime   = Date.now();
+        this._battleInitialRemaining = Math.max(1, 60 - (b.elapsed || 0));
+
+        const oppName = b.opp_name || '???';
+
+        // Derive orb container style from active skin
+        const skinId = this._game?.account?.getActiveSkin?.() ?? null;
+        const skin   = skinId && (typeof PREMIUM_SKINS !== 'undefined')
+            ? (PREMIUM_SKINS.find(s => s.id === skinId) || null) : null;
+
+        let orbStyle = '';
+        if (skin) {
+            const a = skin.accent;
+            const r = parseInt(a.slice(1, 3), 16);
+            const g = parseInt(a.slice(3, 5), 16);
+            const bv = parseInt(a.slice(5, 7), 16);
+            const bg = `radial-gradient(circle at 40% 35%,rgba(${r},${g},${bv},0.18),rgba(${r},${g},${bv},0.08) 60%,transparent 90%)`;
+            const sh = `0 0 30px rgba(${r},${g},${bv},0.35),0 0 60px rgba(${r},${g},${bv},0.12),inset 0 0 40px rgba(${r},${g},${bv},0.07)`;
+            orbStyle = `border-color:${a};background:${bg};box-shadow:${sh}`;
+        }
+        const orbIcon = skin ? (skin.orbIcon || skin.icon) : '🧠';
+
+        ov.innerHTML = `
+            <div class="battle-arena">
+                <div class="battle-arena-title">⚔️ BATALHA EM ANDAMENTO</div>
+                <div class="battle-timer" id="battle-timer">1:00</div>
+                <div class="battle-scores">
+                    <div class="battle-score-block battle-score-me">
+                        <div class="battle-score-label">Você</div>
+                        <div class="battle-score-num" id="battle-my-score">${this._battleClicks}</div>
+                    </div>
+                    <div class="battle-vs">VS</div>
+                    <div class="battle-score-block battle-score-opp">
+                        <div class="battle-score-label">${oppName}</div>
+                        <div class="battle-score-num" id="battle-opp-score">${b.opp_clicks || 0}</div>
+                    </div>
+                </div>
+                <div class="battle-click-btn" id="battle-click-btn"
+                    style="${orbStyle}"
+                    onclick="window.game.ui._battleClick()">
+                    <div class="orbit-ring ring-1"><div class="ring-dot"></div></div>
+                    <div class="orbit-ring ring-2"><div class="ring-dot"></div></div>
+                    <div class="orbit-ring ring-3"><div class="ring-dot"></div></div>
+                    <div class="orb-core" id="battle-orb-core">${orbIcon}</div>
+                </div>
+                <div class="battle-hint">Clique o máximo que puder!</div>
+            </div>`;
+
+        this._startBattleCountdown(b.id);
+        this._startBattleSyncTimer(b.id);
+    }
+
+    _hideBattleOverlay() {
+        const ov = document.getElementById('battle-overlay');
+        if (ov) ov.style.display = 'none';
+        this._stopBattleTimers();
+    }
+
+    _startBattleCountdown(battleId) {
+        if (this._battleCountdownTimer) clearInterval(this._battleCountdownTimer);
+        this._battleCountdownTimer = setInterval(() => {
+            if (!this._battleArenaStartTime) return;
+            const elapsed   = (Date.now() - this._battleArenaStartTime) / 1000;
+            const remaining = Math.max(0, this._battleInitialRemaining - elapsed);
+            const secs      = Math.ceil(remaining);
+            const m         = Math.floor(secs / 60);
+            const s         = secs % 60;
+            const el        = document.getElementById('battle-timer');
+            if (el) {
+                el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+                el.className   = 'battle-timer' + (remaining <= 10 ? ' battle-timer--low' : '');
+            }
+            if (remaining <= 0) {
+                clearInterval(this._battleCountdownTimer);
+                this._battleCountdownTimer = null;
+                this._onBattleTimerEnd(battleId);
+            }
+        }, 200);
+    }
+
+    _startBattleSyncTimer(battleId) {
+        if (this._battleSyncTimer) clearInterval(this._battleSyncTimer);
+        this._battleSyncTimer = setInterval(() => {
+            fetch('api/batalha.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'click', battle_id: battleId, clicks: this._battleClicks }),
+            }).then(r => r.json()).then(data => {
+                if (data.ok && data.opp_clicks !== undefined) {
+                    const el = document.getElementById('battle-opp-score');
+                    if (el) el.textContent = data.opp_clicks;
+                }
+            }).catch(() => {});
+        }, 3000);
+    }
+
+    _stopBattleTimers() {
+        if (this._battleCountdownTimer) { clearInterval(this._battleCountdownTimer); this._battleCountdownTimer = null; }
+        if (this._battleSyncTimer)      { clearInterval(this._battleSyncTimer);      this._battleSyncTimer = null; }
+        this._battleArenaStartTime = null;
+    }
+
+    _battleClick() {
+        if (!this._battleArenaStartTime) return;
+        const elapsed = (Date.now() - this._battleArenaStartTime) / 1000;
+        if (elapsed > this._battleInitialRemaining + 0.5) return; // time's up
+        this._battleClicks++;
+        const el = document.getElementById('battle-my-score');
+        if (el) el.textContent = this._battleClicks;
+        // Visual feedback: scale pulse on button
+        const btn = document.getElementById('battle-click-btn');
+        if (btn) { btn.style.transform = 'scale(0.92)'; setTimeout(() => { if (btn) btn.style.transform = ''; }, 80); }
+    }
+
+    async _onBattleTimerEnd(battleId) {
+        const btn = document.getElementById('battle-click-btn');
+        if (btn) {
+            btn.classList.add('battle-click-btn--ended');
+            const core = document.getElementById('battle-orb-core');
+            if (core) core.textContent = '⏱';
+        }
+        this._stopBattleTimers();
+        try {
+            await fetch('api/batalha.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'finish', battle_id: battleId, clicks: this._battleClicks }),
+            });
+        } catch {}
+        // Poll until result is ready
+        let attempts = 0;
+        const waitResult = setInterval(async () => {
+            attempts++;
+            await this._pollBattle();
+            const b = this._battleState;
+            if ((b && b.status === 'finished') || attempts >= 8) clearInterval(waitResult);
+        }, 1500);
+    }
+
+    async _sendBattleInvite(friendId, friendName) {
+        try {
+            const res  = await fetch('api/batalha.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'invite', friend_id: friendId }),
+            });
+            const data = await res.json();
+            if (!data.ok) { this._game.notify(data.msg || 'Erro ao enviar desafio.', 'error'); return; }
+            await this._pollBattle();
+        } catch { this._game.notify('Erro de conexão.', 'error'); }
+    }
+
+    async _respondBattle(battleId, accept) {
+        try {
+            const res  = await fetch('api/batalha.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'respond', battle_id: battleId, accept }),
+            });
+            const data = await res.json();
+            if (!data.ok) { this._game.notify(data.msg || 'Erro.', 'error'); return; }
+            if (!accept) { await this._pollBattle(); return; }
+            // Accepted: render arena immediately (don't wait for poll cycle)
+            const cur = this._battleState;
+            let ov = document.getElementById('battle-overlay');
+            if (!ov) { ov = document.createElement('div'); ov.id = 'battle-overlay'; document.body.appendChild(ov); }
+            ov.style.display = 'flex';
+            this._renderBattleArena(ov, {
+                id: battleId, elapsed: 0, my_clicks: 0, opp_clicks: 0,
+                opp_name: cur?.opp_name || '...',
+            });
+            // Poll to sync real elapsed + opponent clicks in background
+            this._pollBattle();
+        } catch { this._game.notify('Erro de conexão.', 'error'); }
+    }
+
+    async _cancelBattle(battleId) {
+        try {
+            await fetch('api/batalha.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'cancel', battle_id: battleId }),
+            });
+        } catch {}
+        this._dismissBattle(battleId);
+    }
+
+    _dismissBattle(battleId) {
+        this._battleDismissedIds.add(battleId);
+        try {
+            sessionStorage.setItem('nx_btl_dismissed',
+                JSON.stringify([...this._battleDismissedIds].slice(-20)));
+        } catch {}
+        this._hideBattleOverlay();
+        this._battleState = null;
+        this._battleClicks = 0;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     _setEl(id, val) {
         const el = document.getElementById(id);
         if (el) {
@@ -3925,7 +4681,7 @@ class UIManager {
         }
     }
 
-    _onResize() { 
+    _onResize() {
         // Resize canvas elements if needed (managed by ParticleSystem usually)
     }
 }

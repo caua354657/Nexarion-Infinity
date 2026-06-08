@@ -193,6 +193,30 @@ try {
     try { $pdo->exec("ALTER TABLE `chefes_jogador` ADD INDEX `idx_cj_expira` (`expira_em`)"); $criadas[] = 'idx chefes_jogador.expira_em'; }
     catch (PDOException $e) { /* já existe */ }
 
+    // ── Coluna boss_dmg_x2 em usuarios ───────────────────────────────────────
+    try { $pdo->exec("ALTER TABLE `usuarios` ADD COLUMN `boss_dmg_x2` TINYINT(1) NOT NULL DEFAULT 0"); $criadas[] = 'col usuarios.boss_dmg_x2'; }
+    catch (PDOException $e) { /* já existe */ }
+
+    // ── Tabela de transações de pagamento ─────────────────────────────────────
+    exec_sql($pdo, "
+        CREATE TABLE IF NOT EXISTS `transacoes` (
+            `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `user_id`          INT UNSIGNED NOT NULL,
+            `item_id`          VARCHAR(50)  NOT NULL,
+            `item_tipo`        VARCHAR(20)  NOT NULL,
+            `valor`            DECIMAL(10,2) NOT NULL,
+            `status`           ENUM('pending','approved','rejected','cancelled','refunded') NOT NULL DEFAULT 'pending',
+            `mp_payment_id`    VARCHAR(100) NULL DEFAULT NULL,
+            `mp_preference_id` VARCHAR(100) NULL DEFAULT NULL,
+            `criado_em`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `atualizado_em`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_tx_user`   (`user_id`),
+            KEY `idx_tx_mp_pay` (`mp_payment_id`),
+            KEY `idx_tx_status` (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'transacoes', $criadas, $erros);
+
     echo json_encode(['ok' => true, 'criadas' => $criadas, 'erros' => $erros]);
 } catch (PDOException $e) {
     http_response_code(500);

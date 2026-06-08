@@ -162,7 +162,7 @@
                     </label>
                     <input type="file" id="auth-reg-photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
                 </div>
-                <input class="auth-input" id="auth-reg-user" type="text" placeholder="Nome de usuário (mín. 3 chars)" autocomplete="username">
+                <input class="auth-input" id="auth-reg-user" type="text" placeholder="Nome de usuário (3–12 chars)" autocomplete="username" maxlength="12">
                 <input class="auth-input" id="auth-reg-email" type="email" placeholder="Email" autocomplete="email">
                 <div class="auth-pass-wrap">
                     <input class="auth-input" id="auth-reg-pass" type="password" placeholder="Senha (mín. 6 chars)" autocomplete="new-password">
@@ -305,6 +305,9 @@
 <script src="scripts/gameplay/AccountManager.js"></script>
 <script src="scripts/gameplay/RandomEventManager.js"></script>
 <script src="scripts/gameplay/BossManager.js"></script>
+
+<!-- ── QR Code (PIX payment) ── -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <!-- ── UI ── -->
 <script src="scripts/ui/NeuralBackground.js"></script>

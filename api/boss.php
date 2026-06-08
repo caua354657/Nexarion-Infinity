@@ -34,7 +34,11 @@ function bossPool(): array {
 }
 
 function bossHpMax(int $nivel): float {
-    return 10_000 * pow(max(1, $nivel), 1.5);
+    $n   = max(1, $nivel);
+    // Exponent ramps from 1.3 → 1.5 over the first 30 levels for a smoother early curve.
+    // Level 30+ is identical to the original formula.
+    $exp = 1.3 + 0.2 * min(1.0, $n / 30.0);
+    return round(10_000 * pow($n, $exp));
 }
 
 const BOSS_TIMER_SECS    = 300; // 5 min para derrotar o boss
@@ -266,7 +270,8 @@ case 'damage_top': {
         $s = $pdo->query("
             SELECT d.user_id, u.nome_usuario AS username, u.foto,
                    COALESCE(p.vip, 0) AS vip,
-                   d.total_dano AS damage, d.abates AS kills
+                   d.total_dano AS damage, d.abates AS kills,
+                   (COALESCE(TIMESTAMPDIFF(SECOND, u.ultimo_visto, NOW()), 9999) <= 300) AS is_online
             FROM dano_chefe_vitalicio d
             INNER JOIN usuarios u ON d.user_id = u.id
             LEFT JOIN placar p ON d.user_id = p.user_id
@@ -281,6 +286,7 @@ case 'damage_top': {
                 'username' => $row['username'],
                 'foto'     => $row['foto'],
                 'vip'      => (bool)$row['vip'],
+                'online'   => (bool)($row['is_online'] ?? false),
                 'damage'   => (float)$row['damage'],
                 'kills'    => (int)$row['kills'],
             ];
@@ -299,7 +305,8 @@ case 'kills_top': {
         $s = $pdo->query("
             SELECT d.user_id, u.nome_usuario AS username, u.foto,
                    COALESCE(p.vip, 0) AS vip,
-                   d.abates AS kills, d.total_dano AS damage
+                   d.abates AS kills, d.total_dano AS damage,
+                   (COALESCE(TIMESTAMPDIFF(SECOND, u.ultimo_visto, NOW()), 9999) <= 300) AS is_online
             FROM dano_chefe_vitalicio d
             INNER JOIN usuarios u ON d.user_id = u.id
             LEFT JOIN placar p ON d.user_id = p.user_id
@@ -315,6 +322,7 @@ case 'kills_top': {
                 'username' => $row['username'],
                 'foto'     => $row['foto'],
                 'vip'      => (bool)$row['vip'],
+                'online'   => (bool)($row['is_online'] ?? false),
                 'kills'    => (int)$row['kills'],
                 'damage'   => (float)$row['damage'],
             ];

@@ -30,6 +30,7 @@ case 'salvar': {
 
     $vip          = empty($raw['vip'])          ? 0 : 1;
     $doubleNeuron = empty($raw['doubleNeuron']) ? 0 : 1;
+    $bossDmgX2    = empty($raw['bossDmgX2'])    ? 0 : 1;
     $diamantes    = max(0, (int)($raw['diamantes'] ?? 0));
     $skins        = json_encode(array_values(array_unique((array)($raw['skins'] ?? []))));
     $skinAtiva    = isset($raw['skinAtiva']) && $raw['skinAtiva'] ? substr((string)$raw['skinAtiva'], 0, 50) : null;
@@ -37,9 +38,9 @@ case 'salvar': {
     try {
         db()->prepare("
             UPDATE usuarios
-            SET vip=?, double_neuron=?, diamantes=?, skins=?, skin_ativa=?
+            SET vip=?, double_neuron=?, boss_dmg_x2=?, diamantes=?, skins=?, skin_ativa=?
             WHERE id=?
-        ")->execute([$vip, $doubleNeuron, $diamantes, $skins, $skinAtiva, $uid]);
+        ")->execute([$vip, $doubleNeuron, $bossDmgX2, $diamantes, $skins, $skinAtiva, $uid]);
         out(['ok' => true]);
     } catch (PDOException $ex) {
         out(['ok' => false, 'msg' => 'Erro ao salvar compras.'], 500);
@@ -51,7 +52,7 @@ case 'salvar': {
 case 'carregar': {
     if (!$uid) out(['ok' => true, 'compras' => null]);
     try {
-        $s = db()->prepare("SELECT vip, double_neuron, diamantes, skins, skin_ativa FROM usuarios WHERE id=? LIMIT 1");
+        $s = db()->prepare("SELECT vip, double_neuron, boss_dmg_x2, diamantes, skins, skin_ativa FROM usuarios WHERE id=? LIMIT 1");
         $s->execute([$uid]);
         $row = $s->fetch();
         if (!$row) out(['ok' => true, 'compras' => null]);
@@ -65,6 +66,7 @@ case 'carregar': {
         out(['ok' => true, 'compras' => [
             'vip'          => (bool)$row['vip'],
             'doubleNeuron' => (bool)$row['double_neuron'],
+            'bossDmgX2'    => (bool)$row['boss_dmg_x2'],
             'diamantes'    => (int)$row['diamantes'],
             'skins'        => $skinsArr,
             'skinAtiva'    => $row['skin_ativa'],

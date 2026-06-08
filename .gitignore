@@ -1,26 +1,41 @@
-# RTK internal
-.rtk/
-
-# OS
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Editor
+# ── Editor ───────────────────────────────────────────────────────────────────
 .vscode/
 *.suo
 *.user
 
-# Logs
+# ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 
-# Node (just in case)
+# ── Node / Electron ──────────────────────────────────────────────────────────
 node_modules/
+electron-app/node_modules/
+electron-app/out/
+electron-app/.webpack/
 
-# Build artifacts
+# ── PHP / Composer ───────────────────────────────────────────────────────────
+vendor/
+composer.phar
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+
+# ── Build / Deploy artifacts ─────────────────────────────────────────────────
 downloads/
+*.exe
+*.dmg
+*.AppImage
 
-# User-uploaded photos (keep .htaccess and padrao.png)
+# ── RTK internal ─────────────────────────────────────────────────────────────
+.rtk/
+
+# ── User-uploaded photos (keep placeholder) ──────────────────────────────────
 foto/*.jpg
 foto/*.jpeg
 foto/*.gif

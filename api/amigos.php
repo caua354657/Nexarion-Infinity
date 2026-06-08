@@ -55,9 +55,10 @@ if ($uid) {
     catch (PDOException $e) { /* ignore */ }
 }
 
-function isOnline(?string $ts): bool {
-    if (!$ts) return false;
-    return (strtotime($ts) > time() - 300); // online within 5 minutes
+function isOnline(mixed $uv): bool {
+    // uv_unix is UNIX_TIMESTAMP(ultimo_visto) — always UTC epoch, no timezone issues
+    if (!$uv) return false;
+    return (int)$uv > time() - 300;
 }
 
 function fmtUser(array $r): array {
@@ -66,7 +67,7 @@ function fmtUser(array $r): array {
         'username' => $r['nome_usuario'],
         'foto'     => $r['foto'],
         'vip'      => (bool)($r['vip'] ?? false),
-        'online'   => isOnline($r['ultimo_visto'] ?? null),
+        'online'   => isOnline($r['uv_unix'] ?? null),
         'nivel'    => (int)($r['nivel'] ?? 1),
     ];
 }
@@ -90,7 +91,8 @@ case 'search': {
         $pdo = db();
         $s = $pdo->prepare("
             SELECT u.id, u.nome_usuario, u.foto,
-                   COALESCE(u.vip, 0) AS vip, u.ultimo_visto,
+                   COALESCE(u.vip, 0) AS vip,
+                   UNIX_TIMESTAMP(u.ultimo_visto) AS uv_unix,
                    COALESCE(p.nivel, 1) AS nivel,
                    CASE
                        WHEN a1.status = 'accepted' OR a2.status = 'accepted' THEN 'friend'
@@ -174,7 +176,7 @@ case 'list': {
 
         $sf = $pdo->prepare("
             SELECT u.id, u.nome_usuario, u.foto, COALESCE(u.vip,0) AS vip,
-                   u.ultimo_visto, COALESCE(p.nivel,1) AS nivel
+                   UNIX_TIMESTAMP(u.ultimo_visto) AS uv_unix, COALESCE(p.nivel,1) AS nivel
             FROM amizades a
             JOIN   usuarios u ON u.id = IF(a.user_id=?, a.friend_id, a.user_id)
             LEFT JOIN placar p ON u.id = p.user_id
@@ -185,7 +187,7 @@ case 'list': {
 
         $sr = $pdo->prepare("
             SELECT u.id, u.nome_usuario, u.foto, COALESCE(u.vip,0) AS vip,
-                   u.ultimo_visto, COALESCE(p.nivel,1) AS nivel
+                   UNIX_TIMESTAMP(u.ultimo_visto) AS uv_unix, COALESCE(p.nivel,1) AS nivel
             FROM amizades a
             JOIN   usuarios u ON u.id = a.user_id
             LEFT JOIN placar p ON u.id = p.user_id
@@ -195,7 +197,7 @@ case 'list': {
 
         $ss = $pdo->prepare("
             SELECT u.id, u.nome_usuario, u.foto, COALESCE(u.vip,0) AS vip,
-                   u.ultimo_visto, COALESCE(p.nivel,1) AS nivel
+                   UNIX_TIMESTAMP(u.ultimo_visto) AS uv_unix, COALESCE(p.nivel,1) AS nivel
             FROM amizades a
             JOIN   usuarios u ON u.id = a.friend_id
             LEFT JOIN placar p ON u.id = p.user_id
@@ -228,14 +230,14 @@ case 'profile': {
             SELECT u.id, u.nome_usuario, u.foto,
                    COALESCE(u.vip, 0)       AS vip,
                    COALESCE(u.diamantes, 0) AS diamantes,
-                   u.criado_em, u.ultimo_visto,
+                   u.criado_em, UNIX_TIMESTAMP(u.ultimo_visto) AS uv_unix,
                    COALESCE(p.nivel, 1)              AS nivel,
                    COALESCE(p.total_prestigios, 0)   AS total_prestigios,
                    COALESCE(p.total_cliques, 0)      AS total_cliques,
                    COALESCE(p.neuronios_vitais, 0)   AS neuronios_vitais,
                    COALESCE(d.total_dano, 0)         AS total_dano,
                    COALESCE(d.abates, 0)             AS abates,
-                   COALESCE(cj.nivel, 0)             AS nivel_chefe
+                   COALESCE(cj.nivel, 1)             AS nivel_chefe
             FROM usuarios u
             LEFT JOIN placar               p  ON u.id = p.user_id
             LEFT JOIN dano_chefe_vitalicio d  ON u.id = d.user_id
@@ -245,6 +247,23 @@ case 'profile': {
         $s->execute([$pid]);
         $r = $s->fetch(PDO::FETCH_ASSOC);
         if (!$r) out(['ok' => false, 'msg' => 'Jogador não encontrado.']);
+
+        // Extrair campos extras do save JSON (progresso.dados)
+        $sp = $pdo->prepare("SELECT dados FROM progresso WHERE user_id = ? LIMIT 1");
+        $sp->execute([$pid]);
+        $prog       = json_decode($sp->fetchColumn() ?: '{}', true) ?? [];
+        $pStats     = $prog['stats']        ?? [];
+        $pLevel     = $prog['level']        ?? [];
+        $pSkills    = $prog['skills']       ?? [];
+        $pAch       = $prog['achievements'] ?? [];
+        $pMissions  = $prog['missions']     ?? [];
+
+        $totalXp      = (float)($pLevel['totalXp']    ?? 0);
+        $critClicks   = (int)  ($pStats['critClicks']  ?? 0);
+        $playTime     = (int)  ($pStats['playTime']    ?? 0);
+        $skillPoints  = (int)  ($pSkills['skillPoints'] ?? 0);
+        $achCount     = isset($pAch['unlocked'])   && is_array($pAch['unlocked'])   ? count($pAch['unlocked'])   : 0;
+        $missCount    = isset($pMissions['completed']) && is_array($pMissions['completed']) ? count($pMissions['completed']) : 0;
 
         $rel = 'none';
         if ($uid && $uid != $pid) {
@@ -264,7 +283,7 @@ case 'profile': {
             'vip'              => (bool)$r['vip'],
             'diamantes'        => (int)$r['diamantes'],
             'criado_em'        => $r['criado_em'],
-            'online'           => isOnline($r['ultimo_visto']),
+            'online'           => isOnline($r['uv_unix']),
             'nivel'            => (int)$r['nivel'],
             'total_prestigios' => (int)$r['total_prestigios'],
             'total_cliques'    => (int)$r['total_cliques'],
@@ -273,6 +292,13 @@ case 'profile': {
             'abates'           => (int)$r['abates'],
             'nivel_chefe'      => (int)$r['nivel_chefe'],
             'rel'              => $rel,
+            // Extras do save (progresso.dados)
+            'total_xp'         => $totalXp,
+            'crit_clicks'      => $critClicks,
+            'play_time'        => $playTime,
+            'skill_points'     => $skillPoints,
+            'ach_count'        => $achCount,
+            'miss_count'       => $missCount,
         ]]);
     } catch (PDOException $e) {
         out(['ok' => false, 'msg' => 'Erro ao buscar perfil.']);

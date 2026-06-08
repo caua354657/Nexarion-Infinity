@@ -24,6 +24,7 @@ class BossManager {
 
         this._lastBossLevel  = null;    // null = first poll (no notification on load)
         this._worldOpen      = false;
+        this._sessionRewards = { neurons: 0, diamonds: 0, kills: 0 };
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ class BossManager {
     openBossWorld() {
         this._worldOpen = true;
         this.myDamage = 0;
+        this._sessionRewards = { neurons: 0, diamonds: 0, kills: 0 };
         // Ensure _clientExpiry is registered before world renders
         if (this.boss && this.boss.level != null) {
             const lvlKey = this.boss.level;
@@ -181,6 +183,9 @@ class BossManager {
                 this._game.events.emit('bossDefeated', { boss: this.boss });
                 this._game.audio.achievement?.();
 
+                // Track session kill count
+                this._sessionRewards.kills++;
+
                 // Apply defeat rewards
                 if (data.rewards) this._applyRewards(data.rewards);
 
@@ -287,6 +292,8 @@ class BossManager {
             g.economy.prestigeTokens += rewards.diamonds;
             g.economy._updatePrestigeMult?.();
         }
+        this._sessionRewards.neurons  += rewards.neurons  || 0;
+        this._sessionRewards.diamonds += rewards.diamonds || 0;
         g.events.emit('bossRewardClaimed', rewards);
     }
 }

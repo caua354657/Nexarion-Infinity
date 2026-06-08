@@ -71,6 +71,19 @@ class GameManager {
 
         if (this.account.isVip()) this.shop.applyVipBonus();
         if (this.account.hasDoubleNeuron()) this.economy.setPremiumMult(2);
+        if (this.account.hasBossDmgX2?.()) {
+            this.shop.purchased.add('perm_boss_dmg_x2');
+            this.shop._bossDamageMult = Math.max(2, this.shop._bossDamageMult || 1);
+        }
+        // Detecta retorno do Mercado Pago e inicia verificação automática
+        const _urlParams = new URLSearchParams(window.location.search);
+        if (_urlParams.has('pag') && _urlParams.has('tx')) {
+            this._pendingPaymentReturn = {
+                status: _urlParams.get('pag'),
+                txId:   parseInt(_urlParams.get('tx')) || 0,
+            };
+            window.history.replaceState({}, '', window.location.pathname);
+        }
         const activeSkin = this.account.getActiveSkin();
         if (activeSkin) this._applyActiveSkin(activeSkin);
 
@@ -85,6 +98,20 @@ class GameManager {
         this._restoring = false;
         this.audio.startAmbient();
         this._scheduleLoop();
+
+        // Retorno do MP: abre modal de espera para confirmar o pagamento pendente
+        if (this._pendingPaymentReturn) {
+            const ret = this._pendingPaymentReturn;
+            this._pendingPaymentReturn = null;
+            if (ret.status === 'success' && ret.txId) {
+                setTimeout(() => {
+                    if (this.ui._activePanel !== 'shop') this.ui._openPanel?.('shop');
+                    this.ui._showPaymentWaitModal(null, ret.txId);
+                }, 800);
+            } else if (ret.status === 'failure') {
+                setTimeout(() => this.notify('Pagamento não aprovado. Tente novamente.', 'error'), 800);
+            }
+        }
 
         // Watchdog: only restarts if no rAF is already queued (prevents duplicate loops)
         setInterval(() => {
@@ -376,6 +403,142 @@ class GameManager {
         if (this.ui._activePanel === 'profile') this.ui._renderPanelContent('profile');
     }
 
+    // ── Pagamento real via Mercado Pago ───────────────────────────────────────
+
+    _getItemLabel(itemId) {
+        const packs = typeof DIAMOND_PACKS  !== 'undefined' ? DIAMOND_PACKS  : [];
+        const skins = typeof PREMIUM_SKINS  !== 'undefined' ? PREMIUM_SKINS  : [];
+        const labels = { vip: 'VIP Permanente', double_neuron: '2× Neurônio', boss_damage_x2: '2× Dano no Boss' };
+        if (labels[itemId]) return { label: labels[itemId], price: itemId === 'double_neuron' ? 'R$ 12,90' : 'R$ 9,90' };
+        const pack = packs.find(p => p.id === itemId);
+        if (pack) return { label: pack.name, price: pack.price };
+        const skin = skins.find(s => s.id === itemId);
+        if (skin) return { label: skin.name, price: skin.price };
+        return { label: itemId, price: '' };
+    }
+
+    iniciarPagamento(itemId) {
+        if (!this.account.isLoggedIn()) { this.notify('Faça login para comprar!', 'error'); return; }
+        const { label, price } = this._getItemLabel(itemId);
+        this.ui._showPaymentMethodModal(itemId, label, price);
+    }
+
+    async iniciarPix(itemId) {
+        if (!this.account.isLoggedIn()) { this.notify('Faça login para comprar!', 'error'); return; }
+        this.ui._setPaymentBtnLoading(itemId, true);
+        let usarEstatico = false;
+        try {
+            const res  = await fetch('api/pagamento.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ action: 'criar_pix', item_id: itemId }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this.ui._showPixModal(itemId, data.tx_id, data.payment_id, data.qr_code, data.qr_code_base64);
+            } else {
+                usarEstatico = true;
+            }
+        } catch {
+            usarEstatico = true;
+        }
+
+        if (usarEstatico) {
+            try {
+                const res  = await fetch('api/pagamento.php', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ action: 'criar_pix_estatico', item_id: itemId }),
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    this.ui._showPixModalEstatico(itemId, data.tx_id);
+                } else {
+                    this.notify(data.msg || 'Erro ao gerar PIX.', 'error');
+                }
+            } catch {
+                this.notify('Erro de conexão.', 'error');
+            }
+        }
+
+        this.ui._setPaymentBtnLoading(itemId, false);
+    }
+
+    _isMobile() {
+        return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+            || (navigator.maxTouchPoints > 1 && window.innerWidth <= 900);
+    }
+
+    async _iniciarCheckoutPro(itemId) {
+        this.ui._setPaymentBtnLoading(itemId, true);
+        try {
+            const res  = await fetch('api/pagamento.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ action: 'criar', item_id: itemId }),
+            });
+            const data = await res.json();
+            if (!data.ok) { this.notify(data.msg || 'Erro ao iniciar pagamento.', 'error'); return; }
+
+            if (this._isMobile()) {
+                // Mobile: redireciona na mesma aba (window.open é bloqueado em mobile)
+                // O jogo é restaurado ao retornar via back_url (?pag=success&tx=N)
+                this.save(); // salva progresso antes de sair
+                window.location.href = data.checkout_url;
+            } else {
+                // Desktop: abre nova aba e mostra modal de espera
+                window.open(data.checkout_url, '_blank');
+                this.ui._showPaymentWaitModal(itemId, data.tx_id);
+            }
+        } catch {
+            this.notify('Erro de conexão. Tente novamente.', 'error');
+        } finally {
+            this.ui._setPaymentBtnLoading(itemId, false);
+        }
+    }
+
+    _entregarItem(itemId) {
+        const acc = this.account;
+        if (itemId === 'vip' && !acc.isVip()) {
+            acc.setVip();
+            this.shop.applyVipBonus();
+            this.notify('👑 VIP Permanente ativado! +10% renda global.', 'levelup');
+            this.audio.levelUp?.();
+        } else if (itemId === 'double_neuron' && !acc.hasDoubleNeuron()) {
+            acc.setDoubleNeuron();
+            this.economy.setPremiumMult(2);
+            this.notify('⚡ 2× Neurônio ativado! Ganhos dobrados para sempre.', 'levelup');
+            this.audio.levelUp?.();
+        } else if (itemId === 'boss_damage_x2' && !acc.hasBossDmgX2?.()) {
+            acc.setBossDmgX2?.();
+            this.shop.purchased.add('perm_boss_dmg_x2');
+            this.shop._bossDamageMult = Math.max(2, this.shop._bossDamageMult || 1);
+            this.save();
+            this.notify('⚔️ 2× Dano no Boss ativado! Dano dobrado para sempre.', 'gold');
+            this.audio.levelUp?.();
+        } else if (itemId.startsWith('diamonds_')) {
+            const packs = typeof DIAMOND_PACKS !== 'undefined' ? DIAMOND_PACKS : [];
+            const pack  = packs.find(p => p.id === itemId);
+            if (pack) {
+                this.economy.addTokens(pack.diamonds);
+                this.save();
+                this._syncToServer();
+                this.ui._updateHUD();
+                const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+                this._particles?.spawnBurst?.(cx, cy, '#ffd700', 40);
+                this.notify(`💎 +${pack.diamonds.toLocaleString('pt-BR')} Diamantes adicionados!`, 'levelup');
+                this.audio.levelUp?.();
+            }
+        } else if (itemId.startsWith('skin_') && !acc.hasSkin(itemId)) {
+            acc.buySkin(itemId);
+            const skin = typeof PREMIUM_SKINS !== 'undefined' ? PREMIUM_SKINS.find(s => s.id === itemId) : null;
+            if (skin) this.notify(`🎨 Skin ${skin.name} desbloqueada!`, 'success');
+            this.audio.upgrade?.();
+        }
+        if (this.ui._activePanel === 'shop')    this.ui._renderPanelContent('shop');
+        if (this.ui._activePanel === 'profile') this.ui._renderPanelContent('profile');
+    }
+
     buyShopItem(id, qty = 1) {
         if (this.shop.buy(id, qty)) {
             this.audio.upgrade?.();
@@ -546,6 +709,10 @@ class GameManager {
             // Re-apply account-specific settings after restore
             if (this.account.isVip()) this.shop.applyVipBonus();
             if (this.account.hasDoubleNeuron()) this.economy.setPremiumMult(2);
+            if (this.account.hasBossDmgX2?.()) {
+                this.shop.purchased.add('perm_boss_dmg_x2');
+                this.shop._bossDamageMult = Math.max(2, this.shop._bossDamageMult || 1);
+            }
             const skin = this.account.getActiveSkin();
             if (skin) this._applyActiveSkin(skin);
             this.economy.neuronsPerSec = this.upgradeManager.getNPS();

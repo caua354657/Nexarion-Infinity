@@ -81,6 +81,8 @@ class AccountManager {
     setVip()         { if (this._user) { this._user.vip = true; this._persist(); this._saveCompras(); } }
     hasDoubleNeuron(){ return this._user?.doubleNeuron === true; }
     setDoubleNeuron(){ if (this._user) { this._user.doubleNeuron = true; this._persist(); this._saveCompras(); } }
+    hasBossDmgX2()   { return this._user?.bossDmgX2 === true; }
+    setBossDmgX2()   { if (this._user) { this._user.bossDmgX2 = true; this._persist(); this._saveCompras(); } }
     hasSkin(id)      { return (this._user?.skins || []).includes(id); }
     getActiveSkin()  { return this._user?.activeSkin || null; }
     getDiamonds()    { return this._user?.diamonds || 0; }
@@ -322,6 +324,7 @@ class AccountManager {
                 action:       'salvar',
                 vip:          this._user.vip          || false,
                 doubleNeuron: this._user.doubleNeuron || false,
+                bossDmgX2:    this._user.bossDmgX2    || false,
                 diamantes:    this._user.diamonds      || 0,
                 skins:        this._user.skins         || [],
                 skinAtiva:    this._user.activeSkin    || null,
