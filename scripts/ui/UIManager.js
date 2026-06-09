@@ -872,7 +872,7 @@ class UIManager {
         this._setEl('neuron-count', formatNum(g.economy.neurons) + ' ⚡');
         this._setEl('nps-display', formatNum(g.economy.getEffectiveNPS()) + '/s');
         this._setEl('click-value', '+' + formatNum(g.economy.getClickValue() * g.combo.getMult()));
-        this._setEl('level-display', 'NVL ' + g.level.level);
+        this._setEl('level-display', (window.LANG ? LANG.t('hud.level') : 'NVL ') + g.level.level);
         this._setEl('token-display', '💎 ' + g.economy.prestigeTokens);
         this._setEl('prestige-display', '♻ ' + g.economy.totalPrestiges);
 
@@ -1582,48 +1582,60 @@ class UIManager {
         const sfxVol   = this._game.audio.sfxVol;
         const musicVol = this._game.audio.musicVol;
         const loggedIn = this._game.account.isLoggedIn();
+        const L = window.LANG || { t: k => k, current: 'pt-BR', langName: c => c };
+        const curLang = L.current;
 
         container.innerHTML = `
             <div class="settings-section">
-                <label class="settings-label">🔊 Áudio</label>
+                <label class="settings-label">${L.t('settings.audio')}</label>
                 <button class="settings-btn${enabled ? '' : ' settings-btn-off'}" id="toggle-sound">
-                    ${enabled ? '🔊 Som Ligado' : '🔇 Som Desligado'}
+                    ${enabled ? L.t('settings.audio.on') : L.t('settings.audio.off')}
                 </button>
-                <label class="settings-label" style="margin-top:12px;">Volume de Efeitos</label>
+                <label class="settings-label" style="margin-top:12px;">${L.t('settings.sfx')}</label>
                 <div class="settings-row">
                     <input type="range" id="sfx-vol" min="0" max="1" step="0.05" value="${sfxVol}">
                     <span class="settings-vol-val">${Math.round(sfxVol * 100)}%</span>
                 </div>
-                <label class="settings-label">Volume da Música</label>
+                <label class="settings-label">${L.t('settings.music')}</label>
                 <div class="settings-row">
                     <input type="range" id="music-vol" min="0" max="1" step="0.05" value="${musicVol}">
                     <span class="settings-vol-val">${Math.round(musicVol * 100)}%</span>
                 </div>
             </div>
             <div class="settings-section">
-                <label class="settings-label">💾 Save</label>
-                <button class="settings-btn" id="export-save">⬇ Exportar Save (.json)</button>
+                <label class="settings-label">${L.t('settings.lang')}</label>
+                <div class="settings-lang-group">
+                    ${['pt-BR','en','es'].map(code => `
+                    <button class="settings-lang-btn${curLang === code ? ' settings-lang-btn--active' : ''}"
+                            onclick="window.LANG && window.LANG.set('${code}')">
+                        ${L.langName(code)}
+                    </button>`).join('')}
+                </div>
+            </div>
+            <div class="settings-section">
+                <label class="settings-label">${L.t('settings.save')}</label>
+                <button class="settings-btn" id="export-save">${L.t('settings.export')}</button>
                 <label class="settings-btn settings-btn-file" id="import-save-label" for="import-save-input">
-                    ⬆ Importar Save (.json)
+                    ${L.t('settings.import')}
                 </label>
                 <input type="file" id="import-save-input" accept=".json" style="display:none;">
                 <div id="import-save-msg" class="settings-import-msg"></div>
             </div>
             ${this._isElectron() ? '' : `
             <div class="settings-section">
-                <label class="settings-label">🖥️ Versão Desktop</label>
+                <label class="settings-label">${L.t('settings.desktop')}</label>
                 <button class="settings-btn settings-btn-download" id="download-game-btn" onclick="window.game.ui._downloadGame()">
-                    ⬇ Download Game (.exe)
+                    ${L.t('settings.download')}
                 </button>
-                <div class="settings-download-hint">Versão standalone para Windows</div>
+                <div class="settings-download-hint">${L.t('settings.windows')}</div>
             </div>`}
             <div class="settings-section">
-                <label class="settings-label">⚠️ Zona de Perigo</label>
-                <button class="settings-btn danger" id="wipe-save">🗑 Resetar Todo o Progresso</button>
-                ${loggedIn ? `<button class="settings-btn danger" id="delete-account-btn" style="margin-top:6px;">🗑 Excluir Conta</button>` : ''}
+                <label class="settings-label">${L.t('settings.danger')}</label>
+                <button class="settings-btn danger" id="wipe-save">${L.t('settings.reset')}</button>
+                ${loggedIn ? `<button class="settings-btn danger" id="delete-account-btn" style="margin-top:6px;">${L.t('settings.delete')}</button>` : ''}
             </div>
             <div class="settings-section" style="opacity:0.4;font-size:11px;text-align:center;">
-                Nexarion Infinity v1.0.0 — Salva automaticamente a cada 3s
+                Nexarion Infinity v1.0.0 — ${L.t('settings.version')}
             </div>
         `;
     }
@@ -2094,27 +2106,28 @@ class UIManager {
     _renderNavGroup(container, groupId) {
         const counts = this._getBadgeCounts();
 
+        const _L = window.LANG || { t: k => k };
         const groups = {
             neural: [
-                { id: 'generators', icon: '🔋', label: 'Geradores',    sub: 'Fontes de Neurônios',  theme: 'neural'  },
-                { id: 'upgrades',   icon: '🔧', label: 'Melhorias',    sub: 'Poder e Eficiência',   theme: 'purple'  },
-                { id: 'skills',     icon: '⚡', label: 'Habilidades',  sub: 'Pontos de Habilidade', theme: 'gold'    },
-                { id: 'rebirth',    icon: '♻️', label: 'Renascimento', sub: 'Prestígio Neural',     theme: 'purple'  },
+                { id: 'generators', icon: '🔋', label: _L.t('nav.generators'), sub: _L.t('nav.generators.sub'), theme: 'neural'  },
+                { id: 'upgrades',   icon: '🔧', label: _L.t('nav.upgrades'),   sub: _L.t('nav.upgrades.sub'),   theme: 'purple'  },
+                { id: 'skills',     icon: '⚡', label: _L.t('nav.skills'),     sub: _L.t('nav.skills.sub'),     theme: 'gold'    },
+                { id: 'rebirth',    icon: '♻️', label: _L.t('nav.rebirth'),    sub: _L.t('nav.rebirth.sub'),    theme: 'purple'  },
             ],
             agenda: [
-                { id: 'missions',     icon: '📋', label: 'Missões',    sub: 'Diárias e Semanais', theme: 'green'  },
-                { id: 'achievements', icon: '🎯', label: 'Conquistas', sub: 'Marcos do Jogo',     theme: 'gold'   },
-                { id: 'leaderboard',  icon: '🏆', label: 'Placar',     sub: 'Ranking Global',     theme: 'neural' },
+                { id: 'missions',     icon: '📋', label: _L.t('nav.missions'),     sub: _L.t('nav.missions.sub'),     theme: 'green'  },
+                { id: 'achievements', icon: '🎯', label: _L.t('nav.achievements'), sub: _L.t('nav.achievements.sub'), theme: 'gold'   },
+                { id: 'leaderboard',  icon: '🏆', label: _L.t('nav.leaderboard'),  sub: _L.t('nav.leaderboard.sub'),  theme: 'neural' },
             ],
             conta: [
-                { id: 'profile',  icon: '👤', label: 'Perfil',          sub: 'Conta e Estatísticas', theme: 'neural' },
-                { id: 'friends',  icon: '👥', label: 'Amigos',          sub: 'Lista e Comparação',   theme: 'green'  },
-                { id: 'settings', icon: '⚙️', label: 'Configurações',   sub: 'Áudio e Save',         theme: 'neural' },
+                { id: 'profile',  icon: '👤', label: _L.t('nav.profile'),   sub: _L.t('nav.profile.sub'),   theme: 'neural' },
+                { id: 'friends',  icon: '👥', label: _L.t('nav.friends'),   sub: _L.t('nav.friends.sub'),   theme: 'green'  },
+                { id: 'settings', icon: '⚙️', label: _L.t('nav.settings'),  sub: _L.t('nav.settings.sub'),  theme: 'neural' },
             ],
             boss: [
-                { id: 'boss_battle',   icon: '⚔️', label: 'Batalha',   sub: 'Combater o Boss',   theme: 'pink'   },
-                { id: 'boss_upgrades', icon: '💥', label: 'Melhorias', sub: 'Poder de Ataque',   theme: 'purple' },
-                { id: 'boss_ranking',  icon: '🏆', label: 'Placar',    sub: 'Ranking de Dano',   theme: 'gold'   },
+                { id: 'boss_battle',   icon: '⚔️', label: _L.t('nav.boss'),          sub: _L.t('nav.boss.sub'),          theme: 'pink'   },
+                { id: 'boss_upgrades', icon: '💥', label: _L.t('nav.boss_upgrades'), sub: _L.t('nav.boss_upgrades.sub'), theme: 'purple' },
+                { id: 'boss_ranking',  icon: '🏆', label: _L.t('nav.boss_ranking'),  sub: _L.t('nav.boss_ranking.sub'),  theme: 'gold'   },
             ],
         };
 
@@ -2130,9 +2143,9 @@ class UIManager {
             let sub = item.sub;
             if (item.id === 'skills' && count > 0) {
                 const cats = [];
-                if (counts.skills_click     > 0) cats.push('Cliques');
-                if (counts.skills_generator > 0) cats.push('Geradores');
-                if (counts.skills_progress  > 0) cats.push('Progressão');
+                if (counts.skills_click     > 0) cats.push(_L.t('nav.skills.click'));
+                if (counts.skills_generator > 0) cats.push(_L.t('nav.skills.generator'));
+                if (counts.skills_progress  > 0) cats.push(_L.t('nav.skills.progress'));
                 if (cats.length > 0) sub = cats.join(' · ');
             }
             return `
@@ -2349,15 +2362,32 @@ class UIManager {
             ultra_rare: '#ff6622',
             limited:    '#ff3366',
         };
+        const _SL = window.LANG || { t: k => k };
         const RL = {
-            common:     'Comum',
-            uncommon:   'Incomum',
-            rare:       'Raro',
-            epic:       'Épico',
-            mythic:     'Místico',
-            legendary:  'Lendário',
-            ultra_rare: 'Ultra Raro',
-            limited:    'Ed. Limitada',
+            common:     _SL.t('rarity.common'),
+            uncommon:   _SL.t('rarity.uncommon'),
+            rare:       _SL.t('rarity.rare'),
+            epic:       _SL.t('rarity.epic'),
+            mythic:     _SL.t('rarity.mythic'),
+            legendary:  _SL.t('rarity.legendary'),
+            ultra_rare: _SL.t('rarity.ultra_rare'),
+            limited:    _SL.t('rarity.limited'),
+        };
+        const FREE_SKINS = (typeof FREE_SKINS_MODE !== 'undefined') && FREE_SKINS_MODE;
+        const _skinName = (s) => {
+            if (_SL.current === 'en' && s.name_en) return s.name_en;
+            if (_SL.current === 'es' && s.name_es) return s.name_es;
+            return s.name;
+        };
+        const _skinDesc = (s) => {
+            if (_SL.current === 'en' && s.desc_en) return s.desc_en;
+            if (_SL.current === 'es' && s.desc_es) return s.desc_es;
+            return s.desc;
+        };
+        const _eventLabel = (s) => {
+            if (_SL.current === 'en' && s.eventLabel_en) return s.eventLabel_en;
+            if (_SL.current === 'es' && s.eventLabel_es) return s.eventLabel_es;
+            return s.eventLabel || 'Evento';
         };
         const RARITY_ORDER = ['common','uncommon','rare','ultra_rare','epic','mythic','legendary','limited'];
 
@@ -2453,15 +2483,15 @@ class UIManager {
                 <div class="pshop-icon pshop-icon--skin" style="background:rgba(0,245,255,0.07);border-color:rgba(0,245,255,0.18)">🧠</div>
                 <div class="pshop-info">
                     <div class="pshop-header-row">
-                        <div class="pshop-title pshop-title-skin" style="color:var(--cyan)">NEXUS PADRÃO</div>
-                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">Padrão</div>
+                        <div class="pshop-title pshop-title-skin" style="color:var(--cyan)">${_SL.t('skin.default.name')}</div>
+                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">${_SL.t('rarity.default')}</div>
                     </div>
-                    <div class="pshop-subtitle">Tema original do núcleo — cyan neural clássico</div>
+                    <div class="pshop-subtitle">${_SL.t('skin.default.desc')}</div>
                 </div>
                 <div class="pshop-actions">
                     ${defaultEquipped
-                        ? `<div class="pshop-owned-badge" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)">✓ ATIVO</div>`
-                        : `<button class="pshop-equip-btn" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)" onclick="window.game.resetSkin()">Equipar</button>`
+                        ? `<div class="pshop-owned-badge" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)">${_SL.t('skin.active')}</div>`
+                        : `<button class="pshop-equip-btn" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)" onclick="window.game.resetSkin()">${_SL.t('skin.equip')}</button>`
                     }
                 </div>
             </div>`;
@@ -2473,13 +2503,16 @@ class UIManager {
             const rc = RC[skin.rarity] || '#00f5ff';
             let action = '';
             if (equipped) {
-                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">✓ EQUIPADA</div>`;
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">${_SL.t('skin.equipped')}</div>`;
             } else if (owned) {
-                action = `<div class="pshop-owned-badge">✓ Comprada</div>
-                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">Equipar</button>`;
+                action = `<div class="pshop-owned-badge">${_SL.t('skin.owned')}</div>
+                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">${_SL.t('skin.equip')}</button>`;
+            } else if (FREE_SKINS) {
+                action = `<div class="pshop-price" style="color:${rc}">${_SL.t('price.free')}</div>
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" onclick="window.game.testGetSkin('${skin.id}')">${_SL.t('skin.get_free')}</button>`;
             } else {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
-                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${_SL.t('skin.buy')}</button>`;
             }
             return `
                 <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
@@ -2488,10 +2521,10 @@ class UIManager {
                     <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
-                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
+                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${_skinName(skin)}</div>
                             ${catBadge}
                         </div>
-                        <div class="pshop-subtitle">${skin.desc}</div>
+                        <div class="pshop-subtitle">${_skinDesc(skin)}</div>
                     </div>
                     <div class="pshop-actions">${action}</div>
                 </div>`;
@@ -2518,13 +2551,13 @@ class UIManager {
         const colorSkinCards = colorSkins.map(s => _makeSkinCard(s, _rarityBadge(s))).join('');
         const themeSkinCards  = themeSkins.map(s => _makeSkinCard(s, _rarityBadge(s))).join('');
         const eventSkinCards  = eventSkins.map(s =>
-            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--event">⭐ ${s.eventLabel || 'Evento'}</span>`)
+            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--event">⭐ ${_eventLabel(s)}</span>`)
         ).join('');
 
         // Formata o countdown de um timer
         const _fmtTimer = (exp) => {
             const rem = exp - Date.now();
-            if (rem <= 0) return { text: '⌛ Encerrada', cls: 'pshop-timer--expired' };
+            if (rem <= 0) return { text: _SL.t('timer.expired'), cls: 'pshop-timer--expired' };
             const days = Math.floor(rem / 86400000);
             const hrs  = Math.floor((rem % 86400000) / 3600000);
             const min  = Math.floor((rem % 3600000) / 60000);
@@ -2541,15 +2574,19 @@ class UIManager {
             if (expired && !owned) return '';
             const equipped = activeSkin === skin.id;
             const rc = RC[skin.rarity] || '#ff3366';
+            const ribbonLabel = _SL.current === 'en' ? '⏳ TEMPORARY' : (_SL.current === 'es' ? '⏳ TEMPORAL' : '⏳ TEMPORÁRIA');
             let action = '';
             if (equipped) {
-                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">✓ EQUIPADA</div>`;
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">${_SL.t('skin.equipped')}</div>`;
             } else if (owned) {
-                action = `<div class="pshop-owned-badge">✓ Comprada</div>
-                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">Equipar</button>`;
+                action = `<div class="pshop-owned-badge">${_SL.t('skin.owned')}</div>
+                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">${_SL.t('skin.equip')}</button>`;
+            } else if (FREE_SKINS && !expired) {
+                action = `<div class="pshop-price" style="color:${rc}">${_SL.t('price.free')}</div>
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" onclick="window.game.testGetSkin('${skin.id}')">${_SL.t('skin.get_free')}</button>`;
             } else if (!expired) {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
-                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${_SL.t('skin.buy')}</button>`;
             }
             const t = skin.expiresAt ? _fmtTimer(skin.expiresAt) : null;
             const timerHtml = t
@@ -2559,14 +2596,14 @@ class UIManager {
                 <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}${expired ? ' pshop-card--expired' : ''}"
                      style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
                     <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
-                    <span class="pshop-temp-ribbon">⏳ TEMPORÁRIA</span>
+                    <span class="pshop-temp-ribbon">${ribbonLabel}</span>
                     <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
-                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
-                            <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || 'Limitada'}</div>
+                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${_skinName(skin)}</div>
+                            <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || _SL.t('rarity.limited')}</div>
                         </div>
-                        <div class="pshop-subtitle">${skin.desc}</div>
+                        <div class="pshop-subtitle">${_skinDesc(skin)}</div>
                         ${timerHtml}
                     </div>
                     <div class="pshop-actions">${action}</div>
@@ -2643,7 +2680,7 @@ class UIManager {
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-info">
                         <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
-                        <div class="dpack-unit">Diamantes</div>
+                        <div class="dpack-unit">${_SL.t('diamond.unit')}</div>
                         <div class="dpack-name">${pack.name}</div>
                         <div class="dpack-price">${pack.price}</div>
                     </div>
@@ -2658,7 +2695,7 @@ class UIManager {
                     ${bonusTag}
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
-                    <div class="dpack-unit">Diamantes</div>
+                    <div class="dpack-unit">${_SL.t('diamond.unit')}</div>
                     <div class="dpack-name">${pack.name}</div>
                     <div class="dpack-price">${pack.price}</div>
                     <button class="dpack-buy-btn" data-pay-item="${pack.id}"
@@ -2674,8 +2711,8 @@ class UIManager {
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>✨</span>
-                        <span class="pshop-section-title">PREMIUM</span>
-                        <span class="pshop-section-sub">Benefícios vitalícios exclusivos</span>
+                        <span class="pshop-section-title">${_SL.t('shop.premium.title')}</span>
+                        <span class="pshop-section-sub">${_SL.t('shop.premium.sub')}</span>
                     </div>
                     ${vipCard}${doubleCard}${doubleDmgCard}
                 </div>
@@ -2683,8 +2720,8 @@ class UIManager {
                 <div class="pshop-section pshop-section--diamonds">
                     <div class="pshop-section-header">
                         <span>💎</span>
-                        <span class="pshop-section-title">PACOTES DE DIAMANTES</span>
-                        <span class="pshop-section-sub">Saldo atual: 💎 ${g.economy.prestigeTokens.toLocaleString('pt-BR')} Diamantes</span>
+                        <span class="pshop-section-title">${_SL.t('shop.diamonds.title')}</span>
+                        <span class="pshop-section-sub">${_SL.t('shop.diamonds.sub')}: 💎 ${g.economy.prestigeTokens.toLocaleString('pt-BR')} ${_SL.t('diamond.unit')}</span>
                     </div>
                     <div class="dpack-grid">${packHTML}</div>
                 </div>
@@ -2692,29 +2729,29 @@ class UIManager {
                 <div class="pshop-section pshop-section--skins-all">
                     <div class="pshop-section-header">
                         <span>🎨</span>
-                        <span class="pshop-section-title">SKINS & TEMAS</span>
-                        <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
+                        <span class="pshop-section-title">${_SL.t('shop.skins.title')}</span>
+                        <span class="pshop-section-sub">${_SL.t('shop.skins.sub')}</span>
                     </div>
 
                     ${defaultCard}
 
-                    <div class="pshop-skin-divider"><span>🎨 Skins de Cor</span></div>
+                    <div class="pshop-skin-divider"><span>${_SL.t('skins.div.color')}</span></div>
                     ${colorSkinCards}
 
-                    <div class="pshop-skin-divider"><span>✨ Skins Temáticas</span></div>
+                    <div class="pshop-skin-divider"><span>${_SL.t('skins.div.theme')}</span></div>
                     ${themeSkinCards}
 
-                    <div class="pshop-skin-divider"><span>🎭 Skins de Evento</span></div>
+                    <div class="pshop-skin-divider"><span>${_SL.t('skins.div.event')}</span></div>
                     ${eventSkinCards}
 
-                    ${showTempSection ? `<div class="pshop-skin-divider"><span>⏳ Skins Temporárias</span></div>${tempSkinCards}` : ''}
+                    ${showTempSection ? `<div class="pshop-skin-divider"><span>${_SL.t('skins.div.temp')}</span></div>${tempSkinCards}` : ''}
                 </div>
 
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>⚡</span>
-                        <span class="pshop-section-title">POTENCIADORES</span>
-                        <span class="pshop-section-sub">Impulsos temporários · Clique para selecionar quantidade</span>
+                        <span class="pshop-section-title">${_SL.t('shop.boosts.title')}</span>
+                        <span class="pshop-section-sub">${_SL.t('shop.boosts.sub')}</span>
                     </div>
                     ${boostCards}
                 </div>

@@ -355,6 +355,11 @@ class GameManager {
         if (this.ui._activePanel === 'shop') this.ui._renderPanelContent('shop');
     }
 
+    testGetSkin(id) {
+        this.account.buySkin(id);
+        this.equipSkin(id);
+    }
+
     equipSkin(id) {
         if (!this.account.hasSkin(id)) return;
         this.account.setActiveSkin(id);

@@ -446,6 +446,19 @@ input[type=range]::-webkit-slider-thumb {
     margin-top: 4px;
     text-align: center;
 }
+.settings-lang-group { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.settings-lang-btn {
+    flex: 1; min-width: 90px;
+    padding: 7px 10px;
+    border: 1px solid rgba(0,245,255,0.2);
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(255,255,255,0.55);
+    font-family: inherit; font-size: 11px;
+    cursor: pointer; transition: all 0.18s;
+}
+.settings-lang-btn:hover { background: rgba(0,245,255,0.06); border-color: var(--cyan); color: var(--cyan); }
+.settings-lang-btn--active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,245,255,0.09); font-weight: 700; }
 .settings-vol-val { font-size: 11px; color: var(--text-dim); min-width: 36px; text-align: right; flex-shrink: 0; }
 .settings-import-msg { font-size: 11px; min-height: 16px; text-align: center; transition: opacity 0.3s; }
 .settings-import-msg.ok  { color: #00ff88; }
