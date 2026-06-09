@@ -4453,7 +4453,9 @@ class UIManager {
             banner.style.display = 'flex';
             banner.style.setProperty('--evt-color', evt.color || '#00f5ff');
             const rem = evt.expiresAt ? Math.max(0, (evt.expiresAt - Date.now()) / 1000).toFixed(0) : '';
-            banner.innerHTML = `<span>${evt.icon} ${evt.name}</span>${rem ? `<span>${rem}s</span>` : ''}`;
+            const _evtLang = window.LANG?.current || 'pt-BR';
+            const _evtName = _evtLang === 'en' ? (evt.name_en || evt.name) : _evtLang === 'es' ? (evt.name_es || evt.name) : evt.name;
+            banner.innerHTML = `<span>${evt.icon} ${_evtName}</span>${rem ? `<span>${rem}s</span>` : ''}`;
             if (evt.clickable) {
                 banner.style.cursor = 'pointer';
                 banner.onclick = () => this._game.randomEvents.collectClickableEvent();

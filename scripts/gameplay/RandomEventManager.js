@@ -44,7 +44,7 @@ class RandomEventManager {
             } else if (evt.effect.type === 'free_token') {
                 // tratado no clique
             } else {
-                this._boost.addBoost({ id: evt.id, name: evt.name, effect: evt.effect, duration: evt.duration });
+                this._boost.addBoost({ id: evt.id, name: evt.name, name_en: evt.name_en, name_es: evt.name_es, icon: evt.icon, effect: evt.effect, duration: evt.duration });
             }
         }
 
