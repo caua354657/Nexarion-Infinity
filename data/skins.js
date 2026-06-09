@@ -365,7 +365,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1750550400000,   // 2026-06-22 00:00 UTC
+        expiresAt: 1788134400000,   // 2026-08-31 00:00 UTC
         accent:    '#ffcc00',
         accent2:   '#ff7700',
         gradient:  'linear-gradient(135deg, rgba(255,204,0,0.12) 0%, rgba(255,119,0,0.09) 100%)',
@@ -386,7 +386,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1752537600000,   // 2026-07-15 00:00 UTC
+        expiresAt: 1792022400000,   // 2026-10-15 00:00 UTC
         accent:    '#cc2200',
         accent2:   '#660011',
         gradient:  'linear-gradient(135deg, rgba(204,34,0,0.12) 0%, rgba(102,0,17,0.09) 100%)',
@@ -407,7 +407,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1751932800000,   // 2026-07-08 00:00 UTC
+        expiresAt: 1789430400000,   // 2026-09-15 00:00 UTC
         accent:    '#aaddff',
         accent2:   '#003366',
         gradient:  'linear-gradient(135deg, rgba(170,220,255,0.10) 0%, rgba(0,50,100,0.08) 100%)',
