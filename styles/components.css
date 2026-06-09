@@ -3222,6 +3222,38 @@ input[type=range]::-webkit-slider-thumb {
     white-space: nowrap;
 }
 
+/* ── Temporary Skins section ── */
+.pshop-section--temp {
+    border: 1px solid rgba(255,51,102,0.20);
+    border-radius: 10px;
+    padding: 12px 12px 4px;
+    background: linear-gradient(135deg, rgba(255,51,102,0.04) 0%, rgba(180,0,80,0.03) 100%);
+}
+.pshop-section-header--temp {
+    border-bottom-color: rgba(255,51,102,0.18) !important;
+}
+.pshop-section--temp .pshop-section-title {
+    color: #ff6688;
+}
+.pshop-card--temp {
+    position: relative;
+    overflow: visible;
+}
+.pshop-temp-ribbon {
+    position: absolute;
+    top: -1px; right: 10px;
+    padding: 2px 8px;
+    background: rgba(255,51,102,0.18);
+    border: 1px solid rgba(255,51,102,0.40);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    font-size: 8px; font-weight: 700;
+    color: #ff6688;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
 /* Diamond balance display */
 .dpack-balance {
     display: flex; align-items: center; gap: 6px;

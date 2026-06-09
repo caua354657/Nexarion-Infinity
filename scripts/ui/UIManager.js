@@ -2501,14 +2501,49 @@ class UIManager {
         };
 
         const normalSkins = skins
-            .filter(s => !s.event)
+            .filter(s => !s.event && !s.temp)
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
         const eventSkins = skins
             .filter(s => s.event)
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+        const tempSkins = skins
+            .filter(s => s.temp)
+            .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
         const normalSkinCards = normalSkins.map(s => _makeSkinCard(s, false)).join('');
         const eventSkinCards  = eventSkins.map(s => _makeSkinCard(s, true)).join('');
+
+        const _makeTempCard = (skin) => {
+            const owned   = acc.hasSkin(skin.id);
+            const equipped = activeSkin === skin.id;
+            const rc = RC[skin.rarity] || '#ff3366';
+            let action = '';
+            if (equipped) {
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">✓ EQUIPADA</div>`;
+            } else if (owned) {
+                action = `<div class="pshop-owned-badge">✓ Comprada</div>
+                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">Equipar</button>`;
+            } else {
+                action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
+                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
+            }
+            return `
+                <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}"
+                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
+                    <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
+                    <span class="pshop-temp-ribbon">⏳ TEMPORÁRIA</span>
+                    <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
+                    <div class="pshop-info">
+                        <div class="pshop-header-row">
+                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
+                            <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || 'Limitada'}</div>
+                        </div>
+                        <div class="pshop-subtitle">${skin.desc}</div>
+                    </div>
+                    <div class="pshop-actions">${action}</div>
+                </div>`;
+        };
+        const tempSkinCards = tempSkins.map(s => _makeTempCard(s)).join('');
 
         // ── Boosts ──
         const boostCards = SHOP_ITEMS.filter(i => i.category === 'boost').map(item => {
@@ -2640,6 +2675,15 @@ class UIManager {
                         <span class="pshop-section-sub">Edições exclusivas · Identidade sazonal preservada</span>
                     </div>
                     ${eventSkinCards}
+                </div>
+
+                <div class="pshop-section pshop-section--temp">
+                    <div class="pshop-section-header pshop-section-header--temp">
+                        <span>⏳</span>
+                        <span class="pshop-section-title">SKINS TEMPORÁRIAS</span>
+                        <span class="pshop-section-sub">Disponíveis por tempo limitado · Não perca</span>
+                    </div>
+                    ${tempSkinCards}
                 </div>
 
                 <div class="pshop-section">
