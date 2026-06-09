@@ -2339,8 +2339,27 @@ class UIManager {
         const acc = g.account;
         const isLoggedIn = acc.isLoggedIn();
 
-        const RC = { common: '#a0a0a0', uncommon: '#00ff88', rare: '#00f5ff', epic: '#7b2fff', legendary: '#ffd700' };
-        const RL = { common: 'Comum', uncommon: 'Incomum', rare: 'Raro', epic: 'Épico', legendary: 'Lendário' };
+        const RC = {
+            common:     '#a0a0a0',
+            uncommon:   '#00ff88',
+            rare:       '#00f5ff',
+            epic:       '#7b2fff',
+            mythic:     '#ff4fa0',
+            legendary:  '#ffd700',
+            ultra_rare: '#ff6622',
+            limited:    '#ff3366',
+        };
+        const RL = {
+            common:     'Comum',
+            uncommon:   'Incomum',
+            rare:       'Raro',
+            epic:       'Épico',
+            mythic:     'Místico',
+            legendary:  'Lendário',
+            ultra_rare: 'Ultra Raro',
+            limited:    'Ed. Limitada',
+        };
+        const RARITY_ORDER = ['common','uncommon','rare','epic','mythic','legendary','ultra_rare','limited'];
 
         // ── VIP ──
         const isVip = acc.isVip();
@@ -2447,8 +2466,8 @@ class UIManager {
                 </div>
             </div>`;
 
-        const skinCards = skins.map(skin => {
-            const owned = acc.hasSkin(skin.id);
+        const _makeSkinCard = (skin, isEvent = false) => {
+            const owned   = acc.hasSkin(skin.id);
             const equipped = activeSkin === skin.id;
             const rc = RC[skin.rarity] || '#00f5ff';
             let action = '';
@@ -2461,8 +2480,11 @@ class UIManager {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
             }
+            const eventBadge = isEvent
+                ? `<span class="pshop-event-badge">⭐ ${skin.eventLabel || 'EVENTO'}</span>`
+                : '';
             return `
-                <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
+                <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}${isEvent ? ' pshop-card--event' : ''}"
                      style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
                     <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
                     <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
@@ -2470,12 +2492,23 @@ class UIManager {
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || skin.rarity}</div>
+                            ${eventBadge}
                         </div>
                         <div class="pshop-subtitle">${skin.desc}</div>
                     </div>
                     <div class="pshop-actions">${action}</div>
                 </div>`;
-        }).join('');
+        };
+
+        const normalSkins = skins
+            .filter(s => !s.event)
+            .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+        const eventSkins = skins
+            .filter(s => s.event)
+            .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+
+        const normalSkinCards = normalSkins.map(s => _makeSkinCard(s, false)).join('');
+        const eventSkinCards  = eventSkins.map(s => _makeSkinCard(s, true)).join('');
 
         // ── Boosts ──
         const boostCards = SHOP_ITEMS.filter(i => i.category === 'boost').map(item => {
@@ -2597,7 +2630,16 @@ class UIManager {
                         <span class="pshop-section-title">SKINS & TEMAS</span>
                         <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
                     </div>
-                    ${defaultCard}${skinCards}
+                    ${defaultCard}${normalSkinCards}
+                </div>
+
+                <div class="pshop-section pshop-section--event">
+                    <div class="pshop-section-header pshop-section-header--event">
+                        <span>🎭</span>
+                        <span class="pshop-section-title">SKINS DE EVENTO</span>
+                        <span class="pshop-section-sub">Edições exclusivas · Identidade sazonal preservada</span>
+                    </div>
+                    ${eventSkinCards}
                 </div>
 
                 <div class="pshop-section">

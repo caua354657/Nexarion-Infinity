@@ -3194,6 +3194,34 @@ input[type=range]::-webkit-slider-thumb {
     border-bottom-color: rgba(100,140,255,0.14);
 }
 
+/* ── Event Skins section ── */
+.pshop-section--event {
+    border: 1px solid rgba(255,149,0,0.18);
+    border-radius: 10px;
+    padding: 12px 12px 4px;
+    background: linear-gradient(135deg, rgba(255,149,0,0.04) 0%, rgba(255,60,0,0.03) 100%);
+}
+.pshop-section-header--event {
+    border-bottom-color: rgba(255,149,0,0.18) !important;
+}
+.pshop-section--event .pshop-section-title {
+    color: #ffaa33;
+}
+.pshop-card--event {
+    position: relative;
+}
+.pshop-event-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px;
+    background: rgba(255,149,0,0.14);
+    border: 1px solid rgba(255,149,0,0.38);
+    border-radius: 4px;
+    font-size: 9px; font-weight: 700;
+    color: #ffaa33;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
 /* Diamond balance display */
 .dpack-balance {
     display: flex; align-items: center; gap: 6px;
