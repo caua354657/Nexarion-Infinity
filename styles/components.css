@@ -3194,21 +3194,49 @@ input[type=range]::-webkit-slider-thumb {
     border-bottom-color: rgba(100,140,255,0.14);
 }
 
-/* ── Skin category sub-headers ── */
-.pshop-category-header {
-    display: flex; align-items: center; gap: 8px;
-    margin: 14px 0 8px;
+/* ── Color Skins section ── */
+.pshop-section--color {
+    border: 1px solid rgba(0,210,180,0.18);
+    border-radius: 10px;
+    padding: 12px 12px 4px;
+    background: linear-gradient(135deg, rgba(0,210,180,0.04) 0%, rgba(0,150,130,0.03) 100%);
 }
-.pshop-category-line {
-    flex: 1;
-    height: 1px;
-    background: rgba(255,255,255,0.07);
+.pshop-section-header--color { border-bottom-color: rgba(0,210,180,0.18) !important; }
+.pshop-section--color .pshop-section-title { color: #00d4b4; }
+
+/* ── Thematic Skins section ── */
+.pshop-section--theme {
+    border: 1px solid rgba(130,80,255,0.18);
+    border-radius: 10px;
+    padding: 12px 12px 4px;
+    background: linear-gradient(135deg, rgba(130,80,255,0.04) 0%, rgba(60,0,180,0.03) 100%);
 }
-.pshop-category-label {
-    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
-    color: var(--text-dim);
-    opacity: 0.55;
+.pshop-section-header--theme { border-bottom-color: rgba(130,80,255,0.18) !important; }
+.pshop-section--theme .pshop-section-title { color: #a070ff; }
+
+/* ── Category badges (replaces rarity badges on skin cards) ── */
+.pshop-cat-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.04em;
     white-space: nowrap;
+}
+.pshop-cat-badge--color {
+    background: rgba(0,210,180,0.14);
+    border: 1px solid rgba(0,210,180,0.38);
+    color: #00d4b4;
+}
+.pshop-cat-badge--theme {
+    background: rgba(130,80,255,0.14);
+    border: 1px solid rgba(130,80,255,0.38);
+    color: #a070ff;
+}
+.pshop-cat-badge--event {
+    background: rgba(255,149,0,0.14);
+    border: 1px solid rgba(255,149,0,0.38);
+    color: #ffaa33;
 }
 
 /* ── Temp skin timer ── */

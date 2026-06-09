@@ -2466,8 +2466,9 @@ class UIManager {
                 </div>
             </div>`;
 
-        const _makeSkinCard = (skin, isEvent = false) => {
-            const owned   = acc.hasSkin(skin.id);
+        // Card de skin sem badge de raridade — usa catBadge para identificar a categoria
+        const _makeSkinCard = (skin, catBadge = '') => {
+            const owned    = acc.hasSkin(skin.id);
             const equipped = activeSkin === skin.id;
             const rc = RC[skin.rarity] || '#00f5ff';
             let action = '';
@@ -2480,19 +2481,15 @@ class UIManager {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
             }
-            const eventBadge = isEvent
-                ? `<span class="pshop-event-badge">⭐ ${skin.eventLabel || 'EVENTO'}</span>`
-                : '';
             return `
-                <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}${isEvent ? ' pshop-card--event' : ''}"
+                <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
                      style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
                     <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
                     <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-skin" style="color:${rc}">${skin.name}</div>
-                            <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || skin.rarity}</div>
-                            ${eventBadge}
+                            ${catBadge}
                         </div>
                         <div class="pshop-subtitle">${skin.desc}</div>
                     </div>
@@ -2510,18 +2507,18 @@ class UIManager {
             .filter(s => s.temp)
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
-        // Divide skins normais em cor vs temática
-        const colorSkins     = normalSkins.filter(s => s.category === 'color');
-        const themeSkins     = normalSkins.filter(s => s.category !== 'color');
-        const colorSkinCards = colorSkins.map(s => _makeSkinCard(s, false)).join('');
-        const themeSkinCards  = themeSkins.map(s => _makeSkinCard(s, false)).join('');
-        const eventSkinCards  = eventSkins.map(s => _makeSkinCard(s, true)).join('');
+        const colorSkins = normalSkins.filter(s => s.category === 'color');
+        const themeSkins = normalSkins.filter(s => s.category !== 'color');
 
-        const _catHeader = (label) =>
-            `<div class="pshop-category-header"><span class="pshop-category-line"></span><span class="pshop-category-label">${label}</span><span class="pshop-category-line"></span></div>`;
-
-        const colorCatHtml = colorSkinCards ? _catHeader('🎨 Skins de Cor') + colorSkinCards : '';
-        const themeCatHtml = themeSkinCards ? _catHeader('✨ Skins Temáticas') + themeSkinCards : '';
+        const colorSkinCards = colorSkins.map(s =>
+            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--color">🎨 Cor</span>`)
+        ).join('');
+        const themeSkinCards = themeSkins.map(s =>
+            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--theme">✨ Temática</span>`)
+        ).join('');
+        const eventSkinCards = eventSkins.map(s =>
+            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--event">⭐ ${s.eventLabel || 'Evento'}</span>`)
+        ).join('');
 
         // Formata o countdown de um timer
         const _fmtTimer = (exp) => {
@@ -2691,13 +2688,22 @@ class UIManager {
                     <div class="dpack-grid">${packHTML}</div>
                 </div>
 
-                <div class="pshop-section">
-                    <div class="pshop-section-header">
+                <div class="pshop-section pshop-section--color">
+                    <div class="pshop-section-header pshop-section-header--color">
                         <span>🎨</span>
-                        <span class="pshop-section-title">SKINS & TEMAS</span>
-                        <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
+                        <span class="pshop-section-title">SKINS DE COR</span>
+                        <span class="pshop-section-sub">Paletas que tingem toda a interface do núcleo</span>
                     </div>
-                    ${defaultCard}${colorCatHtml}${themeCatHtml}
+                    ${colorSkinCards}
+                </div>
+
+                <div class="pshop-section pshop-section--theme">
+                    <div class="pshop-section-header pshop-section-header--theme">
+                        <span>✨</span>
+                        <span class="pshop-section-title">SKINS TEMÁTICAS</span>
+                        <span class="pshop-section-sub">Atmosferas únicas que transformam o núcleo</span>
+                    </div>
+                    ${defaultCard}${themeSkinCards}
                 </div>
 
                 <div class="pshop-section pshop-section--event">
