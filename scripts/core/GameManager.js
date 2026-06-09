@@ -356,8 +356,14 @@ class GameManager {
     }
 
     testGetSkin(id) {
-        this.account.buySkin(id);
-        this.equipSkin(id);
+        const acc = this.account;
+        // Ensure there is a user object even when not logged in (debug/test mode only)
+        if (!acc._user) {
+            acc._user = { skins: [], activeSkin: null, _testOnly: true };
+            acc._loggedIn = true;
+        }
+        acc.buySkin(id);
+        if (acc.hasSkin(id)) this.equipSkin(id);
     }
 
     equipSkin(id) {

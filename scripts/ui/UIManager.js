@@ -944,7 +944,7 @@ class UIManager {
                         <div class="gen-info">
                             <div class="gen-name">${g.name}</div>
                             <div class="gen-subdesc">${g.desc}</div>
-                            <div class="gen-rate" id="gr-${g.id}">+${formatNum(g.baseRate)}/s cada</div>
+                            <div class="gen-rate" id="gr-${g.id}">+${formatNum(g.baseRate)}/s ${(window.LANG||{t:k=>k}).t('gen.rate.each')}</div>
                             <div class="gen-preview" id="gp-${g.id}"></div>
                         </div>
                         <div class="gen-count" id="gc-${g.id}">0</div>
@@ -1000,7 +1000,7 @@ class UIManager {
             if (rateEl) {
                 rateEl.textContent = genMult > 1
                     ? `+${formatNum(effectiveRate)}/s (×${genMult})`
-                    : `+${formatNum(g.baseRate)}/s cada`;
+                    : `+${formatNum(g.baseRate)}/s ${(window.LANG||{t:k=>k}).t('gen.rate.each')}`;
             }
 
             // Production preview
@@ -1057,7 +1057,7 @@ class UIManager {
         const purchased = UPGRADES.filter(u => this._game.upgradeManager.purchasedUpgrades.has(u.id));
 
         if (available.length === 0 && purchased.length === 0) {
-            container.innerHTML = '<div class="empty-msg">Compre geradores para desbloquear melhorias.</div>';
+            container.innerHTML = `<div class="empty-msg">${(window.LANG||{t:k=>k}).t('upgrades.no.generators')}</div>`;
             return;
         }
 
@@ -1078,7 +1078,7 @@ class UIManager {
         });
 
         if (purchased.length > 0) {
-            html += `<div class="upg-separator">— Compradas —</div>`;
+            html += `<div class="upg-separator">${(window.LANG||{t:k=>k}).t('upgrades.purchased')}</div>`;
             purchased.forEach(u => {
                 html += `
                 <div class="upgrade-item purchased">
@@ -1170,10 +1170,11 @@ class UIManager {
 
         const badgeAttr = n => n > 0 ? ` data-badge="${n > 99 ? '99+' : n}"` : '';
 
+        const _mL = window.LANG || { t: k => k };
         tabsContainer.innerHTML = `
-            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'active' ? 'active' : ''}"${badgeAttr(claimableActive)} onclick="window.game.ui._activeTab='active'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Ativas</button>
-            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'daily' ? 'active' : ''}"${badgeAttr(claimableAgenda)} onclick="window.game.ui._activeTab='daily'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Agenda</button>
-            <button class="tab-btn ${this._activeTab === 'completed' ? 'active' : ''}" onclick="window.game.ui._activeTab='completed'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">Concluídas</button>
+            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'active' ? 'active' : ''}"${badgeAttr(claimableActive)} onclick="window.game.ui._activeTab='active'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">${_mL.t('missions.tab.active')}</button>
+            <button class="tab-btn tab-btn--badgeable ${this._activeTab === 'daily' ? 'active' : ''}"${badgeAttr(claimableAgenda)} onclick="window.game.ui._activeTab='daily'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">${_mL.t('missions.tab.daily')}</button>
+            <button class="tab-btn ${this._activeTab === 'completed' ? 'active' : ''}" onclick="window.game.ui._activeTab='completed'; window.game.ui._missionsStateKey=null; window.game.ui._renderPanelContent('missions')">${_mL.t('missions.tab.done')}</button>
         `;
         container.innerHTML = `
             <div id="missions-claim-bar" class="mission-claim-all-bar" style="display:none;"></div>
@@ -1240,7 +1241,7 @@ class UIManager {
                 m.cooldown !== 'daily' && m.cooldown !== 'weekly'
             );
             if (active.length === 0) {
-                list.innerHTML = '<div class="empty-msg">Nenhuma missão ativa no momento!</div>';
+                list.innerHTML = `<div class="empty-msg">${(window.LANG||{t:k=>k}).t('missions.none.active')}</div>`;
                 return;
             }
             list.innerHTML = active.map(m => {
@@ -1258,7 +1259,7 @@ class UIManager {
             let html = '';
             if (dailyMissions.length > 0) {
                 html += `<div class="missions-section-header">
-                    <span>📅 Missões Diárias</span>
+                    <span>${(window.LANG||{t:k=>k}).t('missions.daily.header')}</span>
                     <span class="mission-timer-badge" id="daily-timer-badge">⏱ ${formatTime(Math.floor(dailySecs))}</span>
                 </div>`;
                 html += dailyMissions.map(m => {
@@ -1268,7 +1269,7 @@ class UIManager {
             }
             if (weeklyMissions.length > 0) {
                 html += `<div class="missions-section-header" style="margin-top:16px;">
-                    <span>📆 Missões Semanais</span>
+                    <span>${(window.LANG||{t:k=>k}).t('missions.weekly.header')}</span>
                     <span class="mission-timer-badge" id="weekly-timer-badge">⏱ ${formatTime(Math.floor(weeklySecs))}</span>
                 </div>`;
                 html += weeklyMissions.map(m => {
@@ -1276,14 +1277,14 @@ class UIManager {
                     return this._buildMissionItemHTML(m, p, g.missions.claims.has(m.id), g.missions.completed.has(m.id));
                 }).join('');
             }
-            list.innerHTML = html || '<div class="empty-msg">Nenhuma missão agendada disponível!</div>';
+            list.innerHTML = html || `<div class="empty-msg">${(window.LANG||{t:k=>k}).t('missions.none.daily')}</div>`;
 
         } else if (tab === 'completed') {
             const done = MISSIONS.filter(m =>
                 m.cooldown !== 'daily' && m.cooldown !== 'weekly' && g.missions.claims.has(m.id)
             );
             if (done.length === 0) {
-                list.innerHTML = '<div class="empty-msg">Nenhuma missão concluída ainda!</div>';
+                list.innerHTML = `<div class="empty-msg">${(window.LANG||{t:k=>k}).t('missions.none.done')}</div>`;
                 return;
             }
             list.innerHTML = done.map(m => {
@@ -1304,11 +1305,12 @@ class UIManager {
         if (m.reward?.neurons_pct) rewards.push(`<div class="reward-chip neuron">+${(m.reward.neurons_pct * 100).toFixed(0)}% ⚡</div>`);
         if (m.reward?.tokens) rewards.push(`<div class="reward-chip token">+${m.reward.tokens} 💎</div>`);
 
+        const _cL = window.LANG || { t: k => k };
         const topRight = isClaimed
-            ? `<span class="mission-claimed-badge">✓ Resgatada</span>`
+            ? `<span class="mission-claimed-badge">${_cL.t('missions.claimed')}</span>`
             : '';
         const claimBtn = isCompleted && !isClaimed
-            ? `<button class="mission-claim-btn" onclick="window.game.ui._claimMission('${m.id}')">⚡ Resgatar</button>`
+            ? `<button class="mission-claim-btn" onclick="window.game.ui._claimMission('${m.id}')">${_cL.t('missions.claim')}</button>`
             : '';
 
         const stateClass = isClaimed ? 'completed claimed' : (isCompleted ? 'completed' : '');
@@ -1389,9 +1391,10 @@ class UIManager {
         bar._lastN = n;
         if (n === 0) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
         bar.style.display = 'flex';
+        const _bL = window.LANG || { t: k => k };
         bar.innerHTML = `
-            <span class="mca-count">🎁 ${n} missão${n > 1 ? 'ões prontas' : ' pronta'}</span>
-            <button class="mca-btn" onclick="window.game.ui.claimAllMissions()">✓ Resgatar Tudo</button>
+            <span class="mca-count">🎁 ${n} ${n > 1 ? _bL.t('missions.ready.pl') : _bL.t('missions.ready')}</span>
+            <button class="mca-btn" onclick="window.game.ui.claimAllMissions()">${_bL.t('missions.claim.all')}</button>
         `;
     }
 
@@ -1428,7 +1431,7 @@ class UIManager {
 
             const localBanner = isLocalOnly ? `
                 <div class="profile-local-banner">
-                    ⚠ Conta local — <button class="profile-link-btn" id="profile-go-register" style="display:inline;font-size:11px;">Criar conta online</button> para salvar na nuvem
+                    ${(window.LANG||{t:k=>k}).t('profile.local.warning')} — <button class="profile-link-btn" id="profile-go-register" style="display:inline;font-size:11px;">${(window.LANG||{t:k=>k}).t('profile.local.create')}</button> ${(window.LANG||{t:k=>k}).t('profile.local.cloud')}
                 </div>` : '';
 
             accountSection = `
@@ -1442,39 +1445,41 @@ class UIManager {
                     </div>
                     <div class="profile-card-info">
                         <div class="profile-username${acc.isVip() ? ' profile-username-vip' : ''}">${a.username}${vipBadge}</div>
-                        <div class="profile-email">${a.email || 'Conta local'}</div>
-                        <div class="profile-since">Membro desde ${since}</div>
+                        <div class="profile-email">${a.email || (window.LANG||{t:k=>k}).t('profile.local.label')}</div>
+                        <div class="profile-since">${(window.LANG||{t:k=>k}).t('profile.since')} ${since}</div>
                     </div>
-                    <button class="profile-action-btn" id="profile-logout">Sair</button>
+                    <button class="profile-action-btn" id="profile-logout">${(window.LANG||{t:k=>k}).t('profile.logout')}</button>
                 </div>`;
         } else if (hasAccount && this._profileAuthMode === 'login') {
+            const _pL = window.LANG || { t: k => k };
             accountSection = `
                 <div class="profile-auth-form">
-                    <div class="profile-auth-title">Entrar na Conta</div>
-                    <input class="profile-input" id="profile-login-user" type="text" placeholder="Email ou nome de usuário" autocomplete="username">
-                    <input class="profile-input" id="profile-login-pass" type="password" placeholder="Senha" autocomplete="current-password">
-                    <button class="profile-submit-btn" id="profile-login-btn">Entrar</button>
+                    <div class="profile-auth-title">${_pL.t('profile.login.title')}</div>
+                    <input class="profile-input" id="profile-login-user" type="text" placeholder="${_pL.t('profile.login.user')}" autocomplete="username">
+                    <input class="profile-input" id="profile-login-pass" type="password" placeholder="${_pL.t('profile.login.pass')}" autocomplete="current-password">
+                    <button class="profile-submit-btn" id="profile-login-btn">${_pL.t('profile.login.btn')}</button>
                     <div class="profile-auth-msg" id="profile-auth-msg"></div>
-                    <button class="profile-link-btn" id="profile-go-register">Criar nova conta</button>
+                    <button class="profile-link-btn" id="profile-go-register">${_pL.t('profile.go.register')}</button>
                 </div>`;
         } else {
+            const _pL = window.LANG || { t: k => k };
             accountSection = `
                 <div class="profile-auth-form">
-                    <div class="profile-auth-title">Criar Conta</div>
+                    <div class="profile-auth-title">${_pL.t('profile.register.title')}</div>
                     <div class="auth-photo-row" style="margin-bottom:10px;">
-                        <label class="auth-photo-label" for="profile-reg-photo" title="Foto de perfil (opcional)">
+                        <label class="auth-photo-label" for="profile-reg-photo" title="${_pL.t('profile.register.photo')}">
                             <div class="auth-photo-preview" id="profile-photo-preview">📷</div>
-                            <span class="auth-photo-hint">Foto opcional</span>
+                            <span class="auth-photo-hint">${_pL.t('profile.register.photo')}</span>
                         </label>
                         <input type="file" id="profile-reg-photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
                     </div>
-                    <input class="profile-input" id="profile-reg-user" type="text" placeholder="Nome de usuário (3–12 chars)" autocomplete="username" maxlength="12">
-                    <input class="profile-input" id="profile-reg-email" type="email" placeholder="Email" autocomplete="email">
-                    <input class="profile-input" id="profile-reg-pass" type="password" placeholder="Senha (mín. 6 chars)" autocomplete="new-password">
-                    <button class="profile-submit-btn" id="profile-reg-btn">Criar Conta Online</button>
+                    <input class="profile-input" id="profile-reg-user" type="text" placeholder="${_pL.t('profile.register.user')}" autocomplete="username" maxlength="12">
+                    <input class="profile-input" id="profile-reg-email" type="email" placeholder="${_pL.t('profile.register.email')}" autocomplete="email">
+                    <input class="profile-input" id="profile-reg-pass" type="password" placeholder="${_pL.t('profile.register.pass')}" autocomplete="new-password">
+                    <button class="profile-submit-btn" id="profile-reg-btn">${_pL.t('profile.register.btn')}</button>
                     <div class="profile-auth-msg" id="profile-auth-msg"></div>
-                    ${(hasAccount && !acc.isLocalOnly()) ? `<button class="profile-link-btn" id="profile-go-login">Já tenho uma conta</button>` : ''}
-                    ${acc.isLocalOnly() ? `<button class="profile-link-btn" id="profile-go-login">Cancelar</button>` : ''}
+                    ${(hasAccount && !acc.isLocalOnly()) ? `<button class="profile-link-btn" id="profile-go-login">${_pL.t('profile.register.have')}</button>` : ''}
+                    ${acc.isLocalOnly() ? `<button class="profile-link-btn" id="profile-go-login">${_pL.t('profile.register.cancel')}</button>` : ''}
                 </div>`;
         }
 
@@ -1488,7 +1493,7 @@ class UIManager {
 
         container.innerHTML = accountSection + `
             <div class="profile-stats-section">
-                <div class="profile-stats-title">Estatísticas</div>
+                <div class="profile-stats-title">${(window.LANG||{t:k=>k}).t('profile.stats.title')}</div>
                 <div id="stats-list">${statsHTML}</div>
             </div>`;
 
@@ -1541,39 +1546,33 @@ class UIManager {
     _getStatsData() {
         const g = this._game;
         const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1);
-        // [icon, label, value]  — icon='' marks a section header
+        const _s = window.LANG || { t: k => k };
         return [
-            // ── Progressão
-            ['', 'Progressão', ''],
-            ['⭐', 'Nível',                  g.level.level],
-            ['📊', 'XP Total',               formatNum(g.level.totalXp)],
-            ['👑', 'Prestígios',             g.economy.totalPrestiges],
-            ['✦',  'Mult. de Prestígio',     g.economy._prestigeMult.toFixed(2) + '×'],
-            ['🧬', 'Pontos de Habilidade',   g.skills.skillPoints + ' SP'],
-            ['💎', 'Diamantes',              g.economy.prestigeTokens],
-            // ── Neurônios
-            ['', 'Neurônios', ''],
-            ['🧠', 'Neurônios Vitalícios',   formatNum(g.economy.lifetimeNeurons)],
-            ['⚡', 'Neurônios (Ciclo Atual)', formatNum(g.economy.totalNeurons)],
-            ['⚡', 'Neurônios/seg',           formatNum(g.economy.getEffectiveNPS()) + '/s'],
-            ['👆', 'Valor do Clique',         formatNum(g.economy.getClickValue())],
-            // ── Combate
-            ['', 'Combate', ''],
-            ['🖱️', 'Total de Cliques',       formatNum(g.stats.totalClicks)],
-            ['💥', 'Cliques Críticos',        formatNum(g.stats.critClicks)],
-            ['🎯', 'Chance Crítica',          critChance + '%'],
-            // ── Conquistas
-            ['', 'Conquistas', ''],
-            ['🏆', 'Conquistas',              g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
-            ['✅', 'Missões Resgatadas',      g.missions.claims.size],
-            // ── Boss
-            ['', 'Boss', ''],
-            ['🗡️', 'Nível do Chefe',         g.boss.userBossLevel],
-            ['⚔️', 'Dano Total ao Chefe',     formatNum(g.boss.lifetimeDamage)],
-            ['💀', 'Abates de Chefes',        g.boss.bossKills],
-            // ── Geral
-            ['', 'Geral', ''],
-            ['🕐', 'Tempo de Jogo',           formatTime(g.stats.playTime)],
+            ['', _s.t('stats.progression'), ''],
+            ['⭐', _s.t('stats.level'),             g.level.level],
+            ['📊', _s.t('stats.xp.total'),          formatNum(g.level.totalXp)],
+            ['👑', _s.t('stats.prestiges'),         g.economy.totalPrestiges],
+            ['✦',  _s.t('stats.prestige.mult'),     g.economy._prestigeMult.toFixed(2) + '×'],
+            ['🧬', _s.t('stats.skill.points'),      g.skills.skillPoints + ' SP'],
+            ['💎', _s.t('stats.diamonds'),          g.economy.prestigeTokens],
+            ['', _s.t('stats.neurons.section'), ''],
+            ['🧠', _s.t('stats.neurons.lifetime'),  formatNum(g.economy.lifetimeNeurons)],
+            ['⚡', _s.t('stats.neurons.cycle'),     formatNum(g.economy.totalNeurons)],
+            ['⚡', _s.t('stats.neurons.ps'),        formatNum(g.economy.getEffectiveNPS()) + '/s'],
+            ['👆', _s.t('stats.click.value'),       formatNum(g.economy.getClickValue())],
+            ['', _s.t('stats.combat'), ''],
+            ['🖱️', _s.t('stats.clicks.total'),     formatNum(g.stats.totalClicks)],
+            ['💥', _s.t('stats.clicks.crit'),       formatNum(g.stats.critClicks)],
+            ['🎯', _s.t('stats.crit.chance'),       critChance + '%'],
+            ['', _s.t('stats.ach.section'), ''],
+            ['🏆', _s.t('stats.ach.section'),       g.achievements.unlocked.size + ' / ' + ACHIEVEMENTS.length],
+            ['✅', _s.t('stats.missions.claimed'),  g.missions.claims.size],
+            ['', _s.t('stats.boss.section'), ''],
+            ['🗡️', _s.t('stats.boss.level'),        g.boss.userBossLevel],
+            ['⚔️', _s.t('stats.boss.damage'),       formatNum(g.boss.lifetimeDamage)],
+            ['💀', _s.t('stats.boss.kills'),        g.boss.bossKills],
+            ['', _s.t('stats.general'), ''],
+            ['🕐', _s.t('stats.playtime'),          formatTime(g.stats.playTime)],
         ];
     }
 
@@ -2170,18 +2169,19 @@ class UIManager {
             return `<button class="settings-btn more-option-btn" onclick="window.game.ui.openSubPanel('${panelId}')">${icon} ${label}${badge}</button>`;
         };
 
+        const _M = window.LANG || { t: k => k };
         container.innerHTML = `
             <div style="display:flex; flex-direction:column; gap: 8px; padding-bottom: 20px;">
-                ${makeBtn('missions',      '📋', 'Missões')}
-                ${makeBtn('achievements',  '🎯', 'Conquistas')}
-                ${makeBtn('leaderboard',   '🏆', 'Placar Global')}
-                ${makeBtn('generators',    '🔋', 'Geradores Neurais')}
-                ${makeBtn('upgrades',      '🔧', 'Melhorias')}
-                ${makeBtn('skills',        '⚡', 'Habilidades')}
-                ${makeBtn('rebirth',       '♻️', 'Renascimento')}
-                ${makeBtn('shop',          '🛒', 'Loja Neural')}
-                ${makeBtn('profile',       '👤', 'Perfil')}
-                ${makeBtn('settings',      '⚙️', 'Configurações')}
+                ${makeBtn('missions',      '📋', _M.t('more.missions'))}
+                ${makeBtn('achievements',  '🎯', _M.t('more.achievements'))}
+                ${makeBtn('leaderboard',   '🏆', _M.t('more.leaderboard'))}
+                ${makeBtn('generators',    '🔋', _M.t('more.generators'))}
+                ${makeBtn('upgrades',      '🔧', _M.t('more.upgrades'))}
+                ${makeBtn('skills',        '⚡', _M.t('more.skills'))}
+                ${makeBtn('rebirth',       '♻️', _M.t('more.rebirth'))}
+                ${makeBtn('shop',          '🛒', _M.t('more.shop'))}
+                ${makeBtn('profile',       '👤', _M.t('more.profile'))}
+                ${makeBtn('settings',      '⚙️', _M.t('more.settings'))}
             </div>
         `;
     }
@@ -2785,58 +2785,61 @@ class UIManager {
     _getSkillDesc(skill, level) {
         const isMax = level >= skill.maxLevel;
         const e = skill.effectPerLevel;
+        const _d = window.LANG || { t: k => k };
+        const mx = `<span class="skill-desc-max">${_d.t('skills.max')}</span>`;
         if (skill.effectType === 'click_mult') {
             const cur = (level * e * 100).toFixed(0);
             const nxt = ((level + 1) * e * 100).toFixed(0);
-            if (isMax) return `Poder de clique <strong>+${cur}%</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Próximo: <strong>+${nxt}%</strong> poder de clique`;
-            return `Atual: +${cur}% · Próximo: <strong>+${nxt}%</strong> poder de clique`;
+            if (isMax) return `${_d.t('skill.desc.click.max')} <strong>+${cur}%</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.click.next')}: <strong>+${nxt}%</strong> ${_d.t('skill.desc.click.label')}`;
+            return `${_d.t('skill.desc.click.cur')}: +${cur}% · ${_d.t('skill.desc.click.next')}: <strong>+${nxt}%</strong> ${_d.t('skill.desc.click.label')}`;
         }
         if (skill.effectType === 'crit_chance') {
             const base = Config.CRITICAL_CHANCE * 100;
             const cur = (base + level * e * 100).toFixed(1);
             const nxt = (base + (level + 1) * e * 100).toFixed(1);
-            if (isMax) return `Chance crítica <strong>${cur}%</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Chance crítica: ${base.toFixed(1)}% → <strong>${nxt}%</strong>`;
-            return `Chance crítica: ${cur}% → <strong>${nxt}%</strong>`;
+            if (isMax) return `${_d.t('skill.desc.crit.label')} <strong>${cur}%</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.crit.label')}: ${base.toFixed(1)}% → <strong>${nxt}%</strong>`;
+            return `${_d.t('skill.desc.crit.label')}: ${cur}% → <strong>${nxt}%</strong>`;
         }
         if (skill.effectType === 'global_mult') {
             const cur = (1 + level * e).toFixed(2);
             const nxt = (1 + (level + 1) * e).toFixed(2);
-            if (isMax) return `Produção global <strong>×${cur}</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Produção global: 1× → <strong>×${nxt}</strong>`;
-            return `Produção global: ×${cur} → <strong>×${nxt}</strong>`;
+            if (isMax) return `${_d.t('skill.desc.global.label')} <strong>×${cur}</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.global.label')}: 1× → <strong>×${nxt}</strong>`;
+            return `${_d.t('skill.desc.global.label')}: ×${cur} → <strong>×${nxt}</strong>`;
         }
         if (skill.effectType === 'gen_cost_discount') {
             const cur = (level * e * 100).toFixed(0);
             const nxt = ((level + 1) * e * 100).toFixed(0);
-            if (isMax) return `Desconto geradores <strong>${cur}%</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Desconto geradores: 0% → <strong>${nxt}%</strong>`;
-            return `Desconto geradores: ${cur}% → <strong>${nxt}%</strong>`;
+            if (isMax) return `${_d.t('skill.desc.discount.label')} <strong>${cur}%</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.discount.label')}: 0% → <strong>${nxt}%</strong>`;
+            return `${_d.t('skill.desc.discount.label')}: ${cur}% → <strong>${nxt}%</strong>`;
         }
         if (skill.effectType === 'xp_mult') {
             const cur = (1 + level * e).toFixed(2);
             const nxt = (1 + (level + 1) * e).toFixed(2);
-            if (isMax) return `Ganho de XP <strong>×${cur}</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Ganho de XP: 1× → <strong>×${nxt}</strong>`;
-            return `Ganho de XP: ×${cur} → <strong>×${nxt}</strong>`;
+            if (isMax) return `${_d.t('skill.desc.xp.label')} <strong>×${cur}</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.xp.label')}: 1× → <strong>×${nxt}</strong>`;
+            return `${_d.t('skill.desc.xp.label')}: ×${cur} → <strong>×${nxt}</strong>`;
         }
         if (skill.effectType === 'offline_mult') {
             const cur = (50 * (1 + level * e)).toFixed(0);
             const nxt = (50 * (1 + (level + 1) * e)).toFixed(0);
-            if (isMax) return `Produção offline <strong>${cur}%</strong> <span class="skill-desc-max">(MÁXIMO)</span>`;
-            if (level === 0) return `Produção offline: 50% → <strong>${nxt}%</strong>`;
-            return `Produção offline: ${cur}% → <strong>${nxt}%</strong>`;
+            if (isMax) return `${_d.t('skill.desc.offline.label')} <strong>${cur}%</strong> ${mx}`;
+            if (level === 0) return `${_d.t('skill.desc.offline.label')}: 50% → <strong>${nxt}%</strong>`;
+            return `${_d.t('skill.desc.offline.label')}: ${cur}% → <strong>${nxt}%</strong>`;
         }
         return skill.desc;
     }
 
     _renderSkills(container, tabsContainer) {
         const g = this._game;
+        const _skL = window.LANG || { t: k => k };
         const categories = [
-            { id: 'click',       name: 'Cliques',    icon: '👆', badgeKey: 'skills_click'     },
-            { id: 'generator',   name: 'Geradores',  icon: '⚙️', badgeKey: 'skills_generator' },
-            { id: 'progression', name: 'Progressão', icon: '📈', badgeKey: 'skills_progress'  },
+            { id: 'click',       name: _skL.t('skills.click.name'),     icon: '👆', badgeKey: 'skills_click'     },
+            { id: 'generator',   name: _skL.t('skills.generator.name'), icon: '⚙️', badgeKey: 'skills_generator' },
+            { id: 'progression', name: _skL.t('skills.progress.name'),  icon: '📈', badgeKey: 'skills_progress'  },
         ];
         if (!['click', 'generator', 'progression'].includes(this._activeSkillTab)) this._activeSkillTab = 'click';
 
@@ -2854,7 +2857,7 @@ class UIManager {
         const sp = g.skills.skillPoints;
         const skills = SKILLS.filter(s => s.category === this._activeSkillTab);
 
-        let html = `<div class="skill-sp-bar"><span class="skill-sp-label">Pontos de Habilidade</span><span class="skill-sp-count" id="skill-sp-count">${sp} SP</span></div>`;
+        let html = `<div class="skill-sp-bar"><span class="skill-sp-label">${_skL.t('skills.points')}</span><span class="skill-sp-count" id="skill-sp-count">${sp} SP</span></div>`;
         html += '<div style="display:flex;flex-direction:column;gap:8px;">';
 
         skills.forEach(skill => {
@@ -2903,11 +2906,12 @@ class UIManager {
 
         if (this._lbRefreshTimer) { clearInterval(this._lbRefreshTimer); this._lbRefreshTimer = null; }
 
+        const _lL = window.LANG || { t: k => k };
         const TABS = [
-            { id: 'neuronios',  label: 'Neurônios',  unit: ' ⚡', tipo: 'neuronios'  },
-            { id: 'cliques',    label: 'Cliques',    unit: ' 🖱', tipo: 'cliques'    },
-            { id: 'nivel',      label: 'Nível',      unit: ' Lv', tipo: 'nivel'      },
-            { id: 'prestigios', label: 'Prestígios', unit: ' ♻',  tipo: 'prestigios' },
+            { id: 'neuronios',  label: _lL.t('lb.tab.neurons'),   unit: ' ⚡', tipo: 'neuronios'  },
+            { id: 'cliques',    label: _lL.t('lb.tab.clicks'),    unit: ' 🖱', tipo: 'cliques'    },
+            { id: 'nivel',      label: _lL.t('lb.tab.level'),     unit: ' Lv', tipo: 'nivel'      },
+            { id: 'prestigios', label: _lL.t('lb.tab.prestiges'), unit: ' ♻',  tipo: 'prestigios' },
         ];
         const tab = TABS.find(t => t.id === this._activeLbTab) || TABS[0];
 
@@ -2919,7 +2923,7 @@ class UIManager {
             ).join('');
         }
 
-        container.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
+        container.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>${_lL.t('lb.loading')}</span></div>`;
 
         let entries = [], playerRank = null;
 
@@ -3017,14 +3021,15 @@ class UIManager {
             rowsHTML += sep + buildRow(playerLocal, playerRank ?? (top.length + 1));
         }
         if (top.length === 0 && !playerLocal) {
-            rowsHTML = `<div class="lb-empty">Nenhum jogador no ranking ainda.<br>Seja o primeiro!</div>`;
+            rowsHTML = `<div class="lb-empty">${_lL.t('lb.empty')}</div>`;
         }
 
-        const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const curLang = window.LANG?.current || 'pt-BR';
+        const time = new Date().toLocaleTimeString(curLang, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const footer = isOnline
-            ? `🌐 Placar online · Atualizado às ${time}`
-            : (!acc.isLoggedIn() ? '⚠️ Entre na sua conta para aparecer no ranking global'
-                                 : '⚠️ Conta local — crie uma conta online para entrar no ranking');
+            ? `🌐 ${_lL.t('lb.footer.online')} · ${_lL.t('lb.footer.updated')} ${time}`
+            : (!acc.isLoggedIn() ? `⚠️ ${_lL.t('lb.footer.no.login')}`
+                                 : `⚠️ ${_lL.t('lb.footer.local')}`);
 
         container.innerHTML = `
             ${podiumHTML}
@@ -3118,14 +3123,15 @@ class UIManager {
         if (this._bossRankRefreshTimer) { clearInterval(this._bossRankRefreshTimer); this._bossRankRefreshTimer = null; }
         const bm = this._game.boss;
         if (!bm._pollTimer) bm.startPolling(5000);
+        const _brL = window.LANG || { t: k => k };
         if (tabsContainer) {
             tabsContainer.innerHTML = `
                 <button class="tab-btn ${this._activeBossRankTab === 'dano' ? 'active' : ''}"
-                        onclick="window.game.ui._setBossRankTab('dano')">Dano Total</button>
+                        onclick="window.game.ui._setBossRankTab('dano')">${_brL.t('boss.rank.tab.damage')}</button>
                 <button class="tab-btn ${this._activeBossRankTab === 'abates' ? 'active' : ''}"
-                        onclick="window.game.ui._setBossRankTab('abates')">Abates</button>`;
+                        onclick="window.game.ui._setBossRankTab('abates')">${_brL.t('boss.rank.tab.kills')}</button>`;
         }
-        content.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>Carregando ranking...</span></div>`;
+        content.innerHTML = `<div class="lb-loading"><div class="lb-spinner"></div><span>${_brL.t('lb.loading')}</span></div>`;
         this._renderBossRankingContent(content);
     }
 
@@ -3144,14 +3150,15 @@ class UIManager {
     }
 
     _renderBossInfo(container, tabsContainer) {
+        const _biL = window.LANG || { t: k => k };
         if (!['boss', 'ranking', 'upgrades'].includes(this._activeBossTab)) this._activeBossTab = 'boss';
         tabsContainer.innerHTML = `
             <button class="tab-btn ${this._activeBossTab === 'boss' ? 'active' : ''}"
-                onclick="window.game.ui._activeBossTab='boss'; window.game.ui._renderPanelContent('boss')">Boss</button>
+                onclick="window.game.ui._activeBossTab='boss'; window.game.ui._renderPanelContent('boss')">${_biL.t('boss.tab.boss')}</button>
             <button class="tab-btn ${this._activeBossTab === 'ranking' ? 'active' : ''}"
-                onclick="window.game.ui._activeBossTab='ranking'; window.game.ui._lastBossRankFetch=0; window.game.ui._renderPanelContent('boss')">Placar</button>
+                onclick="window.game.ui._activeBossTab='ranking'; window.game.ui._lastBossRankFetch=0; window.game.ui._renderPanelContent('boss')">${_biL.t('boss.tab.ranking')}</button>
             <button class="tab-btn ${this._activeBossTab === 'upgrades' ? 'active' : ''}"
-                onclick="window.game.ui._activeBossTab='upgrades'; window.game.ui._renderPanelContent('boss')">Melhorias</button>
+                onclick="window.game.ui._activeBossTab='upgrades'; window.game.ui._renderPanelContent('boss')">${_biL.t('boss.tab.upgrades')}</button>
         `;
         container.innerHTML = '<div id="boss-info-panel"></div>';
         this._updateBossInfoPanel();
@@ -3176,6 +3183,7 @@ class UIManager {
         const bm  = this._game.boss;
         const acc = this._game.account;
         const b   = bm.boss;
+        const _bL = window.LANG || { t: k => k };
 
         if (!b) {
             const wait = Math.max(0, bm.cooldown || 0);
@@ -3188,11 +3196,11 @@ class UIManager {
                 <div class="binfo-no-boss">
                     <div class="binfo-no-boss-icon">🌐</div>
                     ${wait > 0
-                        ? `<div class="binfo-no-boss-title">⏳ Recarga do Boss</div>
-                           <div class="binfo-level-progress" style="margin:8px 0;font-size:12px;color:var(--text-dim)">PRÓXIMO EM</div>
+                        ? `<div class="binfo-no-boss-title">⏳ ${_bL.t('boss.cooldown.title')}</div>
+                           <div class="binfo-level-progress" style="margin:8px 0;font-size:12px;color:var(--text-dim)">${_bL.t('boss.cooldown.next')}</div>
                            <div class="binfo-countdown-val" id="binfo-cooldown-val" style="font-family:'Orbitron',monospace;font-size:24px;color:var(--cyan)">${String(Math.floor(wait/60)).padStart(2,'0')}:${String(wait%60).padStart(2,'0')}</div>
-                           <div class="binfo-hint" style="margin-top:10px;font-size:11px">Derrote o boss antes do tempo para avançar sem recarga!</div>`
-                        : `<div class="binfo-no-boss-title">Carregando Boss…</div>`
+                           <div class="binfo-hint" style="margin-top:10px;font-size:11px">${_bL.t('boss.cooldown.hint')}</div>`
+                        : `<div class="binfo-no-boss-title">${_bL.t('boss.loading')}</div>`
                     }
                 </div>`;
             return;
@@ -3231,7 +3239,7 @@ class UIManager {
 
             ${defeated
                 ? `<div class="binfo-timer-block binfo-timer-block--dead">
-                        <div class="binfo-timer-label">☠ DERROTADO</div>
+                        <div class="binfo-timer-label">${_bL.t('boss.defeated')}</div>
                         <div class="binfo-timer-val">00:00</div>
                    </div>`
                 : (() => {
@@ -3240,7 +3248,7 @@ class UIManager {
                     const tc  = r0 < 60 ? '#ff4444' : (r0 < 120 ? '#ffd700' : rc);
                     const ts  = `${String(Math.floor(r0/60)).padStart(2,'0')}:${String(r0%60).padStart(2,'0')}`;
                     return `<div class="binfo-timer-block">
-                                <div class="binfo-timer-label">TEMPO PARA MATAR</div>
+                                <div class="binfo-timer-label">${_bL.t('boss.ttk')}</div>
                                 <div class="binfo-timer-val" id="binfo-live-timer" style="color:${tc};text-shadow:0 0 20px ${tc}88">${ts}</div>
                             </div>`;
                   })()
@@ -3258,17 +3266,18 @@ class UIManager {
 
 
             <div class="binfo-footer-stats">
-                ${acc.isLoggedIn() && bm.myDamage > 0 ? `<span>Dano nesta batalha: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>` : ''}
-                ${acc.isLoggedIn() && bm.lifetimeDamage > 0 ? `<span>Total: <strong style="color:var(--gold)">${formatNum(bm.lifetimeDamage)}</strong></span>` : ''}
+                ${acc.isLoggedIn() && bm.myDamage > 0 ? `<span>${_bL.t('boss.damage.this')}: <strong style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>` : ''}
+                ${acc.isLoggedIn() && bm.lifetimeDamage > 0 ? `<span>${_bL.t('boss.damage.total')}: <strong style="color:var(--gold)">${formatNum(bm.lifetimeDamage)}</strong></span>` : ''}
             </div>
 
-            ${!defeated ? `<button class="binfo-battle-btn" style="border-color:${rc}44;color:${rc};opacity:0.7;font-size:11px" onclick="window.game.ui._openBossWorld()">🌐 Entrar no Boss World</button>` : ''}`;
+            ${!defeated ? `<button class="binfo-battle-btn" style="border-color:${rc}44;color:${rc};opacity:0.7;font-size:11px" onclick="window.game.ui._openBossWorld()">🌐 ${_bL.t('boss.world.enter')}</button>` : ''}`;
     }
 
     async _renderBossRankingContent(container) {
         const g   = this._game;
         const bm  = g.boss;
         const acc = g.account;
+        const _bcL = window.LANG || { t: k => k };
         const isOnline = acc.isLoggedIn() && !acc.isLocalOnly() && window.location.protocol !== 'file:';
         const isDano   = this._activeBossRankTab !== 'abates';
 
@@ -3349,14 +3358,15 @@ class UIManager {
             rowsHTML += `<div class="lb-separator">· · ·</div>` + buildRow(playerLocal, playerRank ?? (top.length + 1));
         }
         if (top.length === 0 && !playerLocal) {
-            rowsHTML = `<div class="lb-empty">Nenhum dado registrado ainda.<br>Derrote bosses para aparecer no ranking!</div>`;
+            rowsHTML = `<div class="lb-empty">${_bcL.t('boss.rank.empty')}</div>`;
         }
 
-        const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const curLang2 = window.LANG?.current || 'pt-BR';
+        const time = new Date().toLocaleTimeString(curLang2, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const footer = isOnline
-            ? `🌐 Placar online · Atualizado às ${time}`
-            : (!acc.isLoggedIn() ? '⚠️ Entre na sua conta para aparecer no ranking'
-                                 : '⚠️ Conta local — crie uma conta online para entrar no ranking');
+            ? `🌐 ${_bcL.t('lb.footer.online')} · ${_bcL.t('lb.footer.updated')} ${time}`
+            : (!acc.isLoggedIn() ? `⚠️ ${_bcL.t('lb.footer.no.login')}`
+                                 : `⚠️ ${_bcL.t('lb.footer.local')}`);
 
         container.innerHTML = `
             ${podiumHTML}
@@ -3382,9 +3392,10 @@ class UIManager {
         if (!panel) return;
         const bm  = this._game.boss;
         const g   = this._game;
+        const _buL = window.LANG || { t: k => k };
         const upgrades = bm.upgradeDefs || [];
         if (!upgrades.length) {
-            panel.innerHTML = '<div class="empty-msg">Nenhuma melhoria disponível.</div>';
+            panel.innerHTML = `<div class="empty-msg">${_buL.t('boss.upgrades.empty')}</div>`;
             return;
         }
 
@@ -3400,11 +3411,11 @@ class UIManager {
         let html = `
             <div class="binfo-upg-header">
                 <div class="binfo-upg-power">
-                    Poder: <strong style="color:var(--gold)">${formatNum(bm.bossPower)}</strong> dmg/clique
+                    ${_buL.t('boss.upgrades.power')}: <strong style="color:var(--gold)">${formatNum(bm.bossPower)}</strong> dmg/clique
                     ${mult > 1 ? `<span style="color:var(--pink)"> × ${mult}</span>` : ''}
                 </div>
                 <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
-                    💎 <strong style="color:var(--gold)">${formatNum(g.economy.prestigeTokens)}</strong> diamantes disponíveis
+                    💎 <strong style="color:var(--gold)">${formatNum(g.economy.prestigeTokens)}</strong> ${_buL.t('boss.upgrades.diamonds')}
                 </div>
             </div>
             <div class="gen-qty-row" style="margin:8px 0 4px">${qtyRow}</div>
@@ -4237,12 +4248,13 @@ class UIManager {
         const barColor    = canPrestige ? theme.c1 : (approaching ? '#ff8800' : '#00f5ff');
         const pct         = (progress * 100).toFixed(1);
 
+        const _rL = window.LANG || { t: k => k };
         // Approaching / ready banner HTML
         let bannerHtml = '';
         if (canPrestige) {
-            bannerHtml = `<div class="rb-status-banner rb-ready-banner">♻ Renascimento Disponível!</div>`;
+            bannerHtml = `<div class="rb-status-banner rb-ready-banner">♻ ${_rL.t('rebirth.available')}</div>`;
         } else if (approaching) {
-            bannerHtml = `<div class="rb-status-banner rb-approaching-banner"><span class="rb-approaching-icon">⚡</span> Aproximando — ${(progress * 100).toFixed(0)}%</div>`;
+            bannerHtml = `<div class="rb-status-banner rb-approaching-banner"><span class="rb-approaching-icon">⚡</span> ${_rL.t('rebirth.approaching')} — ${(progress * 100).toFixed(0)}%</div>`;
         } else {
             bannerHtml = `<div class="rb-status-banner"></div>`;
         }
@@ -4270,62 +4282,62 @@ class UIManager {
                     <div class="rb-header-left">
                         <div class="rb-icon">♻️</div>
                         <div>
-                            <div class="rb-title">Renascimento Neural</div>
-                            <div class="rb-subtitle">Nível de Prestígio: <strong>${totalPrestiges}</strong></div>
+                            <div class="rb-title">${_rL.t('rebirth.title')}</div>
+                            <div class="rb-subtitle">${_rL.t('rebirth.prestige.level')}: <strong>${totalPrestiges}</strong></div>
                         </div>
                     </div>
                     <div class="rb-prestige-badge" style="--tc:${theme.c1}">${totalPrestiges}</div>
                 </div>
 
                 <div class="rb-theme-row" style="--tc:${theme.c1}">
-                    <span class="rb-theme-label">Tema atual</span>
+                    <span class="rb-theme-label">${_rL.t('rebirth.current.theme')}</span>
                     <span class="rb-theme-name">${theme.name}</span>
                 </div>
 
                 <div class="rb-section">
-                    <div class="rb-section-title">Progresso para Renascimento</div>
+                    <div class="rb-section-title">${_rL.t('rebirth.progress.title')}</div>
                     ${pctBar}
                     ${bannerHtml}
                 </div>
 
                 <div class="rb-section">
-                    <div class="rb-section-title">Recompensa</div>
+                    <div class="rb-section-title">${_rL.t('rebirth.reward.title')}</div>
                     <div class="rb-reward-row">
                         <div class="rb-reward-box" style="--tc:${theme.c1}">
                             <div class="rb-reward-val">${tokens > 0 ? '+' + tokens : '—'} 💎</div>
-                            <div class="rb-reward-sub">Diamantes</div>
+                            <div class="rb-reward-sub">${_rL.t('rebirth.reward.diamonds')}</div>
                         </div>
                         <div class="rb-reward-box" style="--tc:#7b2fff">
                             <div class="rb-reward-val">${afterMult}×</div>
-                            <div class="rb-reward-sub">Mult. Após (era ${currentMult}×)</div>
+                            <div class="rb-reward-sub">${_rL.t('rebirth.reward.mult.after')} (${_rL.t('rebirth.reward.mult.was')} ${currentMult}×)</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="rb-section">
-                    <div class="rb-section-title">Estatísticas</div>
+                    <div class="rb-section-title">${_rL.t('rebirth.stats.title')}</div>
                     <div class="rb-stats-grid">
                         <div class="rb-stat-box" data-color="gold">
-                            <span class="rb-stat-label">🔄 Prestígios</span>
+                            <span class="rb-stat-label">🔄 ${_rL.t('rebirth.stats.prestiges')}</span>
                             <span class="rb-stat-val">${totalPrestiges}</span>
                         </div>
                         <div class="rb-stat-box" data-color="purple">
-                            <span class="rb-stat-label">📈 Multiplicador</span>
+                            <span class="rb-stat-label">📈 ${_rL.t('rebirth.stats.mult')}</span>
                             <span class="rb-stat-val">${currentMult}×</span>
                         </div>
                         <div class="rb-stat-box" data-color="cyan">
-                            <span class="rb-stat-label">⚡ Neurônios atuais</span>
+                            <span class="rb-stat-label">⚡ ${_rL.t('rebirth.stats.neurons')}</span>
                             <span class="rb-stat-val">${formatNum(totalNeurons)}</span>
                         </div>
                         <div class="rb-stat-box" style="--tc:${nextTheme.c1}">
-                            <span class="rb-stat-label">🎯 Próximo Tema</span>
+                            <span class="rb-stat-label">🎯 ${_rL.t('rebirth.stats.next.theme')}</span>
                             <span class="rb-stat-val" style="font-size:11px;color:var(--tc,var(--cyan))">${nextTheme.name}</span>
                         </div>
                     </div>
                 </div>
 
                 <button id="prestige-btn" class="rb-prestige-btn${canPrestige ? ' rb-btn-ready' : ''}" ${canPrestige ? '' : 'disabled'}>
-                    ${canPrestige ? `♻ Renascer Agora (+${tokens} 💎)` : (approaching ? `⚡ ${(progress * 100).toFixed(0)}% — Aproximando!` : 'Neurônios Insuficientes')}
+                    ${canPrestige ? `♻ ${_rL.t('rebirth.btn.ready.prefix')} (+${tokens} 💎)` : (approaching ? `⚡ ${(progress * 100).toFixed(0)}% — ${_rL.t('rebirth.approaching')}!` : _rL.t('rebirth.btn.no.neurons'))}
                 </button>
 
             </div>`;
@@ -4482,14 +4494,15 @@ class UIManager {
         if (tokenValEl) tokenValEl.textContent = tokens > 0 ? `+${tokens} 💎` : '—';
 
         // Approaching / ready banner
+        const _rU = window.LANG || { t: k => k };
         const bannerEl = document.querySelector('.rb-status-banner');
         if (bannerEl) {
             if (canPrestige) {
                 bannerEl.className = 'rb-status-banner rb-ready-banner';
-                bannerEl.innerHTML = '♻ Renascimento Disponível!';
+                bannerEl.innerHTML = `♻ ${_rU.t('rebirth.available')}`;
             } else if (approaching) {
                 bannerEl.className = 'rb-status-banner rb-approaching-banner';
-                bannerEl.innerHTML = `<span class="rb-approaching-icon">⚡</span> Aproximando — ${(progress * 100).toFixed(0)}%`;
+                bannerEl.innerHTML = `<span class="rb-approaching-icon">⚡</span> ${_rU.t('rebirth.approaching')} — ${(progress * 100).toFixed(0)}%`;
             } else {
                 bannerEl.className = 'rb-status-banner';
                 bannerEl.innerHTML = '';
@@ -4500,13 +4513,13 @@ class UIManager {
         const pbtn = document.querySelector('.rb-prestige-btn');
         if (pbtn) {
             if (canPrestige) {
-                pbtn.textContent = `♻ Renascer Agora (+${tokens} 💎)`;
+                pbtn.textContent = `♻ ${_rU.t('rebirth.btn.ready.prefix')} (+${tokens} 💎)`;
                 pbtn.classList.add('rb-btn-ready');
                 pbtn.disabled = false;
             } else {
                 pbtn.textContent = approaching
-                    ? `⚡ ${(progress * 100).toFixed(0)}% — Aproximando!`
-                    : 'Neurônios Insuficientes';
+                    ? `⚡ ${(progress * 100).toFixed(0)}% — ${_rU.t('rebirth.approaching')}!`
+                    : _rU.t('rebirth.btn.no.neurons');
                 pbtn.classList.remove('rb-btn-ready');
                 pbtn.disabled = true;
             }
