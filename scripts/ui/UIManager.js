@@ -2524,9 +2524,9 @@ class UIManager {
             }
             return `
                 <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
-                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
-                    <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
-                    <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
+                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}38">
+                    <div class="pshop-skin-glow" style="background:radial-gradient(ellipse 80% 100% at right,${skin.accent}22 0%,${skin.accent}0a 50%,transparent 75%)"></div>
+                    <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}1e;border-color:${skin.accent}44;box-shadow:0 0 14px ${skin.accent}22,inset 0 0 10px ${skin.accent}0f">${skin.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-skin" style="color:${rc}">${_skinName(skin)}</div>

@@ -2592,8 +2592,8 @@ input[type=range]::-webkit-slider-thumb {
         0 4px 0 rgba(0,0,0,0.6),
         0 12px 28px rgba(0,0,0,0.42);
 }
-.pshop-card--owned { opacity: 0.65; }
-.pshop-card--owned:hover { opacity: 0.8; }
+.pshop-card--owned { opacity: 0.82; }
+.pshop-card--owned:hover { opacity: 1; }
 
 /* Glow overlays */
 .pshop-card-glow, .pshop-skin-glow {
@@ -2714,15 +2714,18 @@ input[type=range]::-webkit-slider-thumb {
     border-radius: 4px; background: rgba(255,255,255,0.05);
     color: var(--text-dim);
     font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700;
-    cursor: pointer; letter-spacing: 1px; transition: all 0.14s;
+    cursor: pointer; letter-spacing: 1px;
+    transition: transform 0.08s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.12s ease, background 0.14s ease, border-color 0.14s ease;
     white-space: nowrap; box-shadow: 0 3px 0 rgba(0,0,0,0.5);
 }
 .pshop-buy-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 5px 0 rgba(0,0,0,0.5);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.5), 0 0 16px color-mix(in srgb, currentColor 25%, transparent);
 }
 .pshop-buy-btn:active:not(:disabled) {
-    transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+    transform: scale(0.91) translateY(2px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+    transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
 }
 .pshop-buy-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
@@ -2732,7 +2735,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 .pshop-buy-gold:hover:not(:disabled) {
     background: rgba(255,215,0,0.18); border-color: var(--gold);
-    box-shadow: 0 5px 0 rgba(0,0,0,0.5), 0 0 22px rgba(255,215,0,0.35);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.5), 0 0 28px rgba(255,215,0,0.45);
 }
 .pshop-buy-cyan {
     border-color: rgba(0,245,255,0.45); color: var(--cyan);
@@ -2740,7 +2743,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 .pshop-buy-cyan:hover:not(:disabled) {
     background: rgba(0,245,255,0.16); border-color: var(--cyan);
-    box-shadow: 0 5px 0 rgba(0,0,0,0.5), 0 0 22px rgba(0,245,255,0.3);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.5), 0 0 28px rgba(0,245,255,0.35);
 }
 
 .pshop-equip-btn {
@@ -2748,12 +2751,17 @@ input[type=range]::-webkit-slider-thumb {
     border: 1px solid rgba(255,255,255,0.18); border-radius: 4px;
     background: rgba(255,255,255,0.04); color: var(--text-dim);
     font-family: 'Orbitron', monospace; font-size: 9px; font-weight: 700;
-    cursor: pointer; letter-spacing: 1px; transition: all 0.14s; white-space: nowrap;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+    cursor: pointer; letter-spacing: 1px;
+    transition: transform 0.08s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.12s ease, background 0.14s ease;
+    white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,0.4);
 }
 .pshop-equip-btn:hover {
-    background: rgba(255,255,255,0.09); transform: translateY(-1px);
-    box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.09); transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 0 12px color-mix(in srgb, currentColor 20%, transparent);
+}
+.pshop-equip-btn:active {
+    transform: scale(0.91) translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+    transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
 }
 
 /* ── Owned badges ── */
@@ -2797,14 +2805,16 @@ input[type=range]::-webkit-slider-thumb {
 .pshop-card--skin {
     padding: 14px 16px;
     background: var(--skin-bg, rgba(4,8,24,0.97));
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 .pshop-card--skin:hover {
-    border-color: color-mix(in srgb, var(--skin-accent, #00f5ff) 52%, transparent) !important;
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--skin-accent, #00f5ff) 65%, transparent) !important;
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.1),
-        0 4px 0 rgba(0,0,0,0.6),
-        0 0 22px color-mix(in srgb, var(--skin-accent, #00f5ff) 18%, transparent),
-        0 12px 28px rgba(0,0,0,0.42);
+        inset 0 1px 0 rgba(255,255,255,0.14),
+        0 6px 0 rgba(0,0,0,0.6),
+        0 0 32px color-mix(in srgb, var(--skin-accent, #00f5ff) 28%, transparent),
+        0 14px 32px rgba(0,0,0,0.5);
 }
 
 .pshop-card--std {
