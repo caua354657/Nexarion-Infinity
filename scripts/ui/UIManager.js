@@ -2510,13 +2510,14 @@ class UIManager {
         const colorSkins = normalSkins.filter(s => s.category === 'color');
         const themeSkins = normalSkins.filter(s => s.category !== 'color');
 
-        const colorSkinCards = colorSkins.map(s =>
-            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--color">🎨 Cor</span>`)
-        ).join('');
-        const themeSkinCards = themeSkins.map(s =>
-            _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--theme">✨ Temática</span>`)
-        ).join('');
-        const eventSkinCards = eventSkins.map(s =>
+        const _rarityBadge = (s) => {
+            const rc = RC[s.rarity] || '#00f5ff';
+            return `<div class="pshop-rarity-badge" style="--rc:${rc}">${RL[s.rarity] || s.rarity}</div>`;
+        };
+
+        const colorSkinCards = colorSkins.map(s => _makeSkinCard(s, _rarityBadge(s))).join('');
+        const themeSkinCards  = themeSkins.map(s => _makeSkinCard(s, _rarityBadge(s))).join('');
+        const eventSkinCards  = eventSkins.map(s =>
             _makeSkinCard(s, `<span class="pshop-cat-badge pshop-cat-badge--event">⭐ ${s.eventLabel || 'Evento'}</span>`)
         ).join('');
 
@@ -2728,8 +2729,8 @@ class UIManager {
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>⚡</span>
-                        <span class="pshop-section-title">BOOSTS</span>
-                        <span class="pshop-section-sub">Potenciadores temporários · Clique para selecionar quantidade</span>
+                        <span class="pshop-section-title">POTENCIADORES</span>
+                        <span class="pshop-section-sub">Impulsos temporários · Clique para selecionar quantidade</span>
                     </div>
                     ${boostCards}
                 </div>

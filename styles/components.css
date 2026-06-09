@@ -2559,7 +2559,7 @@ input[type=range]::-webkit-slider-thumb {
 /* ── Base Card ── */
 .pshop-card {
     display: flex; align-items: flex-start;
-    gap: 14px; padding: 18px 18px;
+    gap: 14px; padding: 18px 18px; margin-top: 4px;
     border: 2px solid rgba(255,255,255,0.08);
     border-radius: 4px;
     background: rgba(4,8,24,0.97);
@@ -2569,7 +2569,7 @@ input[type=range]::-webkit-slider-thumb {
         0 7px 20px rgba(0,0,0,0.35);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     position: relative; overflow: hidden;
-    margin-bottom: 8px; cursor: default;
+    margin-bottom: 12px; cursor: default;
 }
 .pshop-card:last-child { margin-bottom: 0; }
 .pshop-card:hover {

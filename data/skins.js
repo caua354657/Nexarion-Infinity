@@ -1,21 +1,20 @@
-// Preços por raridade: Common R$2,90 · Uncommon R$4,90 · Rare R$6,90
-// Epic R$9,90 · Mythic R$14,90 · Legendary R$19,90 · Ultra Rare R$24,90
+// Preços por raridade: Comum R$2,90 · Incomum R$4,90 · Raro R$6,90
+// Épico R$9,90 · Místico R$14,90 · Lendário R$19,90 · Ultra Raro R$24,90
 // Evento R$6,90 · Temporária R$9,90
 
 const PREMIUM_SKINS = [
 
     // ── SKINS DE COR ─────────────────────────────────────────────────────────
-    // Paletas puras que tingem toda a interface do núcleo.
 
     {
         id:       'skin_midnight',
-        name:     'Midnight Protocol',
+        name:     'Protocolo Meia-Noite',
         theme:    'midnight',
         icon:     '🌙',
         orbIcon:  '🌙',
         price:    'R$ 2,90',
         desc:     'Escuridão absoluta envolve o núcleo em preto profundo. O começo de tudo.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'common',
         category: 'color',
         event: false, temp: false,
@@ -25,13 +24,13 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_emerald',
-        name:     'Emerald Grid',
+        name:     'Grade Esmeralda',
         theme:    'emerald',
         icon:     '💚',
         orbIcon:  '💚',
         price:    'R$ 4,90',
         desc:     'Verde esmeralda flui pela grade do núcleo. Orgânico, vivo e preciso.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'uncommon',
         category: 'color',
         event: false, temp: false,
@@ -41,13 +40,13 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_crimson',
-        name:     'Crimson Pulse',
+        name:     'Pulso Carmesim',
         theme:    'crimson',
         icon:     '❤️',
         orbIcon:  '❤️',
         price:    'R$ 6,90',
         desc:     'Vermelho intenso pulsa por todo o núcleo. Simples, impactante e dominante.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'rare',
         category: 'color',
         event: false, temp: false,
@@ -57,13 +56,13 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_sapphire',
-        name:     'Sapphire Core',
+        name:     'Núcleo Safira',
         theme:    'sapphire',
         icon:     '💙',
         orbIcon:  '💙',
         price:    'R$ 6,90',
         desc:     'Azul safira reveste cada interface do núcleo. Sereno, frio e calculado.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'rare',
         category: 'color',
         event: false, temp: false,
@@ -73,7 +72,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_amber',
-        name:     'Amber Surge',
+        name:     'Surto Âmbar',
         theme:    'amber',
         icon:     '🧡',
         orbIcon:  '🧡',
@@ -89,7 +88,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_platinum',
-        name:     'Platinum Edge',
+        name:     'Borda Platina',
         theme:    'platinum',
         icon:     '🤍',
         orbIcon:  '🤍',
@@ -105,17 +104,16 @@ const PREMIUM_SKINS = [
     },
 
     // ── SKINS TEMÁTICAS ───────────────────────────────────────────────────────
-    // Atmosferas únicas que transformam completamente a identidade do núcleo.
 
     {
         id:       'skin_pulse',
-        name:     'Pulse Grid',
+        name:     'Grade de Pulso',
         theme:    'pulse',
         icon:     '📡',
         orbIcon:  '📡',
         price:    'R$ 2,90',
         desc:     'Grade de pulsos rítmicos estabelece o fluxo base do núcleo. Minimalista e preciso.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'common',
         category: 'theme',
         event: false, temp: false,
@@ -125,13 +123,13 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_frost',
-        name:     'Frost Protocol',
+        name:     'Protocolo Glacial',
         theme:    'frost',
         icon:     '❄️',
         orbIcon:  '❄️',
         price:    'R$ 6,90',
         desc:     'Cristais de dados congelados cobrem o núcleo em azul glacial. Frio e calculado.',
-        badge:    'Standard',
+        badge:    'Padrão',
         rarity:   'rare',
         category: 'theme',
         event: false, temp: false,
@@ -141,7 +139,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_void',
-        name:     'Void Surge',
+        name:     'Surto do Vazio',
         theme:    'void',
         icon:     '🌑',
         orbIcon:  '🌑',
@@ -157,7 +155,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_aurora',
-        name:     'Aurora Nexus',
+        name:     'Nexo Aurora',
         theme:    'aurora',
         icon:     '🌌',
         orbIcon:  '🌌',
@@ -173,12 +171,12 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_pixelneon',
-        name:     'Arcade Dimension',
+        name:     'Dimensão Arcade',
         theme:    'pixelneon',
         icon:     '👾',
         orbIcon:  '👾',
         price:    'R$ 19,90',
-        desc:     'Universo pixelado e néon pulsante transporta o núcleo para uma dimensão arcade dos anos 80.',
+        desc:     'Universo pixelado e néon pulsante transporta o núcleo para uma dimensão retrô dos anos 80.',
         badge:    'Premium',
         rarity:   'legendary',
         category: 'theme',
@@ -189,7 +187,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:       'skin_obsidian',
-        name:     'Obsidian Rift',
+        name:     'Fissura de Obsidiana',
         theme:    'obsidian',
         icon:     '🔥',
         orbIcon:  '🔥',
@@ -205,11 +203,10 @@ const PREMIUM_SKINS = [
     },
 
     // ── SKINS DE EVENTO ───────────────────────────────────────────────────────
-    // Edições exclusivas com identidade sazonal. Sem badge de raridade.
 
     {
         id:         'skin_newyear',
-        name:       'Golden Singularity',
+        name:       'Singularidade Dourada',
         theme:      'newyear',
         icon:       '🎆',
         orbIcon:    '🎆',
@@ -226,7 +223,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:         'skin_christmas',
-        name:       'Blizzard Protocol',
+        name:       'Protocolo Nevasca',
         theme:      'christmas',
         icon:       '🎄',
         orbIcon:    '🎄',
@@ -243,7 +240,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:         'skin_halloween',
-        name:       'Terror Core',
+        name:       'Núcleo do Terror',
         theme:      'halloween',
         icon:       '🎃',
         orbIcon:    '🎃',
@@ -260,7 +257,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:         'skin_cyberpunk',
-        name:       'Neon Matrix',
+        name:       'Matriz Neon',
         theme:      'cyberpunk',
         icon:       '🤖',
         orbIcon:    '🤖',
@@ -270,19 +267,17 @@ const PREMIUM_SKINS = [
         rarity:     'legendary',
         category:   'event',
         event: true, temp: false,
-        eventLabel: 'Cyberpunk Event',
+        eventLabel: 'Evento Ciberpunk',
         accent:     '#ff0080',
         accent2:    '#00f5ff',
         gradient:   'linear-gradient(135deg, rgba(255,0,128,0.12) 0%, rgba(0,245,255,0.08) 100%)',
     },
 
     // ── SKINS TEMPORÁRIAS ─────────────────────────────────────────────────────
-    // Somem automaticamente quando o timer chega a zero (se não compradas).
-    // expiresAt: Unix timestamp em milissegundos (UTC).
 
     {
         id:        'skin_solar',
-        name:      'Solar Flare',
+        name:      'Explosão Solar',
         theme:     'solar',
         icon:      '☀️',
         orbIcon:   '☀️',
@@ -299,7 +294,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:        'skin_blood_moon',
-        name:      'Blood Moon',
+        name:      'Lua de Sangue',
         theme:     'blood_moon',
         icon:      '🌕',
         orbIcon:   '🌕',
@@ -316,7 +311,7 @@ const PREMIUM_SKINS = [
     },
     {
         id:        'skin_glacial',
-        name:      'Glacial Storm',
+        name:      'Tempestade Glacial',
         theme:     'glacial',
         icon:      '🌨️',
         orbIcon:   '🌨️',
