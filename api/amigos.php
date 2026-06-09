@@ -257,11 +257,15 @@ case 'profile': {
         $pSkills    = $prog['skills']       ?? [];
         $pAch       = $prog['achievements'] ?? [];
         $pMissions  = $prog['missions']     ?? [];
+        $pEconomy   = $prog['economy']      ?? [];
 
-        $totalXp      = (float)($pLevel['totalXp']    ?? 0);
-        $critClicks   = (int)  ($pStats['critClicks']  ?? 0);
-        $playTime     = (int)  ($pStats['playTime']    ?? 0);
-        $skillPoints  = (int)  ($pSkills['skillPoints'] ?? 0);
+        $totalXp           = (float)($pLevel['totalXp']          ?? 0);
+        $critClicks        = (int)  ($pStats['critClicks']        ?? 0);
+        $playTime          = (int)  ($pStats['playTime']          ?? 0);
+        $skillPoints       = (int)  ($pSkills['skillPoints']      ?? 0);
+        $totalNeuronsCycle = (float)($pEconomy['totalNeurons']    ?? 0);
+        $prestigeTokens    = (float)($pEconomy['prestigeTokens']  ?? (int)$r['diamantes']);
+        $prestigeMult      = round(1 + $prestigeTokens * 0.1, 2);
         $achCount     = isset($pAch['unlocked'])   && is_array($pAch['unlocked'])   ? count($pAch['unlocked'])   : 0;
         $missCount    = isset($pMissions['completed']) && is_array($pMissions['completed']) ? count($pMissions['completed']) : 0;
 
@@ -293,12 +297,14 @@ case 'profile': {
             'nivel_chefe'      => (int)$r['nivel_chefe'],
             'rel'              => $rel,
             // Extras do save (progresso.dados)
-            'total_xp'         => $totalXp,
-            'crit_clicks'      => $critClicks,
-            'play_time'        => $playTime,
-            'skill_points'     => $skillPoints,
-            'ach_count'        => $achCount,
-            'miss_count'       => $missCount,
+            'total_xp'              => $totalXp,
+            'crit_clicks'           => $critClicks,
+            'play_time'             => $playTime,
+            'skill_points'          => $skillPoints,
+            'total_neurons_cycle'   => $totalNeuronsCycle,
+            'prestige_mult'         => $prestigeMult,
+            'ach_count'             => $achCount,
+            'miss_count'            => $missCount,
         ]]);
     } catch (PDOException $e) {
         out(['ok' => false, 'msg' => 'Erro ao buscar perfil.']);

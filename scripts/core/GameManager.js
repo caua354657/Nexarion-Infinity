@@ -387,6 +387,8 @@ class GameManager {
 
         if (!skin) {
             document.body.removeAttribute('data-skin');
+            document.body.style.removeProperty('--skin-accent');
+            document.body.style.removeProperty('--skin-accent2');
             const orb = document.querySelector('.orb-core');
             if (orb) orb.textContent = '🧠';
             return;
@@ -395,6 +397,9 @@ class GameManager {
         const orb = document.querySelector('.orb-core');
         if (orb) orb.textContent = skin.icon;
         document.body.setAttribute('data-skin', skin.theme);
+        document.body.style.setProperty('--skin-accent', skin.accent);
+        if (skin.accent2) document.body.style.setProperty('--skin-accent2', skin.accent2);
+        else document.body.style.removeProperty('--skin-accent2');
 
         // Reinitialise background neural network with new skin palette
         if (this._bg) this._bg.reinit();

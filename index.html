@@ -79,17 +79,17 @@
     <button class="sidebar-btn" data-panel="neural"  title="Progressão Neural">🧠</button>
     <button class="sidebar-btn" data-panel="agenda"  title="Missões & Conquistas">📅</button>
     <button class="sidebar-btn" data-panel="boss"    title="Boss Battle">💀</button>
-    <button class="sidebar-btn" data-panel="shop"    title="Loja Neural">🛒</button>
-    <button class="sidebar-btn" data-panel="conta"   title="Conta">👤</button>
+    <button class="sidebar-btn" data-panel="shop"      title="Loja Neural">🏪</button>
+    <button class="sidebar-btn" data-panel="conta"     title="Conta">👤</button>
 </div>
 
 <!-- Mobile Nav (oculto no desktop) -->
 <div id="mobile-nav">
-    <button class="mobile-nav-btn" data-panel="neural"  title="Progressão Neural">🧠</button>
-    <button class="mobile-nav-btn" data-panel="agenda"  title="Missões">📅</button>
-    <button class="mobile-nav-btn" data-panel="boss"    title="Boss Battle">💀</button>
-    <button class="mobile-nav-btn" data-panel="shop"    title="Loja">🛒</button>
-    <button class="mobile-nav-btn" data-panel="conta"   title="Conta">👤</button>
+    <button class="mobile-nav-btn" data-panel="neural"    title="Progressão Neural">🧠</button>
+    <button class="mobile-nav-btn" data-panel="agenda"    title="Missões">📅</button>
+    <button class="mobile-nav-btn" data-panel="boss"      title="Boss Battle">💀</button>
+    <button class="mobile-nav-btn" data-panel="shop"      title="Loja">🏪</button>
+    <button class="mobile-nav-btn" data-panel="conta"     title="Conta">👤</button>
 </div>
 
 <!-- Sistema de Modais -->
@@ -222,18 +222,18 @@
 <div id="delete-account-overlay">
     <div id="delete-account-card">
         <div class="rc-icon">☠️</div>
-        <h3 class="rc-title da-title">Excluir Conta</h3>
-        <p class="rc-desc">Esta ação vai PERMANENTEMENTE excluir:</p>
+        <h3 class="rc-title da-title" data-i18n="modal.da.title">Excluir Conta</h3>
+        <p class="rc-desc" data-i18n="modal.da.desc">Esta ação vai PERMANENTEMENTE excluir:</p>
         <div class="rc-list da-list">
-            <div class="rc-list-item">❌ Sua conta e dados de login</div>
-            <div class="rc-list-item">❌ Todo o progresso do jogo</div>
-            <div class="rc-list-item">❌ Skins, Diamantes e VIP</div>
-            <div class="rc-list-item">❌ Posição no Leaderboard</div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.da.item1">Sua conta e dados de login</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.da.item2">Todo o progresso do jogo</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.da.item3">Skins, Diamantes e VIP</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.da.item4">Posição no Leaderboard</span></div>
         </div>
-        <p class="rc-final">⚠ Esta ação é irreversível.</p>
+        <p class="rc-final" data-i18n="modal.irreversible">⚠ Esta ação é irreversível.</p>
         <div class="rc-actions">
-            <button id="da-cancel">Cancelar</button>
-            <button id="da-confirm">Excluir Conta</button>
+            <button id="da-cancel" data-i18n="modal.cancel">Cancelar</button>
+            <button id="da-confirm" data-i18n="modal.da.confirm">Excluir Conta</button>
         </div>
     </div>
 </div>
@@ -242,26 +242,26 @@
 <div id="reset-confirm-overlay">
     <div id="reset-confirm-card">
         <div class="rc-icon">⚠️</div>
-        <h3 class="rc-title">Resetar Todo o Progresso</h3>
-        <p class="rc-desc">Esta ação vai PERMANENTEMENTE apagar:</p>
+        <h3 class="rc-title" data-i18n="modal.rc.title">Resetar Todo o Progresso</h3>
+        <p class="rc-desc" data-i18n="modal.rc.desc">Esta ação vai PERMANENTEMENTE apagar:</p>
         <div class="rc-list">
-            <div class="rc-list-item">❌ Neurônios, Prestígios e Diamantes</div>
-            <div class="rc-list-item">❌ Geradores e Melhorias</div>
-            <div class="rc-list-item">❌ Missões e Conquistas</div>
-            <div class="rc-list-item">❌ Habilidades, XP e Histórico</div>
-            <div class="rc-list-item">❌ Progresso de Boss e Melhorias</div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.rc.item1">Neurônios, Prestígios e Diamantes</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.rc.item2">Geradores e Melhorias</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.rc.item3">Missões e Conquistas</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.rc.item4">Habilidades, XP e Histórico</span></div>
+            <div class="rc-list-item">❌ <span data-i18n="modal.rc.item5">Progresso de Boss e Melhorias</span></div>
         </div>
-        <p class="rc-desc" style="margin-top:10px;color:#00ff88">✅ Permanece na sua conta:</p>
+        <p class="rc-desc" style="margin-top:10px;color:#00ff88" data-i18n="modal.rc.keeps">✅ Permanece na sua conta:</p>
         <div class="rc-list" style="border-color:rgba(0,255,136,0.2)">
-            <div class="rc-list-item" style="color:#00ff88">✅ VIP Permanente <span style="color:#888;font-size:10px">(se adquirido)</span></div>
-            <div class="rc-list-item" style="color:#00ff88">✅ 2× Neurônio <span style="color:#888;font-size:10px">(se adquirido)</span></div>
-            <div class="rc-list-item" style="color:#00ff88">✅ 2× Dano no Boss <span style="color:#888;font-size:10px">(se adquirido)</span></div>
-            <div class="rc-list-item" style="color:#00ff88">✅ Skins <span style="color:#888;font-size:10px">(se adquiridas)</span></div>
+            <div class="rc-list-item" style="color:#00ff88"><span data-i18n="modal.rc.keep1">✅ VIP Permanente</span> <span data-i18n="modal.rc.acquired" style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88"><span data-i18n="modal.rc.keep2">✅ 2× Neurônio</span> <span data-i18n="modal.rc.acquired" style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88"><span data-i18n="modal.rc.keep3">✅ 2× Dano no Boss</span> <span data-i18n="modal.rc.acquired" style="color:#888;font-size:10px">(se adquirido)</span></div>
+            <div class="rc-list-item" style="color:#00ff88"><span data-i18n="modal.rc.keep4">✅ Skins</span> <span data-i18n="modal.rc.acquired.f" style="color:#888;font-size:10px">(se adquiridas)</span></div>
         </div>
-        <p class="rc-final">⚠ Esta ação é irreversível.</p>
+        <p class="rc-final" data-i18n="modal.irreversible">⚠ Esta ação é irreversível.</p>
         <div class="rc-actions">
-            <button id="rc-cancel">Cancelar</button>
-            <button id="rc-confirm">Confirmar Reset</button>
+            <button id="rc-cancel" data-i18n="modal.cancel">Cancelar</button>
+            <button id="rc-confirm" data-i18n="modal.rc.confirm">Confirmar Reset</button>
         </div>
     </div>
 </div>

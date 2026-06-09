@@ -2,7 +2,7 @@
 // Épico R$8,99 · Místico R$11,99 · Lendário R$14,99 · Ultra Raro R$19,99
 // Evento R$4,99–R$9,99 · Temporária R$6,99
 
-const FREE_SKINS_MODE = true;   // true = skins grátis para teste
+const FREE_SKINS_MODE = false;
 
 const PREMIUM_SKINS = [
 
@@ -89,26 +89,6 @@ const PREMIUM_SKINS = [
         gradient: 'linear-gradient(135deg, rgba(34,119,255,0.11) 0%, rgba(0,51,170,0.08) 100%)',
     },
     {
-        id:       'skin_amber',
-        name:     'Surto Âmbar',
-        name_en:  'Amber Surge',
-        name_es:  'Oleada Ámbar',
-        theme:    'amber',
-        icon:     '🧡',
-        orbIcon:  '🧡',
-        price:    'R$ 8,99',
-        desc:     'Âmbar incandescente invade cada pixel do núcleo. Quente, intenso e vibrante.',
-        desc_en:  'Incandescent amber invades every pixel of the core. Warm, intense and vibrant.',
-        desc_es:  'El ámbar incandescente invade cada píxel del núcleo. Cálido, intenso y vibrante.',
-        badge:    'Premium',
-        rarity:   'epic',
-        category: 'color',
-        event: false, temp: false,
-        accent:   '#ffaa00',
-        accent2:  '#cc5500',
-        gradient: 'linear-gradient(135deg, rgba(255,170,0,0.11) 0%, rgba(204,85,0,0.08) 100%)',
-    },
-    {
         id:       'skin_platinum',
         name:     'Borda Platina',
         name_en:  'Platinum Edge',
@@ -116,17 +96,37 @@ const PREMIUM_SKINS = [
         theme:    'platinum',
         icon:     '🤍',
         orbIcon:  '🤍',
-        price:    'R$ 14,99',
+        price:    'R$ 8,99',
         desc:     'Bordas de platina refinam cada pixel do núcleo. Elegância absoluta em prata viva.',
         desc_en:  'Platinum edges refine every pixel of the core. Absolute elegance in living silver.',
         desc_es:  'Los bordes de platino refinan cada píxel del núcleo. Elegancia absoluta en plata viva.',
         badge:    'Premium',
-        rarity:   'legendary',
+        rarity:   'epic',
         category: 'color',
         event: false, temp: false,
         accent:   '#c8d8e8',
         accent2:  '#7090a8',
         gradient: 'linear-gradient(135deg, rgba(200,216,232,0.10) 0%, rgba(112,144,168,0.07) 100%)',
+    },
+    {
+        id:       'skin_amber',
+        name:     'Surto Âmbar',
+        name_en:  'Amber Surge',
+        name_es:  'Oleada Ámbar',
+        theme:    'amber',
+        icon:     '🧡',
+        orbIcon:  '🧡',
+        price:    'R$ 14,99',
+        desc:     'Âmbar incandescente invade cada pixel do núcleo. Quente, intenso e vibrante.',
+        desc_en:  'Incandescent amber invades every pixel of the core. Warm, intense and vibrant.',
+        desc_es:  'El ámbar incandescente invade cada píxel del núcleo. Cálido, intenso y vibrante.',
+        badge:    'Premium',
+        rarity:   'legendary',
+        category: 'color',
+        event: false, temp: false,
+        accent:   '#ffaa00',
+        accent2:  '#cc5500',
+        gradient: 'linear-gradient(135deg, rgba(255,170,0,0.11) 0%, rgba(204,85,0,0.08) 100%)',
     },
 
     // ── SKINS TEMÁTICAS ───────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1788134400000,   // 2026-08-31 00:00 UTC
+        expiresAt: 1781568000000,   // 2026-06-16 00:00 UTC (7 dias)
         accent:    '#ffcc00',
         accent2:   '#ff7700',
         gradient:  'linear-gradient(135deg, rgba(255,204,0,0.12) 0%, rgba(255,119,0,0.09) 100%)',
@@ -386,7 +386,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1792022400000,   // 2026-10-15 00:00 UTC
+        expiresAt: 1782000000000,   // 2026-06-21 00:00 UTC (12 dias)
         accent:    '#cc2200',
         accent2:   '#660011',
         gradient:  'linear-gradient(135deg, rgba(204,34,0,0.12) 0%, rgba(102,0,17,0.09) 100%)',
@@ -407,7 +407,7 @@ const PREMIUM_SKINS = [
         rarity:    'limited',
         category:  'temp',
         event: false, temp: true,
-        expiresAt: 1789430400000,   // 2026-09-15 00:00 UTC
+        expiresAt: 1781395200000,   // 2026-06-14 00:00 UTC (5 dias)
         accent:    '#aaddff',
         accent2:   '#003366',
         gradient:  'linear-gradient(135deg, rgba(170,220,255,0.10) 0%, rgba(0,50,100,0.08) 100%)',

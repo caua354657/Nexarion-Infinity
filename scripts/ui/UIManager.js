@@ -222,6 +222,14 @@ class UIManager {
             'neural':        _tL.t('panel.title.neural'),
             'agenda':        _tL.t('panel.title.agenda'),
             'conta':         _tL.t('panel.title.conta'),
+            'wardrobe':      _tL.t('panel.title.wardrobe'),
+            'shop_content':  _tL.t('panel.title.shop'),
+            'shop_skins':         _tL.t('panel.title.shop_skins'),
+            'shop_boosts':        _tL.t('panel.title.shop_boosts'),
+            'shop_packs':         _tL.t('panel.title.shop_packs'),
+            'wardrobe_color':     _tL.t('panel.title.wardrobe_color'),
+            'wardrobe_theme':     _tL.t('panel.title.wardrobe_theme'),
+            'wardrobe_limited':   _tL.t('panel.title.wardrobe_limited'),
         };
         return titles[panelId] || _tL.t('panel.title.default');
     }
@@ -274,7 +282,10 @@ class UIManager {
                 generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',
                 missions: 'agenda', achievements: 'agenda', leaderboard: 'agenda', boss: 'boss',
                 boss_battle: 'boss', boss_ranking: 'boss', boss_upgrades: 'boss',
-                profile: 'conta', friends: 'conta', settings: 'conta'
+                profile: 'conta', friends: 'conta', settings: 'conta',
+                wardrobe: 'shop', shop_content: 'shop',
+                shop_skins: 'shop', shop_boosts: 'shop', shop_packs: 'shop',
+                wardrobe_color: 'shop', wardrobe_theme: 'shop', wardrobe_limited: 'shop',
             };
             const groupId = panelGroup[panelId] || panelId;
             document.querySelectorAll(`.sidebar-btn[data-panel="${groupId}"], .mobile-nav-btn[data-panel="${groupId}"]`).forEach(b => b.classList.add('active'));
@@ -353,10 +364,18 @@ class UIManager {
             case 'profile':      this._renderProfile(content); break;
             case 'friends':      this._renderFriends(content, tabsContainer); break;
             case 'settings':     this._renderSettings(content); break;
-            case 'shop':         this._renderShop(content, tabsContainer); break;
             case 'skills':       this._renderSkills(content, tabsContainer); break;
             case 'rebirth':      this._renderRebirth(content); break;
             case 'more':         this._renderMore(content); break;
+            case 'shop':         this._renderNavGroup(content, 'shop'); break;
+            case 'shop_content': this._renderShop(content, tabsContainer, 'skins_packs'); break;
+            case 'wardrobe':     this._renderWardrobe(content, null); break;
+            case 'shop_skins':       this._renderShop(content, tabsContainer, 'skins');  break;
+            case 'shop_boosts':      this._renderShop(content, tabsContainer, 'boosts'); break;
+            case 'shop_packs':       this._renderShop(content, tabsContainer, 'packs');  break;
+            case 'wardrobe_color':   this._renderWardrobe(content, ['color']); break;
+            case 'wardrobe_theme':   this._renderWardrobe(content, ['theme', 'event']); break;
+            case 'wardrobe_limited': this._renderWardrobe(content, ['temp']); break;
             default: content.innerHTML = '<div class="empty-msg">Em breve...</div>';
         }
     }
@@ -778,7 +797,7 @@ class UIManager {
             if (this._activePanel === 'boss_battle') this._renderBossInfoContent();
             if (this._worldOpen) this._updateBossWorld();
             if (this._activePanel === 'profile') this._updateProfileStats();
-            if (this._activePanel === 'shop') this._updateShop();
+            if (this._activePanel === 'shop_content' || this._activePanel === 'shop_boosts') this._updateShop();
             if (this._activePanel === 'skills') this._updateSkillPoints();
             if (this._activePanel === 'rebirth') this._updateRebirthProgress();
         } catch (e) {
@@ -2050,34 +2069,36 @@ class UIManager {
             const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1) + '%';
 
             // diff only for numeric pairs; null frVal means friend data unavailable
-            const diffHTML = (meN, frN) => {
+            const diffHTML = (meN, frN, numFmt) => {
                 if (frN === null) return '<span style="color:var(--text-dim)">—</span>';
                 const d = meN - frN;
                 if (d === 0) return '<span style="color:var(--text-dim)">—</span>';
+                const fmt = numFmt || formatNum;
+                const abs = Math.abs(d);
                 return d > 0
-                    ? `<span style="color:#00ff88">▲ +${formatNum(d)}</span>`
-                    : `<span style="color:#ff4444">▼ ${formatNum(d)}</span>`;
+                    ? `<span style="color:#00ff88">▲ +${fmt(abs)}</span>`
+                    : `<span style="color:#ff4444">▼ -${fmt(abs)}</span>`;
             };
 
             // sections mirror _getStatsData() order
             const sections = [
                 { title: _fcL.t('stats.progression'), icon: '⭐', rows: [
                     { icon: '⭐', label: _fcL.t('stats.level'),            meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
-                    { icon: '📊', label: _fcL.t('stats.xp.total'),         meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
+                    { icon: '📊', label: _fcL.t('stats.xp.total'),         meV: g.level.totalXp,                             frV: p.total_xp,         fmt: formatNum },
                     { icon: '👑', label: _fcL.t('stats.prestiges'),        meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
-                    { icon: '✦',  label: _fcL.t('stats.prestige.mult'),    meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
-                    { icon: '🧬', label: _fcL.t('stats.skill.points'),     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
+                    { icon: '✦',  label: _fcL.t('stats.prestige.mult'),    meV: g.economy._prestigeMult,                     frV: p.prestige_mult,    fmt: v => v.toFixed(2) + '×', diffFmt: v => v.toFixed(2) + '×' },
+                    { icon: '🧬', label: _fcL.t('stats.skill.points'),     meV: g.skills.skillPoints,                        frV: p.skill_points,     fmt: v => v + ' SP' },
                     { icon: '💎', label: _fcL.t('stats.diamonds'),         meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
                 ]},
                 { title: _fcL.t('stats.neurons.section'), icon: '🧠', rows: [
                     { icon: '🧠', label: _fcL.t('stats.neurons.lifetime'), meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
-                    { icon: '⚡', label: _fcL.t('stats.neurons.cycle'),    meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
+                    { icon: '⚡', label: _fcL.t('stats.neurons.cycle'),    meV: g.economy.totalNeurons,                      frV: p.total_neurons_cycle, fmt: formatNum },
                     { icon: '⚡', label: _fcL.t('stats.neurons.ps'),       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
                     { icon: '👆', label: _fcL.t('stats.click.value'),      meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
                 ]},
                 { title: _fcL.t('stats.combat'), icon: '🖱️', rows: [
                     { icon: '🖱️', label: _fcL.t('stats.clicks.total'),    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
-                    { icon: '💥', label: _fcL.t('stats.clicks.crit'),      meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
+                    { icon: '💥', label: _fcL.t('stats.clicks.crit'),      meV: g.stats.critClicks,                          frV: p.crit_clicks,      fmt: formatNum },
                     { icon: '🎯', label: _fcL.t('stats.crit.chance'),      meV: critChance,                                  frV: null,               fmt: null },
                 ]},
                 { title: _fcL.t('stats.boss.section'), icon: '⚔️', rows: [
@@ -2086,11 +2107,11 @@ class UIManager {
                     { icon: '💀', label: _fcL.t('stats.boss.kills'),        meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
                 ]},
                 { title: _fcL.t('stats.ach.section'), icon: '🏆', rows: [
-                    { icon: '🏆', label: _fcL.t('stats.ach.section'),      meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
-                    { icon: '✅', label: _fcL.t('stats.missions.claimed'), meV: g.missions.claims.size,                     frV: null,               fmt: null },
+                    { icon: '🏆', label: _fcL.t('stats.ach.section'),      meV: g.achievements.unlocked.size,               frV: p.ach_count,        fmt: v => v },
+                    { icon: '✅', label: _fcL.t('stats.missions.claimed'), meV: g.missions.claims.size,                     frV: p.miss_count,       fmt: v => v },
                 ]},
                 { title: _fcL.t('stats.general'), icon: '🕐', rows: [
-                    { icon: '🕐', label: _fcL.t('stats.playtime'),          meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
+                    { icon: '🕐', label: _fcL.t('stats.playtime'),          meV: g.stats.playTime,                           frV: p.play_time,        fmt: formatTime, diffFmt: formatTime },
                 ]},
             ];
 
@@ -2099,7 +2120,7 @@ class UIManager {
                 ${sec.rows.map(r => {
                     const meStr  = r.fmt ? r.fmt(r.meV) : r.meV;
                     const frStr  = r.frV !== null ? (r.fmt ? r.fmt(r.frV) : r.frV) : '<span style="color:var(--text-dim)">—</span>';
-                    const dStr   = (r.fmt && r.frV !== null) ? diffHTML(r.meV, r.frV) : '<span style="color:var(--text-dim)">—</span>';
+                    const dStr   = ((r.fmt || r.diffFmt) && r.frV !== null) ? diffHTML(r.meV, r.frV, r.diffFmt) : '<span style="color:var(--text-dim)">—</span>';
                     return `<div class="compare-row">
                         <div class="compare-label"><span class="compare-row-icon">${r.icon}</span>${r.label}</div>
                         <div class="compare-val">${meStr}</div>
@@ -2167,12 +2188,23 @@ class UIManager {
                 { id: 'boss_upgrades', icon: '💥', label: _L.t('nav.boss_upgrades'), sub: _L.t('nav.boss_upgrades.sub'), theme: 'purple' },
                 { id: 'boss_ranking',  icon: '🏆', label: _L.t('nav.boss_ranking'),  sub: _L.t('nav.boss_ranking.sub'),  theme: 'gold'   },
             ],
+            shop: [
+                { id: 'shop_content', icon: '🛍️', label: _L.t('nav.shop_main'),     sub: _L.t('nav.shop_main.sub'),     theme: 'neural'  },
+                { id: 'shop_boosts',  icon: '⚡',  label: _L.t('nav.shop_boosts'),   sub: _L.t('nav.shop_boosts.sub'),   theme: 'gold'    },
+                { id: 'wardrobe',     icon: '🎭', label: _L.t('nav.wardrobe_main'), sub: _L.t('nav.wardrobe_main.sub'), theme: 'purple'  },
+            ],
         };
 
-        const items = groups[groupId] || [];
+        const rawItems = groups[groupId] || [];
+        const items = rawItems.filter(i => !i._divider);
         const isOdd = items.length % 2 !== 0;
 
-        const buildBtn = (item, idx) => {
+        let btnIdx = 0;
+        const buildBtn = (item) => {
+            if (item._divider) {
+                return `<div class="cat-hub-divider">${item._divider}</div>`;
+            }
+            const idx = btnIdx++;
             const count = counts[item.id] || 0;
             const badge = count > 0
                 ? `<span class="cat-hub-badge">${count > 99 ? '99+' : count}</span>`
@@ -2196,7 +2228,7 @@ class UIManager {
                 </button>`;
         };
 
-        container.innerHTML = `<div class="cat-hub-grid">${items.map(buildBtn).join('')}</div>`;
+        container.innerHTML = `<div class="cat-hub-grid">${rawItems.map(buildBtn).join('')}</div>`;
     }
 
     _renderMore(container) {
@@ -2394,8 +2426,8 @@ class UIManager {
 
     // ── Shop ────────────────────────────────────────────────────────────────────
 
-    _renderShop(container, tabsContainer) {
-        tabsContainer.innerHTML = '';
+    _renderShop(container, tabsContainer, section = 'all') {
+        if (tabsContainer) tabsContainer.innerHTML = '';
         const g = this._game;
         const acc = g.account;
         const isLoggedIn = acc.isLoggedIn();
@@ -2553,10 +2585,9 @@ class UIManager {
                     <div class="pshop-subtitle">${_SL.t('skin.default.desc')}</div>
                 </div>
                 <div class="pshop-actions">
-                    ${defaultEquipped
-                        ? `<div class="pshop-owned-badge" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)">${_SL.t('skin.active')}</div>`
-                        : `<button class="pshop-equip-btn" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)" onclick="window.game.resetSkin()">${_SL.t('skin.equip')}</button>`
-                    }
+                    <div class="pshop-owned-badge" style="border-color:rgba(0,245,255,${defaultEquipped ? '0.4' : '0.15'});color:${defaultEquipped ? 'var(--cyan)' : 'rgba(0,245,255,0.45)'}">
+                        ${defaultEquipped ? _SL.t('skin.active') : _SL.t('rarity.default')}
+                    </div>
                 </div>
             </div>`;
 
@@ -2569,8 +2600,7 @@ class UIManager {
             if (equipped) {
                 action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">${_SL.t('skin.equipped')}</div>`;
             } else if (owned) {
-                action = `<div class="pshop-owned-badge">${_SL.t('skin.owned')}</div>
-                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">${_SL.t('skin.equip')}</button>`;
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}33;color:${rc}aa">${_SL.t('skin.owned')}</div>`;
             } else if (FREE_SKINS) {
                 action = `<div class="pshop-price" style="color:${rc}">${_SL.t('price.free')}</div>
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" onclick="window.game.testGetSkin('${skin.id}')">${_SL.t('skin.get_free')}</button>`;
@@ -2581,21 +2611,26 @@ class UIManager {
 
             const isColor = skin.category === 'color';
             const isTheme = skin.category === 'theme';
-            const catClass = isColor ? ' pshop-card--color' : isTheme ? ' pshop-card--theme' : '';
+            const isEvent = skin.category === 'event';
+            const catClass = isColor ? ' pshop-card--color' : isTheme ? ' pshop-card--theme' : isEvent ? ' pshop-card--event' : '';
 
-            // Color skins: ícone com fundo sólido na cor da skin
+            // Icon: color = sólido vibrante; theme/event = gradiente translúcido com glow
             const iconHtml = isColor
-                ? `<div class="pshop-icon pshop-icon--skin pshop-icon--color" style="background:${skin.accent};border-color:${skin.accent}cc;box-shadow:0 0 20px ${skin.accent}66,0 0 8px ${skin.accent}44">${skin.icon}</div>`
-                : `<div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}1e;border-color:${skin.accent}44;box-shadow:0 0 14px ${skin.accent}22,inset 0 0 10px ${skin.accent}0f">${skin.icon}</div>`;
+                ? `<div class="pshop-icon pshop-icon--skin pshop-icon--color" style="background:${skin.accent};border-color:${skin.accent};box-shadow:0 0 36px ${skin.accent}99,0 0 14px ${skin.accent}77,inset 0 1px 0 rgba(255,255,255,0.3)">${skin.icon}</div>`
+                : `<div class="pshop-icon pshop-icon--skin pshop-icon--glow" style="background:radial-gradient(circle at 38% 38%,${skin.accent}48 0%,${skin.accent}18 65%);border-color:${skin.accent}77;box-shadow:0 0 30px ${skin.accent}66,0 0 12px ${skin.accent}44,inset 0 0 18px ${skin.accent}28;filter:drop-shadow(0 0 10px ${skin.accent}bb)">${skin.icon}</div>`;
 
-            // Theme skins: glow mais forte no lado direito
+            // Glow de fundo por categoria
             const glowBg = isTheme
-                ? `radial-gradient(ellipse 100% 100% at right,${skin.accent}30 0%,${skin.accent}14 45%,transparent 70%)`
-                : `radial-gradient(ellipse 80% 100% at right,${skin.accent}22 0%,${skin.accent}0a 50%,transparent 75%)`;
+                ? `radial-gradient(ellipse 120% 110% at right,${skin.accent}60 0%,${skin.accent}28 42%,transparent 68%),radial-gradient(ellipse 55% 75% at 0% 100%,${skin.accent}28 0%,transparent 58%)`
+                : isEvent
+                ? `radial-gradient(ellipse 115% 110% at right,${skin.accent}66 0%,${skin.accent}30 44%,transparent 70%),radial-gradient(ellipse 45% 60% at 5% 0%,${skin.accent}22 0%,transparent 55%)`
+                : `radial-gradient(ellipse 105% 110% at right,${skin.accent}50 0%,${skin.accent}22 48%,transparent 72%)`;
+
+            const cardShadow = `inset 0 1px 0 rgba(255,255,255,0.07),0 4px 0 rgba(0,0,0,0.65),0 2px 22px ${skin.accent}22,0 10px 28px rgba(0,0,0,0.5)`;
 
             return `
                 <div class="pshop-card pshop-card--skin${catClass}${owned ? ' pshop-card--owned' : ''}"
-                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}38">
+                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}55;box-shadow:${cardShadow}">
                     <div class="pshop-skin-glow" style="background:${glowBg}"></div>
                     ${iconHtml}
                     <div class="pshop-info">
@@ -2652,41 +2687,54 @@ class UIManager {
             const expired = skin.expiresAt ? Date.now() > skin.expiresAt : false;
             if (expired && !owned) return '';
             const equipped = activeSkin === skin.id;
-            const rc = RC[skin.rarity] || '#ff3366';
-            const ribbonLabel = _SL.current === 'en' ? '⏳ TEMPORARY' : (_SL.current === 'es' ? '⏳ TEMPORAL' : '⏳ TEMPORÁRIA');
+            const rc = RC[skin.rarity] || '#ff9900';
+
+            const limTag   = _SL.current === 'en' ? '◈ LIMITED EDITION' : _SL.current === 'es' ? '◈ EDICIÓN LIMITADA' : '◈ EDIÇÃO LIMITADA';
+            const timerLbl = _SL.current === 'en' ? 'AVAILABLE FOR' : _SL.current === 'es' ? 'DISPONIBLE POR' : 'DISPONÍVEL POR';
+            const buyLabel = _SL.current === 'en' ? 'BUY NOW' : _SL.current === 'es' ? 'COMPRAR' : 'COMPRAR AGORA';
+
             let action = '';
             if (equipped) {
-                action = `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">${_SL.t('skin.equipped')}</div>`;
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}55;color:${rc}">${_SL.t('skin.equipped')}</div>`;
             } else if (owned) {
-                action = `<div class="pshop-owned-badge">${_SL.t('skin.owned')}</div>
-                          <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">${_SL.t('skin.equip')}</button>`;
+                action = `<div class="pshop-owned-badge" style="border-color:${rc}33;color:${rc}88">${_SL.t('skin.owned')}</div>`;
             } else if (FREE_SKINS && !expired) {
-                action = `<div class="pshop-price" style="color:${rc}">${_SL.t('price.free')}</div>
-                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" onclick="window.game.testGetSkin('${skin.id}')">${_SL.t('skin.get_free')}</button>`;
+                action = `<button class="pshop-lim-buy-btn" style="--lim-rc:${rc}" onclick="window.game.testGetSkin('${skin.id}')">${_SL.t('skin.get_free')}</button>`;
             } else if (!expired) {
-                action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
-                          <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${_SL.t('skin.buy')}</button>`;
+                action = `<div class="pshop-lim-price" style="color:${rc}">${skin.price}</div>
+                          <button class="pshop-lim-buy-btn" style="--lim-rc:${rc}" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${buyLabel}</button>`;
             }
+
             const t = skin.expiresAt ? _fmtTimer(skin.expiresAt) : null;
-            const timerLabel = _SL.current === 'en' ? 'EXPIRES IN' : _SL.current === 'es' ? 'EXPIRA EN' : 'EXPIRA EM';
             const timerHtml = t
-                ? `<div class="pshop-timer-wrap"><span class="pshop-timer-label">${timerLabel}</span><div class="pshop-timer ${t.cls}" data-expires="${skin.expiresAt}">${t.text}</div></div>`
-                : '';
+                ? `<div class="pshop-lim-timer-row">
+                       <span class="pshop-lim-timer-lbl">⏱ ${timerLbl}</span>
+                       <div class="pshop-lim-timer ${t.cls === 'pshop-timer--urgent' ? 'pshop-lim-timer--urgent' : ''}" data-expires="${skin.expiresAt}">${t.text}</div>
+                   </div>`
+                : `<div class="pshop-lim-exclusive">✦ EXCLUSIVA</div>`;
+
             return `
-                <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}${expired ? ' pshop-card--expired' : ''}"
-                     style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
-                    <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
-                    <span class="pshop-temp-ribbon">${ribbonLabel}</span>
-                    <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}12;border-color:${skin.accent}2e">${skin.icon}</div>
-                    <div class="pshop-info">
-                        <div class="pshop-header-row">
-                            <div class="pshop-title pshop-title-skin" style="color:${rc}">${_skinName(skin)}</div>
-                            <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || _SL.t('rarity.limited')}</div>
-                        </div>
-                        <div class="pshop-subtitle">${_skinDesc(skin)}</div>
+                <div class="pshop-lim-card${owned ? ' pshop-card--owned' : ''}${expired ? ' pshop-card--expired' : ''}"
+                     style="--skin-accent:${skin.accent};--rc:${rc}">
+                    <div class="pshop-lim-glow-bg"></div>
+                    <div class="pshop-lim-shimmer"></div>
+                    <div class="pshop-lim-header">
+                        <span class="pshop-lim-tag">${limTag}</span>
                         ${timerHtml}
                     </div>
-                    <div class="pshop-actions">${action}</div>
+                    <div class="pshop-lim-body">
+                        <div class="pshop-lim-icon-wrap">
+                            <div class="pshop-lim-icon-ring"></div>
+                            <div class="pshop-lim-icon">${skin.icon}</div>
+                        </div>
+                        <div class="pshop-lim-info">
+                            <div class="pshop-lim-name-row">
+                                <span class="pshop-lim-name" style="color:${rc}">${_skinName(skin)}</span>
+                            </div>
+                            <div class="pshop-lim-desc">${_skinDesc(skin)}</div>
+                            <div class="pshop-lim-actions">${action}</div>
+                        </div>
+                    </div>
                 </div>`;
         };
         const tempSkinCards   = tempSkins.map(s => _makeTempCard(s)).join('');
@@ -2789,9 +2837,14 @@ class UIManager {
                 </div>`;
         }).join('');
 
+        const showPacks  = section === 'all' || section === 'packs'  || section === 'skins_packs';
+        const showSkins  = section === 'all' || section === 'skins'  || section === 'skins_packs';
+        const showBoosts = section === 'all' || section === 'boosts';
+
         container.innerHTML = `
             <div class="pshop-container" id="pshop-container">
 
+                ${showPacks ? `
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>✨</span>
@@ -2808,8 +2861,9 @@ class UIManager {
                         <span class="pshop-section-sub">${_SL.t('shop.diamonds.sub')}: 💎 ${g.economy.prestigeTokens.toLocaleString('pt-BR')} ${_SL.t('diamond.unit')}</span>
                     </div>
                     <div class="dpack-grid">${packHTML}</div>
-                </div>
+                </div>` : ''}
 
+                ${showSkins ? `
                 <div class="pshop-section pshop-section--skins-all">
                     <div class="pshop-section-header">
                         <span>🎨</span>
@@ -2817,7 +2871,7 @@ class UIManager {
                         <span class="pshop-section-sub">${_SL.t('shop.skins.sub')}</span>
                     </div>
 
-                    ${defaultCard}
+                    ${showTempSection ? tempSkinCards : ''}
 
                     <div class="pshop-skin-divider"><span>${_SL.t('skins.div.color')}</span></div>
                     ${colorSkinCards}
@@ -2827,10 +2881,9 @@ class UIManager {
 
                     <div class="pshop-skin-divider"><span>${_SL.t('skins.div.event')}</span></div>
                     ${eventSkinCards}
+                </div>` : ''}
 
-                    ${showTempSection ? `<div class="pshop-skin-divider"><span>${_SL.t('skins.div.temp')}</span></div>${tempSkinCards}` : ''}
-                </div>
-
+                ${showBoosts ? `
                 <div class="pshop-section">
                     <div class="pshop-section-header">
                         <span>⚡</span>
@@ -2838,7 +2891,7 @@ class UIManager {
                         <span class="pshop-section-sub">${_SL.t('shop.boosts.sub')}</span>
                     </div>
                     ${boostCards}
-                </div>
+                </div>` : ''}
 
             </div>`;
 
@@ -2849,7 +2902,11 @@ class UIManager {
                 container.querySelectorAll('[data-expires]').forEach(el => {
                     const t = _fmtTimer(parseInt(el.dataset.expires));
                     el.textContent = t.text;
-                    el.className   = `pshop-timer${t.cls ? ' ' + t.cls : ''}`;
+                    if (el.classList.contains('pshop-lim-timer')) {
+                        el.className = `pshop-lim-timer${t.cls === 'pshop-timer--urgent' ? ' pshop-lim-timer--urgent' : ''}`;
+                    } else {
+                        el.className = `pshop-timer${t.cls ? ' ' + t.cls : ''}`;
+                    }
                 });
             }, 1000);
         }
@@ -2857,13 +2914,139 @@ class UIManager {
 
     _updateShop() {
         const container = document.getElementById('pshop-container');
-        if (!container) { this._renderPanelContent('shop'); return; }
+        if (!container) return;
         const g = this._game;
         SHOP_ITEMS.forEach(item => {
             const btn = container.querySelector(`.pshop-std-buy[onclick*="${item.id}"]`);
             if (!btn) return;
             btn.disabled = !g.shop.canBuy(item);
         });
+    }
+
+    // ── Wardrobe ─────────────────────────────────────────────────────────────────
+
+    _equipFromWardrobe(id) {
+        if (id === null) window.game.resetSkin();
+        else window.game.equipSkin(id);
+        if (this._activePanel === 'wardrobe') {
+            this._renderPanelContent('wardrobe');
+        }
+    }
+
+    _renderWardrobe(container, categories = null) {
+        const _WL = window.LANG || { t: k => k };
+        const g = this._game;
+        const acc = g.account;
+        const activeSkin = acc.getActiveSkin();
+        const skins = (typeof PREMIUM_SKINS !== 'undefined') ? PREMIUM_SKINS : [];
+        const RC = {
+            common: '#a0a0a0', uncommon: '#00ff88', rare: '#00f5ff',
+            epic: '#7b2fff', mythic: '#ff4fa0', legendary: '#ffd700',
+            ultra_rare: '#ff6622', limited: '#ff3366',
+        };
+
+        const _skinName = (s) => {
+            if (_WL.current === 'en' && s.name_en) return s.name_en;
+            if (_WL.current === 'es' && s.name_es) return s.name_es;
+            return s.name;
+        };
+        const _skinDesc = (s) => {
+            if (_WL.current === 'en' && s.desc_en) return s.desc_en;
+            if (_WL.current === 'es' && s.desc_es) return s.desc_es;
+            return s.desc;
+        };
+
+        const ownedSkins = skins.filter(s => acc.hasSkin(s.id));
+
+        const _makeWrdCard = (skin) => {
+            const equipped = activeSkin === skin.id;
+            const rc = RC[skin.rarity] || '#00f5ff';
+            const isExpired = skin.expiresAt && Date.now() > skin.expiresAt;
+            const isColor = skin.category === 'color';
+            const iconBg = isColor
+                ? `background:${skin.accent};border-color:${skin.accent}cc`
+                : `background:${skin.accent}1a;border-color:${skin.accent}44`;
+            const glowBg = `radial-gradient(ellipse 80% 100% at right,${skin.accent}18 0%,transparent 65%)`;
+            return `
+                <div class="wrd-card${equipped ? ' wrd-card--equipped' : ''}" style="--wrd-accent:${rc}">
+                    <div class="wrd-glow" style="background:${glowBg}"></div>
+                    <div class="wrd-icon" style="${iconBg}">${skin.icon}</div>
+                    <div class="wrd-info">
+                        <div class="wrd-name" style="color:${rc}">${_skinName(skin)}</div>
+                        <div class="wrd-desc">${_skinDesc(skin)}</div>
+                        ${isExpired ? `<span class="wrd-expired-badge">${_WL.t('timer.expired')}</span>` : ''}
+                    </div>
+                    <div class="wrd-action">
+                        ${equipped
+                            ? `<div class="wrd-equipped-badge">✓ ${_WL.t('wardrobe.section.active')}</div>`
+                            : `<button class="wrd-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.ui._equipFromWardrobe('${skin.id}')">${_WL.t('skin.equip')}</button>`
+                        }
+                    </div>
+                </div>`;
+        };
+
+        const defaultEquipped = activeSkin === null;
+        const defaultCard = `
+            <div class="wrd-card${defaultEquipped ? ' wrd-card--equipped' : ''}" style="--wrd-accent:#00f5ff">
+                <div class="wrd-glow" style="background:radial-gradient(ellipse 80% 100% at right,rgba(0,245,255,0.12) 0%,transparent 65%)"></div>
+                <div class="wrd-icon" style="background:rgba(0,245,255,0.08);border-color:rgba(0,245,255,0.28)">🧠</div>
+                <div class="wrd-info">
+                    <div class="wrd-name" style="color:var(--cyan)">${_WL.t('skin.default.name')}</div>
+                    <div class="wrd-desc">${_WL.t('skin.default.desc')}</div>
+                </div>
+                <div class="wrd-action">
+                    ${defaultEquipped
+                        ? `<div class="wrd-equipped-badge">✓ ${_WL.t('wardrobe.section.active')}</div>`
+                        : `<button class="wrd-equip-btn" style="border-color:rgba(0,245,255,0.4);color:var(--cyan)" onclick="window.game.ui._equipFromWardrobe(null)">${_WL.t('skin.equip')}</button>`
+                    }
+                </div>
+            </div>`;
+
+        const WRD_RARITY = ['common','uncommon','rare','ultra_rare','epic','mythic','legendary','limited'];
+        const _sortRarity = (arr) => [...arr].sort((a, b) => WRD_RARITY.indexOf(a.rarity) - WRD_RARITY.indexOf(b.rarity));
+        const _byCat = (cat) => _sortRarity(ownedSkins.filter(s => s.category === cat));
+
+        // Filter which categories to show; null = all
+        const showCat   = (cat) => !categories || categories.includes(cat);
+        const showAll   = !categories;
+
+        const colorSkins   = showCat('color')  ? _byCat('color')  : [];
+        const themeSkins   = showCat('theme')  ? _byCat('theme')  : [];
+        const eventSkins   = showCat('event')  ? _byCat('event')  : [];
+        const tempSkins    = showCat('temp')   ? _byCat('temp')   : [];
+
+        const _section = (label, cards) => !cards.trim() ? '' : `
+            <div class="wrd-section">
+                <div class="wrd-section-title">${label}</div>
+                ${cards}
+            </div>`;
+
+        // Only show default card when viewing "all" or color category
+        const showDefault = showAll || (categories && categories.includes('color'));
+        const defaultSection = showDefault ? `
+            <div class="wrd-section">
+                <div class="wrd-section-title">${_WL.t('skin.default.name')}</div>
+                ${defaultCard}
+            </div>` : '';
+
+        const visibleSkins = colorSkins.length + themeSkins.length + eventSkins.length + tempSkins.length;
+        const emptyMsg = visibleSkins === 0
+            ? `<div class="wrd-empty">
+                   <div class="wrd-empty-icon">${categories ? (categories.includes('temp') ? '◈' : '🎨') : '🎭'}</div>
+                   <div>${_WL.t('wardrobe.empty')}</div>
+                   <button class="wrd-shop-link" onclick="window.game.ui.openPanel('shop_content')">${_WL.t('wardrobe.shop.link')}</button>
+               </div>`
+            : '';
+
+        container.innerHTML = `
+            <div class="wrd-container">
+                ${defaultSection}
+                ${_section(_WL.t('skins.div.color'), colorSkins.map(_makeWrdCard).join(''))}
+                ${_section(_WL.t('skins.div.theme'), themeSkins.map(_makeWrdCard).join(''))}
+                ${_section(_WL.t('skins.div.event'), eventSkins.map(_makeWrdCard).join(''))}
+                ${_section(_WL.t('skins.div.temp'), tempSkins.map(_makeWrdCard).join(''))}
+                ${emptyMsg}
+            </div>`;
     }
 
     _getSkillDesc(skill, level) {

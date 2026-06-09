@@ -41,11 +41,28 @@ function catalogo(): array {
         'diamonds_medium'  => ['nome' => 'Pacote Médio (400💎)',     'tipo' => 'diamonds',      'preco' => 9.90,  'diamonds' => 400],
         'diamonds_large'   => ['nome' => 'Pacote Grande (1000💎)',   'tipo' => 'diamonds',      'preco' => 19.90, 'diamonds' => 1000],
         'diamonds_mega'    => ['nome' => 'Pacote MEGA (3000💎)',     'tipo' => 'diamonds',      'preco' => 49.90, 'diamonds' => 3000],
-        'skin_christmas'   => ['nome' => 'Skin: Blizzard Protocol',  'tipo' => 'skin',          'preco' => 7.90,  'diamonds' => 0],
-        'skin_halloween'   => ['nome' => 'Skin: Terror Core',        'tipo' => 'skin',          'preco' => 7.90,  'diamonds' => 0],
-        'skin_newyear'     => ['nome' => 'Skin: Golden Singularity', 'tipo' => 'skin',          'preco' => 7.90,  'diamonds' => 0],
-        'skin_cyberpunk'   => ['nome' => 'Skin: Neon Matrix',        'tipo' => 'skin',          'preco' => 7.90,  'diamonds' => 0],
-        'skin_pixelneon'   => ['nome' => 'Skin: Arcade Dimension',   'tipo' => 'skin',          'preco' => 7.90,  'diamonds' => 0],
+        // ── Skins de cor ──────────────────────────────────────────────────────
+        'skin_midnight'    => ['nome' => 'Skin: Protocolo Meia-Noite',  'tipo' => 'skin', 'preco' => 1.99,  'diamonds' => 0],
+        'skin_pulse'       => ['nome' => 'Skin: Grade de Pulso',         'tipo' => 'skin', 'preco' => 1.99,  'diamonds' => 0],
+        'skin_emerald'     => ['nome' => 'Skin: Grade Esmeralda',        'tipo' => 'skin', 'preco' => 3.99,  'diamonds' => 0],
+        'skin_frost'       => ['nome' => 'Skin: Protocolo Glacial',      'tipo' => 'skin', 'preco' => 5.99,  'diamonds' => 0],
+        'skin_crimson'     => ['nome' => 'Skin: Pulso Carmesim',         'tipo' => 'skin', 'preco' => 5.99,  'diamonds' => 0],
+        'skin_sapphire'    => ['nome' => 'Skin: Núcleo Safira',          'tipo' => 'skin', 'preco' => 5.99,  'diamonds' => 0],
+        'skin_void'        => ['nome' => 'Skin: Surto do Vazio',         'tipo' => 'skin', 'preco' => 8.99,  'diamonds' => 0],
+        'skin_platinum'    => ['nome' => 'Skin: Borda Platina',          'tipo' => 'skin', 'preco' => 8.99,  'diamonds' => 0],
+        'skin_aurora'      => ['nome' => 'Skin: Nexo Aurora',            'tipo' => 'skin', 'preco' => 11.99, 'diamonds' => 0],
+        'skin_amber'       => ['nome' => 'Skin: Surto Âmbar',           'tipo' => 'skin', 'preco' => 14.99, 'diamonds' => 0],
+        'skin_pixelneon'   => ['nome' => 'Skin: Dimensão Arcade',        'tipo' => 'skin', 'preco' => 14.99, 'diamonds' => 0],
+        'skin_obsidian'    => ['nome' => 'Skin: Fissura de Obsidiana',   'tipo' => 'skin', 'preco' => 19.99, 'diamonds' => 0],
+        // ── Skins de evento ───────────────────────────────────────────────────
+        'skin_newyear'     => ['nome' => 'Skin: Singularidade Dourada',  'tipo' => 'skin', 'preco' => 4.99,  'diamonds' => 0],
+        'skin_christmas'   => ['nome' => 'Skin: Protocolo Nevasca',      'tipo' => 'skin', 'preco' => 6.99,  'diamonds' => 0],
+        'skin_halloween'   => ['nome' => 'Skin: Núcleo do Terror',       'tipo' => 'skin', 'preco' => 6.99,  'diamonds' => 0],
+        'skin_cyberpunk'   => ['nome' => 'Skin: Matriz Neon',            'tipo' => 'skin', 'preco' => 9.99,  'diamonds' => 0],
+        // ── Skins temporárias ─────────────────────────────────────────────────
+        'skin_solar'       => ['nome' => 'Skin: Explosão Solar',         'tipo' => 'skin', 'preco' => 6.99,  'diamonds' => 0],
+        'skin_blood_moon'  => ['nome' => 'Skin: Lua de Sangue',          'tipo' => 'skin', 'preco' => 6.99,  'diamonds' => 0],
+        'skin_glacial'     => ['nome' => 'Skin: Tempestade Glacial',     'tipo' => 'skin', 'preco' => 6.99,  'diamonds' => 0],
     ];
 }
 
