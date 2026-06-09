@@ -2630,6 +2630,11 @@ input[type=range]::-webkit-slider-thumb {
 .pshop-icon--skin {
     width: 52px; height: 52px; font-size: 26px; border-width: 1px;
 }
+/* Color skin: fundo sólido na cor da skin */
+.pshop-icon--color {
+    border-width: 2px;
+    filter: drop-shadow(0 0 6px currentColor);
+}
 .pshop-icon--std {
     width: 44px; height: 44px; font-size: 22px; border-width: 1px;
 }
@@ -2815,6 +2820,33 @@ input[type=range]::-webkit-slider-thumb {
         0 6px 0 rgba(0,0,0,0.6),
         0 0 32px color-mix(in srgb, var(--skin-accent, #00f5ff) 28%, transparent),
         0 14px 32px rgba(0,0,0,0.5);
+}
+
+/* ── Color skin: barra lateral + hover sólido ── */
+.pshop-card--color::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px; width: 3px;
+    background: var(--skin-accent, #00f5ff);
+    border-radius: 0 2px 2px 0;
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+/* ── Theme skin: fundo temático com respiração suave ── */
+.pshop-card--theme::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+        radial-gradient(ellipse 90% 70% at 88% 20%, var(--skin-accent, #00f5ff) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 80% at 10% 90%, var(--skin-accent, #00f5ff) 0%, transparent 45%);
+    opacity: 0.06;
+    pointer-events: none;
+    animation: theme-breathe 5s ease-in-out infinite;
+}
+@keyframes theme-breathe {
+    0%, 100% { opacity: 0.04; }
+    50%       { opacity: 0.10; }
 }
 
 .pshop-card--std {
@@ -3290,16 +3322,24 @@ input[type=range]::-webkit-slider-thumb {
 }
 
 /* ── Temp skin timer ── */
+.pshop-timer-wrap {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px;
+}
+.pshop-timer-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    color: rgba(255,102,136,0.55); text-transform: uppercase;
+    white-space: nowrap;
+}
 .pshop-timer {
     display: inline-flex; align-items: center; gap: 4px;
-    margin-top: 5px;
-    padding: 2px 8px;
-    background: rgba(255,51,102,0.10);
-    border: 1px solid rgba(255,51,102,0.28);
-    border-radius: 4px;
-    font-size: 10px; font-weight: 700;
+    padding: 3px 9px;
+    background: rgba(255,51,102,0.12);
+    border: 1px solid rgba(255,51,102,0.32);
+    border-radius: 20px;
+    font-size: 11px; font-weight: 800;
     color: #ff6688;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
 }
 .pshop-timer--urgent {

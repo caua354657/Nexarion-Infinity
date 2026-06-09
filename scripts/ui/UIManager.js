@@ -2560,7 +2560,7 @@ class UIManager {
                 </div>
             </div>`;
 
-        // Card de skin sem badge de raridade — usa catBadge para identificar a categoria
+        // Card de skin — varia visualmente por categoria (color / theme / event)
         const _makeSkinCard = (skin, catBadge = '') => {
             const owned    = acc.hasSkin(skin.id);
             const equipped = activeSkin === skin.id;
@@ -2578,11 +2578,26 @@ class UIManager {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${_SL.t('skin.buy')}</button>`;
             }
+
+            const isColor = skin.category === 'color';
+            const isTheme = skin.category === 'theme';
+            const catClass = isColor ? ' pshop-card--color' : isTheme ? ' pshop-card--theme' : '';
+
+            // Color skins: ícone com fundo sólido na cor da skin
+            const iconHtml = isColor
+                ? `<div class="pshop-icon pshop-icon--skin pshop-icon--color" style="background:${skin.accent};border-color:${skin.accent}cc;box-shadow:0 0 20px ${skin.accent}66,0 0 8px ${skin.accent}44">${skin.icon}</div>`
+                : `<div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}1e;border-color:${skin.accent}44;box-shadow:0 0 14px ${skin.accent}22,inset 0 0 10px ${skin.accent}0f">${skin.icon}</div>`;
+
+            // Theme skins: glow mais forte no lado direito
+            const glowBg = isTheme
+                ? `radial-gradient(ellipse 100% 100% at right,${skin.accent}30 0%,${skin.accent}14 45%,transparent 70%)`
+                : `radial-gradient(ellipse 80% 100% at right,${skin.accent}22 0%,${skin.accent}0a 50%,transparent 75%)`;
+
             return `
-                <div class="pshop-card pshop-card--skin${owned ? ' pshop-card--owned' : ''}"
+                <div class="pshop-card pshop-card--skin${catClass}${owned ? ' pshop-card--owned' : ''}"
                      style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}38">
-                    <div class="pshop-skin-glow" style="background:radial-gradient(ellipse 80% 100% at right,${skin.accent}22 0%,${skin.accent}0a 50%,transparent 75%)"></div>
-                    <div class="pshop-icon pshop-icon--skin" style="background:${skin.accent}1e;border-color:${skin.accent}44;box-shadow:0 0 14px ${skin.accent}22,inset 0 0 10px ${skin.accent}0f">${skin.icon}</div>
+                    <div class="pshop-skin-glow" style="background:${glowBg}"></div>
+                    ${iconHtml}
                     <div class="pshop-info">
                         <div class="pshop-header-row">
                             <div class="pshop-title pshop-title-skin" style="color:${rc}">${_skinName(skin)}</div>
@@ -2653,8 +2668,9 @@ class UIManager {
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">${_SL.t('skin.buy')}</button>`;
             }
             const t = skin.expiresAt ? _fmtTimer(skin.expiresAt) : null;
+            const timerLabel = _SL.current === 'en' ? 'EXPIRES IN' : _SL.current === 'es' ? 'EXPIRA EN' : 'EXPIRA EM';
             const timerHtml = t
-                ? `<div class="pshop-timer ${t.cls}" data-expires="${skin.expiresAt}">${t.text}</div>`
+                ? `<div class="pshop-timer-wrap"><span class="pshop-timer-label">${timerLabel}</span><div class="pshop-timer ${t.cls}" data-expires="${skin.expiresAt}">${t.text}</div></div>`
                 : '';
             return `
                 <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}${expired ? ' pshop-card--expired' : ''}"
