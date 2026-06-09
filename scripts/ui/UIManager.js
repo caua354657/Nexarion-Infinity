@@ -2318,11 +2318,14 @@ class UIManager {
         const setStyle = (id, p, v) => { const e = document.getElementById(id); if (e) e.style[p]   = v;   };
         const setHtml  = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML  = val; };
 
+        const _lang = _bbL.current || 'pt-BR';
+        const _iName = _lang === 'en' ? (item.name_en || item.name) : _lang === 'es' ? (item.name_es || item.name) : item.name;
+        const _iDesc = _lang === 'en' ? (item.desc_en || item.desc) : _lang === 'es' ? (item.desc_es || item.desc) : item.desc;
         setEl('bbc-icon',   item.icon);
-        setEl('bbc-name',   item.name);
+        setEl('bbc-name',   _iName);
         setEl('bbc-rarity', RL[item.rarity] || item.rarity);
         setStyle('bbc-rarity', 'color', rc);
-        setEl('bbc-desc',   item.desc);
+        setEl('bbc-desc',   _iDesc);
         setEl('bbc-qty-val', qty);
 
         setEl('bbc-total-price', formatNum(totalCost) + ' ⚡');
@@ -2377,6 +2380,22 @@ class UIManager {
             limited:    '#ff3366',
         };
         const _SL = window.LANG || { t: k => k };
+        const _itemName = (item) => {
+            if (_SL.current === 'en' && item.name_en) return item.name_en;
+            if (_SL.current === 'es' && item.name_es) return item.name_es;
+            return item.name;
+        };
+        const _itemDesc = (item) => {
+            if (_SL.current === 'en' && item.desc_en) return item.desc_en;
+            if (_SL.current === 'es' && item.desc_es) return item.desc_es;
+            return item.desc;
+        };
+        const _packBonus = (pack) => {
+            if (!pack.bonus) return null;
+            if (_SL.current === 'en' && pack.bonus_en) return pack.bonus_en;
+            if (_SL.current === 'es' && pack.bonus_es) return pack.bonus_es;
+            return pack.bonus;
+        };
         const RL = {
             common:     _SL.t('rarity.common'),
             uncommon:   _SL.t('rarity.uncommon'),
@@ -2638,11 +2657,11 @@ class UIManager {
                     <div class="pshop-icon pshop-icon--std" style="background:${rc}0e;border-color:${rc}22">${item.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
-                            <div class="pshop-title pshop-title-std">${item.name}</div>
+                            <div class="pshop-title pshop-title-std">${_itemName(item)}</div>
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[item.rarity] || ''}</div>
                             <span class="pshop-duration">${durLabel}</span>
                         </div>
-                        <div class="pshop-subtitle">${item.desc}</div>
+                        <div class="pshop-subtitle">${_itemDesc(item)}</div>
                     </div>
                     <div class="pshop-actions">
                         <button class="pshop-buy-btn pshop-std-buy pshop-boost-buy" style="border-color:${rc}44;color:${rc}"
@@ -2662,10 +2681,10 @@ class UIManager {
                     <div class="pshop-icon pshop-icon--std" style="background:${rc}0e;border-color:${rc}22">${item.icon}</div>
                     <div class="pshop-info">
                         <div class="pshop-header-row">
-                            <div class="pshop-title pshop-title-std">${item.name}</div>
+                            <div class="pshop-title pshop-title-std">${_itemName(item)}</div>
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[item.rarity] || ''}</div>
                         </div>
-                        <div class="pshop-subtitle">${item.desc}</div>
+                        <div class="pshop-subtitle">${_itemDesc(item)}</div>
                     </div>
                     <div class="pshop-actions">
                         ${owned
@@ -2683,9 +2702,13 @@ class UIManager {
         const diamonds = acc.getDiamonds?.() || 0;
         const packHTML = packs.map(pack => {
             const isMega    = pack.id === 'diamonds_mega';
-            const bonusTag  = pack.bonus
-                ? `<div class="dpack-bonus">${pack.bonus}</div>`
+            const bonusText = _packBonus(pack);
+            const bonusTag  = bonusText
+                ? `<div class="dpack-bonus">${bonusText}</div>`
                 : '';
+            const packName  = (_SL.current === 'en' && pack.name_en) ? pack.name_en
+                            : (_SL.current === 'es' && pack.name_es) ? pack.name_es
+                            : pack.name;
             const popTag = '';
             if (isMega) {
                 return `
@@ -2695,7 +2718,7 @@ class UIManager {
                     <div class="dpack-info">
                         <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
                         <div class="dpack-unit">${_SL.t('diamond.unit')}</div>
-                        <div class="dpack-name">${pack.name}</div>
+                        <div class="dpack-name">${packName}</div>
                         <div class="dpack-price">${pack.price}</div>
                     </div>
                     <button class="dpack-buy-btn" data-pay-item="${pack.id}"
@@ -2710,7 +2733,7 @@ class UIManager {
                     <div class="dpack-icon">💎</div>
                     <div class="dpack-amount">${pack.diamonds.toLocaleString('pt-BR')}</div>
                     <div class="dpack-unit">${_SL.t('diamond.unit')}</div>
-                    <div class="dpack-name">${pack.name}</div>
+                    <div class="dpack-name">${packName}</div>
                     <div class="dpack-price">${pack.price}</div>
                     <button class="dpack-buy-btn" data-pay-item="${pack.id}"
                             onclick="window.game.iniciarPagamento('${pack.id}')">
@@ -4385,12 +4408,14 @@ class UIManager {
         });
 
         // Update existing cards in-place; create only for new boosts
+        const _bdLang = window.LANG?.current || 'pt-BR';
         boosts.forEach(b => {
             const pct     = Math.min(100, b.duration > 0 ? (b.remaining / b.duration) * 100 : 0);
             const secs    = Math.ceil(b.remaining / 1000);
             const timeStr = secs >= 60 ? Math.ceil(secs / 60) + 'min' : secs + 's';
             const col     = b.effect?.type === 'click_mult' ? '#ffd700' : '#00f5ff';
             const mult    = b.effect?.value || 1;
+            const bName   = _bdLang === 'en' ? (b.name_en || b.name) : _bdLang === 'es' ? (b.name_es || b.name) : b.name;
 
             let card = container.querySelector(`.boost-card[data-bid="${b.id}"]`);
 
@@ -4403,7 +4428,7 @@ class UIManager {
                 card.innerHTML = `
                     <div class="boost-card-icon">${b.icon || '⚡'}</div>
                     <div class="boost-card-body">
-                        <div class="boost-card-name">${b.name}</div>
+                        <div class="boost-card-name">${bName}</div>
                         <div class="boost-card-meta"></div>
                         <div class="boost-card-bar">
                             <div class="boost-card-fill"></div>

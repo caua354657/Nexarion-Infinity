@@ -2,35 +2,50 @@ const SHOP_ITEMS = [
     // ── Boosts temporários (compra com neurônios) ──────────────────────────────
     {
         id: 'boost_surge', name: 'Surto Neural', icon: '⚡',
+        name_en: 'Neural Surge',      name_es: 'Oleada Neural',
         desc: 'Dobra toda a produção por 60 segundos.',
+        desc_en: 'Doubles all production for 60 seconds.',
+        desc_es: 'Duplica toda la producción por 60 segundos.',
         type: 'boost', cost: 10000, currency: 'neurons',
         boostType: 'global_mult', boostValue: 2, duration: 60,
         category: 'boost', rarity: 'uncommon'
     },
     {
         id: 'boost_click', name: 'Frenesi de Clique', icon: '👆',
+        name_en: 'Click Frenzy',      name_es: 'Frenesí de Clics',
         desc: 'Multiplica o poder de clique por 5× por 30 segundos.',
+        desc_en: 'Multiplies click power by 5× for 30 seconds.',
+        desc_es: 'Multiplica el poder de clic por 5× durante 30 segundos.',
         type: 'boost', cost: 100000, currency: 'neurons',
         boostType: 'click_mult', boostValue: 5, duration: 30,
         category: 'boost', rarity: 'uncommon'
     },
     {
         id: 'boost_overdrive', name: 'Overdrive Neural', icon: '🔥',
+        name_en: 'Neural Overdrive',  name_es: 'Sobredrive Neural',
         desc: '10× produção global por 45 segundos.',
+        desc_en: '10× global production for 45 seconds.',
+        desc_es: '10× producción global por 45 segundos.',
         type: 'boost', cost: 1000000, currency: 'neurons',
         boostType: 'global_mult', boostValue: 10, duration: 45,
         category: 'boost', rarity: 'rare'
     },
     {
         id: 'boost_hyperclick', name: 'Hiper-Clique', icon: '💥',
+        name_en: 'Hyper-Click',       name_es: 'Hiperclic',
         desc: '20× poder de clique por 20 segundos.',
+        desc_en: '20× click power for 20 seconds.',
+        desc_es: '20× poder de clic por 20 segundos.',
         type: 'boost', cost: 10000000, currency: 'neurons',
         boostType: 'click_mult', boostValue: 20, duration: 20,
         category: 'boost', rarity: 'epic'
     },
     {
         id: 'boost_singularity', name: 'Singularidade Temp.', icon: '🌌',
+        name_en: 'Temp. Singularity', name_es: 'Singularidad Temp.',
         desc: '25× produção global por 10 segundos.',
+        desc_en: '25× global production for 10 seconds.',
+        desc_es: '25× producción global por 10 segundos.',
         type: 'boost', cost: 25000000, currency: 'neurons',
         boostType: 'global_mult', boostValue: 25, duration: 10,
         category: 'boost', rarity: 'legendary'
@@ -39,42 +54,60 @@ const SHOP_ITEMS = [
     // ── Melhorias permanentes (compra com diamantes) ──────────────────────────
     {
         id: 'perm_offline', name: 'Módulo Offline', icon: '💤',
+        name_en: 'Offline Module',       name_es: 'Módulo Offline',
         desc: '+50% ganhos offline permanentemente.',
+        desc_en: '+50% offline gains permanently.',
+        desc_es: '+50% ganancias offline permanentemente.',
         type: 'permanent', cost: 5, currency: 'tokens',
         effect: 'offline_bonus', effectValue: 0.5,
         category: 'permanent', rarity: 'rare'
     },
     {
         id: 'perm_crit', name: 'Reflexos Aprimorados', icon: '🎯',
+        name_en: 'Enhanced Reflexes',    name_es: 'Reflejos Mejorados',
         desc: '+5% chance de clique crítico permanentemente.',
+        desc_en: '+5% critical click chance permanently.',
+        desc_es: '+5% de probabilidad de clic crítico permanentemente.',
         type: 'permanent', cost: 10, currency: 'tokens',
         effect: 'crit_bonus', effectValue: 0.05,
         category: 'permanent', rarity: 'rare'
     },
     {
         id: 'perm_xp', name: 'Catalisador de XP', icon: '📚',
+        name_en: 'XP Catalyst',          name_es: 'Catalizador de XP',
         desc: 'Dobra todos os ganhos de XP permanentemente.',
+        desc_en: 'Doubles all XP gains permanently.',
+        desc_es: 'Duplica todas las ganancias de XP permanentemente.',
         type: 'permanent', cost: 15, currency: 'tokens',
         effect: 'xp_mult', effectValue: 2.0,
         category: 'permanent', rarity: 'epic'
     },
     {
         id: 'perm_global', name: 'Amplificador Neural', icon: '🧠',
+        name_en: 'Neural Amplifier',     name_es: 'Amplificador Neural',
         desc: '+25% produção global permanentemente.',
+        desc_en: '+25% global production permanently.',
+        desc_es: '+25% de producción global permanentemente.',
         type: 'permanent', cost: 25, currency: 'tokens',
         effect: 'global_bonus', effectValue: 0.25,
         category: 'permanent', rarity: 'epic'
     },
     {
         id: 'perm_token', name: 'Gerador de Diamantes', icon: '💎',
+        name_en: 'Diamond Generator',    name_es: 'Generador de Diamantes',
         desc: '+20% diamantes ganhos no prestígio.',
+        desc_en: '+20% diamonds earned on prestige.',
+        desc_es: '+20% de diamantes ganados en el prestigio.',
         type: 'permanent', cost: 50, currency: 'tokens',
         effect: 'token_bonus', effectValue: 0.2,
         category: 'permanent', rarity: 'legendary'
     },
     {
         id: 'perm_boss_dmg_x2', name: '2× Dano no Boss', icon: '⚔️',
+        name_en: '2× Boss Damage',       name_es: '2× Daño al Jefe',
         desc: 'Dobra permanentemente todo o dano causado em batalhas de boss.',
+        desc_en: 'Permanently doubles all damage dealt in boss battles.',
+        desc_es: 'Duplica permanentemente todo el daño en batallas de jefe.',
         type: 'permanent', cost: 50, currency: 'tokens',
         effect: 'boss_damage_mult', effectValue: 2,
         category: 'premium', rarity: 'epic'
@@ -86,6 +119,8 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_starter',
         name:     'Pacote Iniciante',
+        name_en:  'Starter Pack',
+        name_es:  'Paquete Inicial',
         icon:     '💎',
         diamonds: 50,
         price:    'R$ 1,90',
@@ -97,6 +132,8 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_small',
         name:     'Pacote Inicial',
+        name_en:  'Basic Pack',
+        name_es:  'Paquete Básico',
         icon:     '💎',
         diamonds: 150,
         price:    'R$ 4,90',
@@ -108,10 +145,14 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_medium',
         name:     'Pacote Médio',
+        name_en:  'Medium Pack',
+        name_es:  'Paquete Mediano',
         icon:     '💎',
         diamonds: 400,
         price:    'R$ 9,90',
         bonus:    '+33% Bônus',
+        bonus_en: '+33% Bonus',
+        bonus_es: '+33% Bono',
         bestValue: false,
         accent:   '#00f5ff',
         rarity:   'rare',
@@ -119,10 +160,14 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_large',
         name:     'Pacote Grande',
+        name_en:  'Large Pack',
+        name_es:  'Paquete Grande',
         icon:     '💎',
         diamonds: 1000,
         price:    'R$ 19,90',
         bonus:    '+43% Bônus',
+        bonus_en: '+43% Bonus',
+        bonus_es: '+43% Bono',
         bestValue: false,
         accent:   '#7b2fff',
         popular:  true,
@@ -131,10 +176,14 @@ const DIAMOND_PACKS = [
     {
         id:       'diamonds_mega',
         name:     'Pacote MEGA',
+        name_en:  'MEGA Pack',
+        name_es:  'Paquete MEGA',
         icon:     '💎',
         diamonds: 3000,
         price:    'R$ 49,90',
         bonus:    '🔥 MELHOR VALOR',
+        bonus_en: '🔥 BEST VALUE',
+        bonus_es: '🔥 MEJOR VALOR',
         bestValue: true,
         accent:   '#ffd700',
         rarity:   'legendary',
