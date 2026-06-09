@@ -299,7 +299,7 @@ class UIManager {
         try { this.__renderPanelContentInner(panelId, content, tabsContainer); }
         catch (e) {
             console.error('[renderPanel]', panelId, e);
-            content.innerHTML = '<div class="empty-msg">Erro ao carregar painel. Tente novamente.</div>';
+            content.innerHTML = `<div class="empty-msg">${(window.LANG||{t:k=>k}).t('friends.error.search')}</div>`;
         }
     }
 
@@ -450,7 +450,7 @@ class UIManager {
             if (id === 'export-save') {
                 this._game.save();
                 this._game.saveManager.exportFile().then(ok => {
-                    this._game.notify(ok ? 'Save exportado com sucesso!' : 'Nenhum save encontrado.', ok ? 'success' : 'error');
+                    this._game.notify(ok ? (window.LANG||{t:k=>k}).t('settings.export') + ' ✓' : (window.LANG||{t:k=>k}).t('settings.export') + ' ✗', ok ? 'success' : 'error');
                 });
             }
 
@@ -702,7 +702,7 @@ class UIManager {
         if (result.ok) {
             this._game.wipeSave();
         } else {
-            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Excluir Conta'; }
+            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = (window.LANG||{t:k=>k}).t('settings.delete'); }
             this._game.notify(result.msg || 'Erro ao excluir conta.', 'error');
         }
     }
@@ -1664,8 +1664,8 @@ class UIManager {
             tabsContainer.innerHTML = '';
             container.innerHTML = `<div class="friends-login-msg">
                 <div style="font-size:40px;margin-bottom:12px">👥</div>
-                <div style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:8px">Sistema de Amigos</div>
-                <div style="font-size:12px;color:var(--text-dim)">Faça login para adicionar amigos,<br>comparar progresso e ver status online.</div>
+                <div style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:8px">${(window.LANG||{t:k=>k}).t('friends.title')}</div>
+                <div style="font-size:12px;color:var(--text-dim)">${(window.LANG||{t:k=>k}).t('friends.no.login.desc')}</div>
             </div>`;
             return;
         }
@@ -1677,14 +1677,15 @@ class UIManager {
         const pBadge  = this._friendsPending > 0
             ? ` <span style="background:var(--pink);color:#fff;border-radius:8px;font-size:8px;padding:1px 5px;font-weight:700;vertical-align:middle">${this._friendsPending > 99 ? '99+' : this._friendsPending}</span>`
             : '';
+        const _fL = window.LANG || { t: k => k };
         tabsContainer.innerHTML = `
-            <button class="tab-btn ${tab==='list'?'active':''}"     onclick="window.game.ui._setFriendsTab('list')">👥 Lista</button>
-            <button class="tab-btn ${tab==='requests'?'active':''}" onclick="window.game.ui._setFriendsTab('requests')">📨 Pedidos${pBadge}</button>
-            <button class="tab-btn ${tab==='search'?'active':''}"   onclick="window.game.ui._setFriendsTab('search')">➕ Adicionar</button>`;
+            <button class="tab-btn ${tab==='list'?'active':''}"     onclick="window.game.ui._setFriendsTab('list')">👥 ${_fL.t('friends.tab.list')}</button>
+            <button class="tab-btn ${tab==='requests'?'active':''}" onclick="window.game.ui._setFriendsTab('requests')">📨 ${_fL.t('friends.tab.requests')}${pBadge}</button>
+            <button class="tab-btn ${tab==='search'?'active':''}"   onclick="window.game.ui._setFriendsTab('search')">➕ ${_fL.t('friends.tab.search')}</button>`;
 
         if (tab === 'search') { this._renderFriendsSearchTab(container); return; }
 
-        container.innerHTML = '<div class="friends-loading">⏳ Carregando...</div>';
+        container.innerHTML = `<div class="friends-loading">⏳ ${_fL.t('friends.loading')}</div>`;
 
         this._fetchFriendsList().then(data => {
             if (tab === 'list')     this._buildFriendsListHTML(container, data);
@@ -1740,33 +1741,35 @@ class UIManager {
 
     _buildFriendsListHTML(container, data) {
         const friends = data.friends || [];
+        const _flL = window.LANG || { t: k => k };
         if (!friends.length) {
             container.innerHTML = `<div class="friends-empty">
                 <div style="font-size:32px;margin-bottom:10px">🤝</div>
-                <div style="margin-bottom:12px">Nenhum amigo ainda.</div>
+                <div style="margin-bottom:12px">${_flL.t('friends.empty')}</div>
                 <button class="fr-btn fr-btn--add" style="padding:8px 18px;font-size:12px"
-                    onclick="window.game.ui._setFriendsTab('search')">➕ Buscar e Adicionar Amigos</button>
+                    onclick="window.game.ui._setFriendsTab('search')">➕ ${_flL.t('friends.search.add')}</button>
             </div>`; return;
         }
         container.innerHTML = `
             <div style="display:flex;justify-content:flex-end;padding:6px 12px 0">
                 <button class="fr-btn fr-btn--add" style="font-size:10px"
-                    onclick="window.game.ui._setFriendsTab('search')">➕ Adicionar</button>
+                    onclick="window.game.ui._setFriendsTab('search')">➕ ${_flL.t('friends.tab.search')}</button>
             </div>
             ${friends.map(f => this._buildFriendRow(f, true)).join('')}`;
     }
 
     _buildFriendsRequestsHTML(container, data) {
         const recv = data.received || [], sent = data.sent || [];
+        const _frL = window.LANG || { t: k => k };
         let html = '';
         if (recv.length) {
-            html += `<div class="friends-section-title">📨 Pedidos recebidos (${recv.length})</div>`;
+            html += `<div class="friends-section-title">📨 ${_frL.t('friends.requests.received')} (${recv.length})</div>`;
             html += recv.map(f => `
                 <div class="friend-row">
                     ${this._friendAvatar(f, false)}
                     <div class="friend-info">
                         <div class="friend-name">${f.vip ? '<span class="fr-vip">👑</span>' : ''}${f.username}</div>
-                        <div class="friend-sub">Nv. ${f.nivel}</div>
+                        <div class="friend-sub">${_frL.t('friends.sub.level')} ${f.nivel}</div>
                     </div>
                     <div class="friend-actions">
                         <button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">✓</button>
@@ -1775,29 +1778,30 @@ class UIManager {
                 </div>`).join('');
         }
         if (sent.length) {
-            html += `<div class="friends-section-title" style="margin-top:12px">📤 Pedidos enviados (${sent.length})</div>`;
+            html += `<div class="friends-section-title" style="margin-top:12px">📤 ${_frL.t('friends.requests.sent')} (${sent.length})</div>`;
             html += sent.map(f => `
                 <div class="friend-row">
                     ${this._friendAvatar(f, false)}
                     <div class="friend-info">
                         <div class="friend-name">${f.username}</div>
-                        <div class="friend-sub">Nv. ${f.nivel} · Aguardando resposta</div>
+                        <div class="friend-sub">${_frL.t('friends.sub.level')} ${f.nivel} · ${_frL.t('friends.sub.waiting')}</div>
                     </div>
                     <div class="friend-actions">
                         <button class="fr-btn fr-btn--decline" onclick="window.game.ui._friendAction('decline',${f.id})">✗</button>
                     </div>
                 </div>`).join('');
         }
-        if (!recv.length && !sent.length) html = `<div class="friends-empty">Nenhum pedido pendente.</div>`;
+        if (!recv.length && !sent.length) html = `<div class="friends-empty">${_frL.t('friends.no.requests')}</div>`;
         container.innerHTML = html;
     }
 
     _renderFriendsSearchTab(container) {
         const q = this._friendsSearchQ || '';
+        const _fsL = window.LANG || { t: k => k };
         container.innerHTML = `
             <div class="friends-search-bar">
                 <input class="friends-search-input" id="fr-search-input" type="text"
-                    placeholder="Buscar jogador por nome..." value="${q}"
+                    placeholder="${_fsL.t('friends.search.placeholder')}" value="${q}"
                     oninput="window.game.ui._onFriendSearch(this.value)">
             </div>
             <div id="fr-search-results" class="friends-search-results"></div>`;
@@ -1809,8 +1813,9 @@ class UIManager {
         clearTimeout(this._friendsSearchTimer);
         const el = document.getElementById('fr-search-results');
         if (!el) return;
-        if (q.length < 2) { el.innerHTML = '<div class="friends-empty">Digite ao menos 2 caracteres.</div>'; return; }
-        el.innerHTML = '<div class="friends-loading">⏳ Buscando...</div>';
+        const _foL = window.LANG || { t: k => k };
+        if (q.length < 2) { el.innerHTML = `<div class="friends-empty">${_foL.t('friends.search.min.chars')}</div>`; return; }
+        el.innerHTML = `<div class="friends-loading">⏳ ${_foL.t('friends.search.loading')}</div>`;
         this._friendsSearchTimer = setTimeout(() => this._doFriendSearch(q), 400);
     }
 
@@ -1820,25 +1825,26 @@ class UIManager {
         try {
             const res  = await fetch(`api/amigos.php?action=search&q=${encodeURIComponent(q)}`);
             const data = await res.json();
-            if (!data.ok || !data.results.length) { el.innerHTML = '<div class="friends-empty">Nenhum jogador encontrado.</div>'; return; }
+            const _sdL = window.LANG || { t: k => k };
+            if (!data.ok || !data.results.length) { el.innerHTML = `<div class="friends-empty">${_sdL.t('friends.search.empty')}</div>`; return; }
             el.innerHTML = data.results.map(f => {
                 const btnHtml = {
-                    friend:   `<button class="fr-btn fr-btn--remove" onclick="window.game.ui._friendAction('remove',${f.id})">Remover</button>`,
-                    sent:     `<span class="fr-tag">Pendente</span>`,
-                    received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">Aceitar</button>`,
-                    none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${f.id})">+ Adicionar</button>`,
+                    friend:   `<button class="fr-btn fr-btn--remove" onclick="window.game.ui._friendAction('remove',${f.id})">${_sdL.t('friends.btn.remove')}</button>`,
+                    sent:     `<span class="fr-tag">${_sdL.t('friends.btn.pending')}</span>`,
+                    received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${f.id})">${_sdL.t('friends.btn.accept')}</button>`,
+                    none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${f.id})">+ ${_sdL.t('friends.tab.search')}</button>`,
                 }[f.rel] || '';
                 const isFriend = f.rel === 'friend';
                 return `<div class="friend-row">
                     ${this._friendAvatar(f, isFriend)}
                     <div class="friend-info">
                         <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
-                        <div class="friend-sub">Nv. ${f.nivel}</div>
+                        <div class="friend-sub">${_sdL.t('friends.sub.level')} ${f.nivel}</div>
                     </div>
                     <div class="friend-actions">${btnHtml}</div>
                 </div>`;
             }).join('');
-        } catch { el.innerHTML = '<div class="friends-error">⚠️ Erro ao buscar.</div>'; }
+        } catch { el.innerHTML = `<div class="friends-error">${(window.LANG||{t:k=>k}).t('friends.error.search')}</div>`; }
     }
 
     _buildFriendRow(f, showActions = true) {
@@ -1853,7 +1859,7 @@ class UIManager {
             ${this._friendAvatar(f)}
             <div class="friend-info" style="cursor:pointer" onclick="window.game.ui._openFriendProfile(${f.id})">
                 <div class="friend-name">${f.vip?'<span class="fr-vip">👑</span>':''}${f.username}</div>
-                <div class="friend-sub">Nv. ${f.nivel}</div>
+                <div class="friend-sub">${(window.LANG||{t:k=>k}).t('friends.sub.level')} ${f.nivel}</div>
             </div>
             ${actions}
         </div>`;
@@ -1925,27 +1931,27 @@ class UIManager {
     }
 
     async _renderFriendProfileView(container, tabsContainer) {
-        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← Voltar</button>`;
-        container.innerHTML = '<div class="friends-loading">⏳ Carregando perfil...</div>';
+        const _fpL = window.LANG || { t: k => k };
+        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← ${_fpL.t('profile.register.cancel')}</button>`;
+        container.innerHTML = `<div class="friends-loading">⏳ ${_fpL.t('friends.loading')}</div>`;
         try {
             const res  = await fetch(`api/amigos.php?action=profile&id=${this._friendsProfileId}`);
             const data = await res.json();
-            if (!data.ok) { container.innerHTML = `<div class="friends-error">⚠️ ${data.msg || 'Erro ao carregar perfil.'}</div>`; return; }
+            if (!data.ok) { container.innerHTML = `<div class="friends-error">⚠️ ${data.msg || _fpL.t('friends.error.search')}</div>`; return; }
             const p = data.profile;
             const src = p.foto ? `foto/${p.foto}` : 'foto/padrao.png';
-            const since = new Date(p.criado_em).toLocaleDateString('pt-BR');
+            const since = new Date(p.criado_em).toLocaleDateString();
             const isSelf    = p.id === this._game.account.getAccount()?.id;
             const removeBtn = (!isSelf && p.rel === 'friend')
-                ? `<button class="fr-btn fr-btn--remove fp-remove-btn" onclick="window.game.ui._confirmRemoveFriend(${p.id},'${(p.username||'').replace(/'/g,'')}')" title="Remover Amigo">✗ Remover</button>`
+                ? `<button class="fr-btn fr-btn--remove fp-remove-btn" onclick="window.game.ui._confirmRemoveFriend(${p.id},'${(p.username||'').replace(/'/g,'')}')" title="${_fpL.t('friends.btn.remove')}">✗ ${_fpL.t('friends.btn.remove')}</button>`
                 : '';
             const actionBtn = {
-                sent:     `<span class="fr-tag">Pedido Enviado</span>`,
-                received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${p.id})">Aceitar Pedido</button>`,
-                none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${p.id})">+ Adicionar Amigo</button>`,
+                sent:     `<span class="fr-tag">${_fpL.t('friends.btn.pending')}</span>`,
+                received: `<button class="fr-btn fr-btn--accept" onclick="window.game.ui._friendAction('accept',${p.id})">${_fpL.t('friends.btn.accept')}</button>`,
+                none:     `<button class="fr-btn fr-btn--add" onclick="window.game.ui._friendAction('send',${p.id})">+ ${_fpL.t('friends.tab.search')}</button>`,
             }[p.rel] || '';
             const compareBtn = '';
 
-            const dim  = `<span style="color:rgba(255,255,255,0.2)">—</span>`;
             const card = (icon, label, val) =>
                 `<div class="stat-card"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span><span class="stat-value">${val}</span></div>`;
             const sec  = label => `<div class="stat-section-label">${label}</div>`;
@@ -1960,35 +1966,35 @@ class UIManager {
                         <div class="fp-info">
                             <div class="fp-name">${p.vip?'<span class="fr-vip">👑</span>':''}${p.username}</div>
                             <div class="fp-status ${p.online?'fp-status--online':'fp-status--offline'}">${p.online?'● Online':'● Offline'}</div>
-                            <div class="fp-since">📅 Desde ${since}</div>
+                            <div class="fp-since">📅 ${_fpL.t('profile.since')} ${since}</div>
                         </div>
                         ${removeBtn}
                     </div>
                     <div style="margin-bottom:14px">
-                        ${sec('Progressão')}
-                        ${card('⭐', 'Nível',                p.nivel)}
-                        ${card('📊', 'XP Total',             formatNum(p.total_xp))}
-                        ${card('👑', 'Prestígios',           p.total_prestigios)}
-                        ${card('🧬', 'Pontos de Habilidade', p.skill_points + ' SP')}
-                        ${card('💎', 'Diamantes',            formatNum(p.diamantes))}
-                        ${sec('Neurônios')}
-                        ${card('🧠', 'Neurônios Vitalícios', formatNum(p.neuronios_vitais))}
-                        ${sec('Combate')}
-                        ${card('🖱️', 'Total de Cliques',  formatNum(p.total_cliques))}
-                        ${card('💥', 'Cliques Críticos',  formatNum(p.crit_clicks))}
-                        ${sec('Conquistas')}
-                        ${card('🏆', 'Conquistas',         p.ach_count)}
-                        ${card('✅', 'Missões Resgatadas', p.miss_count)}
-                        ${sec('Boss')}
-                        ${card('🗡️', 'Nível do Chefe',      p.nivel_chefe)}
-                        ${card('⚔️', 'Dano Total ao Chefe', formatNum(p.total_dano))}
-                        ${card('💀', 'Abates de Chefes',    p.abates)}
-                        ${sec('Geral')}
-                        ${card('🕐', 'Tempo de Jogo', formatTime(p.play_time))}
+                        ${sec(_fpL.t('stats.progression'))}
+                        ${card('⭐', _fpL.t('stats.level'),            p.nivel)}
+                        ${card('📊', _fpL.t('stats.xp.total'),         formatNum(p.total_xp))}
+                        ${card('👑', _fpL.t('stats.prestiges'),        p.total_prestigios)}
+                        ${card('🧬', _fpL.t('stats.skill.points'),     p.skill_points + ' SP')}
+                        ${card('💎', _fpL.t('stats.diamonds'),         formatNum(p.diamantes))}
+                        ${sec(_fpL.t('stats.neurons.section'))}
+                        ${card('🧠', _fpL.t('stats.neurons.lifetime'), formatNum(p.neuronios_vitais))}
+                        ${sec(_fpL.t('stats.combat'))}
+                        ${card('🖱️', _fpL.t('stats.clicks.total'),    formatNum(p.total_cliques))}
+                        ${card('💥', _fpL.t('stats.clicks.crit'),      formatNum(p.crit_clicks))}
+                        ${sec(_fpL.t('stats.ach.section'))}
+                        ${card('🏆', _fpL.t('stats.ach.section'),      p.ach_count)}
+                        ${card('✅', _fpL.t('stats.missions.claimed'), p.miss_count)}
+                        ${sec(_fpL.t('stats.boss.section'))}
+                        ${card('🗡️', _fpL.t('stats.boss.level'),       p.nivel_chefe)}
+                        ${card('⚔️', _fpL.t('stats.boss.damage'),      formatNum(p.total_dano))}
+                        ${card('💀', _fpL.t('stats.boss.kills'),        p.abates)}
+                        ${sec(_fpL.t('stats.general'))}
+                        ${card('🕐', _fpL.t('stats.playtime'),          formatTime(p.play_time))}
                     </div>
                     ${(!isSelf && (actionBtn || compareBtn)) ? `<div class="fp-actions">${actionBtn}${compareBtn}</div>` : ''}
                 </div>`;
-        } catch { container.innerHTML = '<div class="friends-error">⚠️ Erro ao carregar perfil.</div>'; }
+        } catch { container.innerHTML = `<div class="friends-error">⚠️ ${_fpL.t('friends.error.search')}</div>`; }
     }
 
     async _openFriendCompare(id) {
@@ -1999,15 +2005,16 @@ class UIManager {
     }
 
     async _renderFriendCompareView(container, tabsContainer) {
-        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← Voltar</button>`;
-        container.innerHTML = '<div class="friends-loading">⏳ Carregando comparação...</div>';
+        const _fcL = window.LANG || { t: k => k };
+        if (tabsContainer) tabsContainer.innerHTML = `<button class="tab-btn active" style="color:var(--text-dim);font-size:10px" onclick="window.game.ui._closeFriendSubview()">← ${_fcL.t('profile.register.cancel')}</button>`;
+        container.innerHTML = `<div class="friends-loading">⏳ ${_fcL.t('friends.loading')}</div>`;
         try {
             const res  = await fetch(`api/amigos.php?action=profile&id=${this._friendsCompareId}`);
             const data = await res.json();
             if (!data.ok) { container.innerHTML = `<div class="friends-error">⚠️ ${data.msg}</div>`; return; }
             const p  = data.profile;
             const g  = this._game;
-            const myName = g.account.getAccount()?.username || 'Você';
+            const myName = g.account.getAccount()?.username || _fcL.t('profile.local.label');
             const critChance = ((Config.CRITICAL_CHANCE + g.skills.getCritBonus() + g.shop.getCritBonus()) * 100).toFixed(1) + '%';
 
             // diff only for numeric pairs; null frVal means friend data unavailable
@@ -2022,36 +2029,36 @@ class UIManager {
 
             // sections mirror _getStatsData() order
             const sections = [
-                { title: 'Progressão', icon: '⭐', rows: [
-                    { icon: '⭐', label: 'Nível',               meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
-                    { icon: '📊', label: 'XP Total',            meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
-                    { icon: '👑', label: 'Prestígios',          meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
-                    { icon: '✦',  label: 'Mult. Prestígio',     meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
-                    { icon: '🧬', label: 'Pts. Habilidade',     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
-                    { icon: '💎', label: 'Diamantes',           meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
+                { title: _fcL.t('stats.progression'), icon: '⭐', rows: [
+                    { icon: '⭐', label: _fcL.t('stats.level'),            meV: g.level.level,                               frV: p.nivel,            fmt: v => v },
+                    { icon: '📊', label: _fcL.t('stats.xp.total'),         meV: formatNum(g.level.totalXp),                  frV: null,               fmt: null },
+                    { icon: '👑', label: _fcL.t('stats.prestiges'),        meV: g.economy.totalPrestiges,                    frV: p.total_prestigios, fmt: v => v },
+                    { icon: '✦',  label: _fcL.t('stats.prestige.mult'),    meV: g.economy._prestigeMult.toFixed(2) + '×',   frV: null,               fmt: null },
+                    { icon: '🧬', label: _fcL.t('stats.skill.points'),     meV: g.skills.skillPoints + ' SP',               frV: null,               fmt: null },
+                    { icon: '💎', label: _fcL.t('stats.diamonds'),         meV: g.economy.prestigeTokens,                    frV: p.diamantes,        fmt: v => v },
                 ]},
-                { title: 'Neurônios', icon: '🧠', rows: [
-                    { icon: '🧠', label: 'Neurônios Vitalícios',meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
-                    { icon: '⚡', label: 'Neurônios (Ciclo)',   meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
-                    { icon: '⚡', label: 'Neurônios/seg',       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
-                    { icon: '👆', label: 'Valor do Clique',     meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
+                { title: _fcL.t('stats.neurons.section'), icon: '🧠', rows: [
+                    { icon: '🧠', label: _fcL.t('stats.neurons.lifetime'), meV: g.economy.lifetimeNeurons,                   frV: p.neuronios_vitais, fmt: formatNum },
+                    { icon: '⚡', label: _fcL.t('stats.neurons.cycle'),    meV: formatNum(g.economy.totalNeurons),            frV: null,               fmt: null },
+                    { icon: '⚡', label: _fcL.t('stats.neurons.ps'),       meV: formatNum(g.economy.getEffectiveNPS()),       frV: null,               fmt: null },
+                    { icon: '👆', label: _fcL.t('stats.click.value'),      meV: formatNum(g.economy.getClickValue()),         frV: null,               fmt: null },
                 ]},
-                { title: 'Combate', icon: '🖱️', rows: [
-                    { icon: '🖱️', label: 'Total de Cliques',    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
-                    { icon: '💥', label: 'Cliques Críticos',    meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
-                    { icon: '🎯', label: 'Chance Crítica',      meV: critChance,                                  frV: null,               fmt: null },
+                { title: _fcL.t('stats.combat'), icon: '🖱️', rows: [
+                    { icon: '🖱️', label: _fcL.t('stats.clicks.total'),    meV: g.stats.totalClicks,                         frV: p.total_cliques,    fmt: formatNum },
+                    { icon: '💥', label: _fcL.t('stats.clicks.crit'),      meV: formatNum(g.stats.critClicks),               frV: null,               fmt: null },
+                    { icon: '🎯', label: _fcL.t('stats.crit.chance'),      meV: critChance,                                  frV: null,               fmt: null },
                 ]},
-                { title: 'Boss', icon: '⚔️', rows: [
-                    { icon: '🗡️', label: 'Nível do Chefe',      meV: g.boss?.userBossLevel || 0,                 frV: p.nivel_chefe,      fmt: v => v },
-                    { icon: '⚔️', label: 'Dano ao Chefe',       meV: g.boss?.lifetimeDamage || 0,                frV: p.total_dano,       fmt: formatNum },
-                    { icon: '💀', label: 'Abates',              meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
+                { title: _fcL.t('stats.boss.section'), icon: '⚔️', rows: [
+                    { icon: '🗡️', label: _fcL.t('stats.boss.level'),       meV: g.boss?.userBossLevel || 0,                 frV: p.nivel_chefe,      fmt: v => v },
+                    { icon: '⚔️', label: _fcL.t('stats.boss.damage'),      meV: g.boss?.lifetimeDamage || 0,                frV: p.total_dano,       fmt: formatNum },
+                    { icon: '💀', label: _fcL.t('stats.boss.kills'),        meV: g.boss?.bossKills || 0,                     frV: p.abates,           fmt: v => v },
                 ]},
-                { title: 'Conquistas', icon: '🏆', rows: [
-                    { icon: '🏆', label: 'Conquistas',          meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
-                    { icon: '✅', label: 'Missões Resgatadas',  meV: g.missions.claims.size,                     frV: null,               fmt: null },
+                { title: _fcL.t('stats.ach.section'), icon: '🏆', rows: [
+                    { icon: '🏆', label: _fcL.t('stats.ach.section'),      meV: g.achievements.unlocked.size + ' / ' + (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : '?'), frV: null, fmt: null },
+                    { icon: '✅', label: _fcL.t('stats.missions.claimed'), meV: g.missions.claims.size,                     frV: null,               fmt: null },
                 ]},
-                { title: 'Geral', icon: '🕐', rows: [
-                    { icon: '🕐', label: 'Tempo de Jogo',       meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
+                { title: _fcL.t('stats.general'), icon: '🕐', rows: [
+                    { icon: '🕐', label: _fcL.t('stats.playtime'),          meV: formatTime(g.stats.playTime),               frV: null,               fmt: null },
                 ]},
             ];
 
@@ -2086,12 +2093,12 @@ class UIManager {
                     </div>
                     <div class="compare-table">
                         <div class="compare-thead">
-                            <div>Estatísticas</div><div>Você</div><div>${p.username}</div><div>Diferença</div>
+                            <div>${_fcL.t('profile.stats.title')}</div><div>${myName}</div><div>${p.username}</div><div>${_fcL.t('boss.world.progression')}</div>
                         </div>
                         ${rowsHTML}
                     </div>
                 </div>`;
-        } catch (e) { container.innerHTML = '<div class="friends-error">⚠️ Erro ao comparar.</div>'; }
+        } catch (e) { container.innerHTML = `<div class="friends-error">⚠️ ${_fcL.t('friends.error.search')}</div>`; }
     }
 
     _closeFriendSubview() {
@@ -3477,13 +3484,15 @@ class UIManager {
 
     _renderBossLocked(content) {
         const needed = Math.max(0, 35 - this._game.level.level);
+        const _blL = window.LANG || { t: k => k };
+        const levelsStr = needed === 1 ? _blL.t('boss.locked.level.singular') : _blL.t('boss.locked.level.plural');
         content.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center">
                 <div style="font-size:52px;margin-bottom:16px">🔒</div>
-                <div style="font-family:'Orbitron',monospace;font-size:15px;color:var(--cyan);font-weight:700;margin-bottom:8px">NÍVEL 35 NECESSÁRIO</div>
-                <div style="font-size:12px;color:var(--text-dim);max-width:240px;line-height:1.5">Continue evoluindo para desafiar os Bosses Neurais!</div>
+                <div style="font-family:'Orbitron',monospace;font-size:15px;color:var(--cyan);font-weight:700;margin-bottom:8px">${_blL.t('boss.locked.title')}</div>
+                <div style="font-size:12px;color:var(--text-dim);max-width:240px;line-height:1.5">${_blL.t('boss.locked.desc')}</div>
                 <div style="margin-top:24px;font-family:'Orbitron',monospace;font-size:22px;color:var(--gold);font-weight:700">Lv ${this._game.level.level}</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${needed} ${needed !== 1 ? 'níveis' : 'nível'} para desbloquear</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${needed} ${levelsStr} ${_blL.t('boss.locked.to.unlock')}</div>
             </div>`;
     }
 
@@ -3622,31 +3631,32 @@ class UIManager {
 
     _showPaymentMethodModal(itemId, itemLabel, itemPrice) {
         document.getElementById('pay-method-overlay')?.remove();
+        const _pmL = window.LANG || { t: k => k };
 
         const overlay = document.createElement('div');
         overlay.id = 'pay-method-overlay';
         overlay.className = 'pay-overlay';
         overlay.innerHTML = `
             <div class="pay-modal pay-method-modal">
-                <div class="pay-method-title">Como você quer pagar?</div>
+                <div class="pay-method-title">${_pmL.t('pay.method.title')}</div>
                 <div class="pay-method-item">${itemLabel} · <strong>${itemPrice}</strong></div>
                 <div class="pay-method-options">
                     <button class="pay-method-btn pay-method-btn--pix" id="pay-opt-pix">
                         <span class="pay-method-icon">💚</span>
                         <span class="pay-method-info">
                             <span class="pay-method-name">PIX</span>
-                            <span class="pay-method-sub">Aprovação instantânea</span>
+                            <span class="pay-method-sub">${_pmL.t('pay.pix.instant')}</span>
                         </span>
                     </button>
                     <button class="pay-method-btn pay-method-btn--card" id="pay-opt-card">
                         <span class="pay-method-icon">💳</span>
                         <span class="pay-method-info">
-                            <span class="pay-method-name">Cartão / Outros</span>
-                            <span class="pay-method-sub">Crédito, débito, boleto</span>
+                            <span class="pay-method-name">${_pmL.t('pay.card.name')}</span>
+                            <span class="pay-method-sub">${_pmL.t('pay.card.sub')}</span>
                         </span>
                     </button>
                 </div>
-                <button class="pay-btn pay-btn--cancel" id="pay-method-cancel">Cancelar</button>
+                <button class="pay-btn pay-btn--cancel" id="pay-method-cancel">${_pmL.t('profile.register.cancel')}</button>
             </div>`;
         document.body.appendChild(overlay);
 
@@ -3665,6 +3675,7 @@ class UIManager {
 
     _showPixModal(itemId, txId, paymentId, qrCode, qrBase64) {
         document.getElementById('pay-pix-overlay')?.remove();
+        const _ppL = window.LANG || { t: k => k };
 
         const overlay = document.createElement('div');
         overlay.id = 'pay-pix-overlay';
@@ -3679,20 +3690,20 @@ class UIManager {
                 <div class="pix-header">
                     <span class="pix-logo">💚</span>
                     <div>
-                        <div class="pix-title">Pague com PIX</div>
-                        <div class="pix-sub">Escaneie o QR Code ou copie o código</div>
+                        <div class="pix-title">${_ppL.t('pay.pix.title')}</div>
+                        <div class="pix-sub">${_ppL.t('pay.pix.sub')}</div>
                     </div>
                 </div>
                 <div class="pix-qr-wrap">${qrWrapInner}</div>
                 <div class="pix-copy-section">
-                    <div class="pix-code-label">PIX Copia e Cola:</div>
+                    <div class="pix-code-label">${_ppL.t('pay.pix.label')}</div>
                     <div class="pix-code-box">${qrCode}</div>
-                    <button class="pix-copy-btn">📋 Copiar código</button>
+                    <button class="pix-copy-btn">${_ppL.t('pay.pix.copy')}</button>
                 </div>
-                <div class="pay-status-msg">Aguardando pagamento...</div>
+                <div class="pay-status-msg">${_ppL.t('pay.status.waiting')}</div>
                 <div class="pay-actions">
-                    <button class="pay-btn pay-btn--check">🔄 Já paguei — Verificar</button>
-                    <button class="pay-btn pay-btn--cancel">Cancelar</button>
+                    <button class="pay-btn pay-btn--check">${_ppL.t('pay.btn.check')}</button>
+                    <button class="pay-btn pay-btn--cancel">${_ppL.t('profile.register.cancel')}</button>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
@@ -3716,30 +3727,30 @@ class UIManager {
         overlay.querySelector('.pix-copy-btn')?.addEventListener('click', () => {
             navigator.clipboard?.writeText(qrCode).then(() => {
                 const btn = overlay.querySelector('.pix-copy-btn');
-                if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar código'; }, 2000); }
+                if (btn) { btn.textContent = _ppL.t('pay.pix.copied'); setTimeout(() => { btn.textContent = _ppL.t('pay.pix.copy'); }, 2000); }
             });
         });
 
         let polling = null, done = false;
         const checkStatus = async () => {
             if (done) return;
-            setMsg('Verificando...');
+            setMsg(_ppL.t('pay.status.checking'));
             try {
                 const res  = await fetch(`api/pagamento.php?action=status&id=${txId}`);
                 const data = await res.json();
                 if (data.status === 'approved') {
                     done = true; clearInterval(polling);
-                    setMsg('✓ PIX recebido! Liberando...', true);
+                    setMsg(_ppL.t('pay.status.ok'), true);
                     setTimeout(() => { overlay.remove(); if (data.item_id) this._game._entregarItem(data.item_id); }, 900);
                     return;
                 }
                 if (['rejected', 'cancelled', 'refunded'].includes(data.status)) {
                     done = true; clearInterval(polling);
-                    overlay.remove(); this._game.notify('Pagamento não aprovado.', 'error');
+                    overlay.remove(); this._game.notify(_ppL.t('pay.status.failed'), 'error');
                     return;
                 }
-                setMsg('Aguardando pagamento PIX...');
-            } catch { setMsg('Verificando conexão...'); }
+                setMsg(_ppL.t('pay.status.pix.waiting'));
+            } catch { setMsg(_ppL.t('pay.status.verifying.conn')); }
         };
         polling = setInterval(checkStatus, 5000);
 
@@ -3753,6 +3764,7 @@ class UIManager {
 
     _showPixModalEstatico(itemId, txId) {
         document.getElementById('pay-pix-overlay')?.remove();
+        const _psL = window.LANG || { t: k => k };
 
         const PIX_STATIC = '00020126330014BR.GOV.BCB.PIX0111045117310475204000053039865802BR5901N6001C62070503***63042FCA';
 
@@ -3764,22 +3776,22 @@ class UIManager {
                 <div class="pix-header">
                     <span class="pix-logo">💚</span>
                     <div>
-                        <div class="pix-title">Pague com PIX</div>
-                        <div class="pix-sub">Escaneie o QR Code ou copie o código</div>
+                        <div class="pix-title">${_psL.t('pay.pix.title')}</div>
+                        <div class="pix-sub">${_psL.t('pay.pix.sub')}</div>
                     </div>
                 </div>
                 <div class="pix-qr-wrap">
                     <div class="pix-qr-canvas-host"></div>
                 </div>
                 <div class="pix-copy-section">
-                    <div class="pix-code-label">PIX Copia e Cola:</div>
+                    <div class="pix-code-label">${_psL.t('pay.pix.label')}</div>
                     <div class="pix-code-box">${PIX_STATIC}</div>
-                    <button class="pix-copy-btn">📋 Copiar código</button>
+                    <button class="pix-copy-btn">${_psL.t('pay.pix.copy')}</button>
                 </div>
-                <div class="pay-status-msg">Aguardando pagamento PIX...</div>
+                <div class="pay-status-msg">${_psL.t('pay.status.pix.waiting')}</div>
                 <div class="pay-actions">
-                    <button class="pay-btn pay-btn--check">🔄 Já paguei — Verificar</button>
-                    <button class="pay-btn pay-btn--cancel">Cancelar</button>
+                    <button class="pay-btn pay-btn--check">${_psL.t('pay.btn.check')}</button>
+                    <button class="pay-btn pay-btn--cancel">${_psL.t('profile.register.cancel')}</button>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
@@ -3803,26 +3815,26 @@ class UIManager {
         overlay.querySelector('.pix-copy-btn')?.addEventListener('click', () => {
             navigator.clipboard?.writeText(PIX_STATIC).then(() => {
                 const btn = overlay.querySelector('.pix-copy-btn');
-                if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar código'; }, 2000); }
+                if (btn) { btn.textContent = _psL.t('pay.pix.copied'); setTimeout(() => { btn.textContent = _psL.t('pay.pix.copy'); }, 2000); }
             });
         });
 
         let done = false, polling = null;
         const checkStatus = async () => {
             if (done) return;
-            setMsg('Verificando...');
+            setMsg(_psL.t('pay.status.checking'));
             try {
                 const res  = await fetch(`api/pagamento.php?action=verificar_pix_estatico&tx_id=${txId}`);
                 const data = await res.json();
                 if (data.status === 'approved') {
                     done = true; clearInterval(polling);
-                    setMsg('✓ Pagamento confirmado! Liberando...', true);
+                    setMsg(_psL.t('pay.status.confirmed'), true);
                     setTimeout(() => { overlay.remove(); if (data.item_id) this._game._entregarItem(data.item_id); }, 900);
                     return;
                 }
-                setMsg('Aguardando confirmação do pagamento...');
+                setMsg(_psL.t('pay.status.confirm.waiting'));
             } catch {
-                setMsg('Erro de conexão. Tente novamente.');
+                setMsg(_psL.t('pay.status.conn.error'));
             }
         };
 
@@ -3841,13 +3853,14 @@ class UIManager {
             if (btn.dataset.payItem === itemId) {
                 btn.disabled = loading;
                 if (loading) btn.dataset.origText = btn.textContent;
-                btn.textContent = loading ? '⏳ Aguarde...' : (btn.dataset.origText || 'Adquirir');
+                btn.textContent = loading ? '⏳ ' + (window.LANG||{t:k=>k}).t('friends.loading') : (btn.dataset.origText || (window.LANG||{t:k=>k}).t('skin.buy'));
             }
         });
     }
 
     _showPaymentWaitModal(itemId, txId) {
         document.getElementById('pay-wait-overlay')?.remove();
+        const _pwL = window.LANG || { t: k => k };
 
         const overlay = document.createElement('div');
         overlay.id = 'pay-wait-overlay';
@@ -3855,13 +3868,13 @@ class UIManager {
         overlay.innerHTML = `
             <div class="pay-modal">
                 <div class="pay-icon">💳</div>
-                <div class="pay-title">Aguardando Pagamento</div>
-                <div class="pay-sub">Finalize a compra na janela do Mercado Pago.<br>Esta janela atualiza automaticamente.</div>
+                <div class="pay-title">${_pwL.t('pay.status.waiting')}</div>
+                <div class="pay-sub">${_pwL.t('pay.status.confirm.waiting')}</div>
                 <div class="pay-spinner"></div>
-                <div class="pay-status-msg" id="pay-status-msg">Verificando...</div>
+                <div class="pay-status-msg" id="pay-status-msg">${_pwL.t('pay.status.checking')}</div>
                 <div class="pay-actions">
-                    <button class="pay-btn pay-btn--check" id="pay-check-now">🔄 Já paguei — Verificar agora</button>
-                    <button class="pay-btn pay-btn--cancel" id="pay-cancel">Cancelar</button>
+                    <button class="pay-btn pay-btn--check" id="pay-check-now">${_pwL.t('pay.btn.check')}</button>
+                    <button class="pay-btn pay-btn--cancel" id="pay-cancel">${_pwL.t('profile.register.cancel')}</button>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
@@ -3876,16 +3889,16 @@ class UIManager {
 
         const checkStatus = async () => {
             if (done) return;
-            setMsg('Verificando...');
+            setMsg(_pwL.t('pay.status.checking'));
             try {
                 const res  = await fetch(`api/pagamento.php?action=status&id=${txId}`);
                 const data = await res.json();
-                if (!data.ok) { setMsg('Erro ao verificar. Tentando...'); return; }
+                if (!data.ok) { setMsg(_pwL.t('pay.status.verifying.conn')); return; }
 
                 if (data.status === 'approved') {
                     done = true;
                     clearInterval(polling);
-                    setMsg('✓ Pagamento aprovado!', true);
+                    setMsg(_pwL.t('pay.status.confirmed'), true);
                     setTimeout(() => {
                         overlay.remove();
                         if (data.item_id) this._game._entregarItem(data.item_id);
@@ -3896,12 +3909,12 @@ class UIManager {
                     done = true;
                     clearInterval(polling);
                     overlay.remove();
-                    this._game.notify('Pagamento não aprovado. Tente novamente.', 'error');
+                    this._game.notify(_pwL.t('pay.status.failed'), 'error');
                     return;
                 }
-                setMsg('Aguardando confirmação do Mercado Pago...');
+                setMsg(_pwL.t('pay.status.confirm.waiting'));
             } catch {
-                setMsg('Sem conexão. Tentando novamente...');
+                setMsg(_pwL.t('pay.status.conn.error'));
             }
         };
 
@@ -3929,25 +3942,26 @@ class UIManager {
         if (!world) return;
         document.getElementById('bw-reward-overlay')?.remove();
 
-        const fmt = typeof formatNum === 'function' ? formatNum : n => n.toLocaleString('pt-BR');
-        const btnLabel = isExit ? '✓ Resgatar e Sair' : '✓ Resgatar';
+        const _brL = window.LANG || { t: k => k };
+        const fmt = typeof formatNum === 'function' ? formatNum : n => n.toLocaleString();
+        const btnLabel = isExit ? `✓ ${_brL.t('missions.claim')} & ${_brL.t('profile.logout').split(' ')[0]}` : `✓ ${_brL.t('missions.claim')}`;
 
         const killRow = rewards.kills > 0 ? `
             <div class="bw-rc-row">
                 <span class="bw-rc-icon">💀</span>
-                <span class="bw-rc-label">Bosses derrotados</span>
+                <span class="bw-rc-label">${_brL.t('stats.boss.kills')}</span>
                 <span class="bw-rc-val bw-rc-kills">${rewards.kills}</span>
             </div>` : '';
         const neuronRow = rewards.neurons > 0 ? `
             <div class="bw-rc-row">
                 <span class="bw-rc-icon">🧠</span>
-                <span class="bw-rc-label">Neurônios</span>
+                <span class="bw-rc-label">${_brL.t('stats.neurons.section')}</span>
                 <span class="bw-rc-val bw-rc-gold">+${fmt(rewards.neurons)}</span>
             </div>` : '';
         const diamondRow = rewards.diamonds > 0 ? `
             <div class="bw-rc-row">
                 <span class="bw-rc-icon">💎</span>
-                <span class="bw-rc-label">Diamantes</span>
+                <span class="bw-rc-label">${_brL.t('stats.diamonds')}</span>
                 <span class="bw-rc-val bw-rc-cyan">+${rewards.diamonds}</span>
             </div>` : '';
 
@@ -3957,8 +3971,8 @@ class UIManager {
         overlay.innerHTML = `
             <div class="bw-reward-card">
                 <div class="bw-rc-header">
-                    <div class="bw-rc-title">⚔ Recompensas da Batalha</div>
-                    <div class="bw-rc-sub">${isExit ? 'Saindo da batalha' : 'Tempo esgotado'}</div>
+                    <div class="bw-rc-title">⚔ ${_brL.t('rebirth.reward.title')}</div>
+                    <div class="bw-rc-sub">${isExit ? _brL.t('boss.world.entering').replace('…','') : _brL.t('boss.cooldown.title')}</div>
                 </div>
                 <div class="bw-rc-rows">
                     ${killRow}${neuronRow}${diamondRow}
@@ -3997,7 +4011,7 @@ class UIManager {
         if (!content) return;
         // Reset _bwKey so _updateBossWorld always does a full rebuild, never partial
         content._bwKey = null;
-        content.innerHTML = '<div class="bw-loading">⚔️ Entrando na batalha…</div>';
+        content.innerHTML = `<div class="bw-loading">⚔️ ${(window.LANG||{t:k=>k}).t('boss.world.entering')}</div>`;
         this._updateBossWorld();
     }
 
@@ -4018,13 +4032,14 @@ class UIManager {
 
                 // Render the correct time immediately — no --:-- flash
                 const _fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+                const _bwL = window.LANG || { t: k => k };
                 content.innerHTML = `
                     <div class="bw-no-boss">
                         <div class="bw-no-boss-icon">⏳</div>
-                        <div class="bw-no-boss-title">Recarga do Boss</div>
-                        <div class="bw-no-boss-timer">PRÓXIMO BOSS EM</div>
+                        <div class="bw-no-boss-title">${_bwL.t('boss.cooldown.title')}</div>
+                        <div class="bw-no-boss-timer">${_bwL.t('boss.world.next.boss')}</div>
                         <div class="bw-countdown" id="bw-cooldown-timer">${_fmt(wait)}</div>
-                        <div class="bw-no-boss-hint">Derrote o boss para avançar de nível sem recarga!</div>
+                        <div class="bw-no-boss-hint">${_bwL.t('boss.world.cooldown.hint')}</div>
                     </div>`;
 
                 const cooldownFetchedAt = Date.now();
@@ -4104,8 +4119,9 @@ class UIManager {
         const bossRemWorld = b._clientExpiry
             ? Math.max(0, Math.floor((b._clientExpiry - Date.now()) / 1000))
             : Math.max(0, b.remaining ?? 300);
+        const _bwFull = window.LANG || { t: k => k };
         const timerInit = defeated
-            ? '☠ DERROTADO'
+            ? _bwFull.t('boss.defeated')
             : `${String(Math.floor(bossRemWorld/60)).padStart(2,'0')}:${String(bossRemWorld%60).padStart(2,'0')}`;
 
         const world = document.getElementById('boss-world');
@@ -4117,8 +4133,8 @@ class UIManager {
         const sessDiamonds= sr.diamonds || 0;
 
         const myDmgHTML = acc.isLoggedIn() && bm.myDamage > 0
-            ? `<span class="bw-my-dmg">Seu dano: <strong id="bw-my-dmg-val" style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>`
-            : (!acc.isLoggedIn() ? `<span class="bw-login-hint">⚠ Faça login para ganhar recompensas</span>` : '');
+            ? `<span class="bw-my-dmg">${_bwFull.t('boss.world.damage.label')}: <strong id="bw-my-dmg-val" style="color:${rc}">${formatNum(bm.myDamage)}</strong></span>`
+            : (!acc.isLoggedIn() ? `<span class="bw-login-hint">⚠ ${_bwFull.t('boss.world.login.hint')}</span>` : '');
 
         content.innerHTML = `
             <div class="bw-header">
@@ -4145,20 +4161,20 @@ class UIManager {
             <div class="bw-arena${defeated ? ' bw-arena--dead' : ''}" style="--glow:${def.glowColor || rc + '44'}">
                 <div class="bw-arena-glow"></div>
                 <div class="bw-boss-icon" id="bw-boss-icon">${def.icon || '👾'}</div>
-                ${canAttack ? `<div class="bw-arena-hint">CLIQUE PARA ATACAR</div>` : ''}
-                ${defeated ? `<div class="bw-defeated-label">☠ DERROTADO</div>` : ''}
+                ${canAttack ? `<div class="bw-arena-hint">${_bwFull.t('boss.world.click.to.attack')}</div>` : ''}
+                ${defeated ? `<div class="bw-defeated-label">${_bwFull.t('boss.defeated')}</div>` : ''}
             </div>
 
             <div class="bw-drop-row">
-                <span class="bw-drop-label">Sessão:</span>
+                <span class="bw-drop-label">${_bwFull.t('boss.world.session.label')}:</span>
                 ${sessKills > 0 ? `<span class="bw-drop-item bw-drop-kills">💀 ${sessKills}</span>` : ''}
                 <span class="bw-drop-item bw-drop-gold">🧠 ${sessNeurons > 0 ? formatNum(sessNeurons) : '—'}</span>
                 <span class="bw-drop-item bw-drop-cyan">💎 ${sessDiamonds > 0 ? sessDiamonds : '—'}</span>
             </div>
 
             <div class="bw-info-row">
-                <span class="bw-level-badge">Progressão: <strong style="color:${rc}">Nível ${bm.globalBossLevel}</strong></span>
-                ${acc.isLoggedIn() ? `<span class="bw-my-level-badge">Seu nível: <strong>${bm.userBossLevel}</strong></span>` : ''}
+                <span class="bw-level-badge">${_bwFull.t('boss.world.progression')}: <strong style="color:${rc}">${_bwFull.t('boss.world.level')} ${bm.globalBossLevel}</strong></span>
+                ${acc.isLoggedIn() ? `<span class="bw-my-level-badge">${_bwFull.t('boss.world.my.level')}: <strong>${bm.userBossLevel}</strong></span>` : ''}
             </div>`;
 
         requestAnimationFrame(() => {
