@@ -3194,6 +3194,58 @@ input[type=range]::-webkit-slider-thumb {
     border-bottom-color: rgba(100,140,255,0.14);
 }
 
+/* ── Skin category sub-headers ── */
+.pshop-category-header {
+    display: flex; align-items: center; gap: 8px;
+    margin: 14px 0 8px;
+}
+.pshop-category-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+}
+.pshop-category-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-dim);
+    opacity: 0.55;
+    white-space: nowrap;
+}
+
+/* ── Temp skin timer ── */
+.pshop-timer {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 5px;
+    padding: 2px 8px;
+    background: rgba(255,51,102,0.10);
+    border: 1px solid rgba(255,51,102,0.28);
+    border-radius: 4px;
+    font-size: 10px; font-weight: 700;
+    color: #ff6688;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+}
+.pshop-timer--urgent {
+    background: rgba(255,0,0,0.14);
+    border-color: rgba(255,60,60,0.50);
+    color: #ff4455;
+    animation: pshop-timer-pulse 1s ease-in-out infinite;
+}
+.pshop-timer--expired {
+    background: rgba(80,80,80,0.14);
+    border-color: rgba(120,120,120,0.28);
+    color: var(--text-dim);
+    opacity: 0.6;
+    animation: none;
+}
+.pshop-card--expired {
+    opacity: 0.55;
+    filter: grayscale(40%);
+}
+@keyframes pshop-timer-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}
+
 /* ── Event Skins section ── */
 .pshop-section--event {
     border: 1px solid rgba(255,149,0,0.18);

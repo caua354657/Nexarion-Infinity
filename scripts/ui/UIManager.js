@@ -2510,11 +2510,37 @@ class UIManager {
             .filter(s => s.temp)
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
-        const normalSkinCards = normalSkins.map(s => _makeSkinCard(s, false)).join('');
+        // Divide skins normais em cor vs temática
+        const colorSkins     = normalSkins.filter(s => s.category === 'color');
+        const themeSkins     = normalSkins.filter(s => s.category !== 'color');
+        const colorSkinCards = colorSkins.map(s => _makeSkinCard(s, false)).join('');
+        const themeSkinCards  = themeSkins.map(s => _makeSkinCard(s, false)).join('');
         const eventSkinCards  = eventSkins.map(s => _makeSkinCard(s, true)).join('');
+
+        const _catHeader = (label) =>
+            `<div class="pshop-category-header"><span class="pshop-category-line"></span><span class="pshop-category-label">${label}</span><span class="pshop-category-line"></span></div>`;
+
+        const colorCatHtml = colorSkinCards ? _catHeader('🎨 Skins de Cor') + colorSkinCards : '';
+        const themeCatHtml = themeSkinCards ? _catHeader('✨ Skins Temáticas') + themeSkinCards : '';
+
+        // Formata o countdown de um timer
+        const _fmtTimer = (exp) => {
+            const rem = exp - Date.now();
+            if (rem <= 0) return { text: '⌛ Encerrada', cls: 'pshop-timer--expired' };
+            const days = Math.floor(rem / 86400000);
+            const hrs  = Math.floor((rem % 86400000) / 3600000);
+            const min  = Math.floor((rem % 3600000) / 60000);
+            const sec  = Math.floor((rem % 60000) / 1000);
+            const text = days > 0
+                ? `⏰ ${days}d ${String(hrs).padStart(2,'0')}h ${String(min).padStart(2,'0')}m`
+                : `⏰ ${String(hrs).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+            return { text, cls: rem < 86400000 ? 'pshop-timer--urgent' : '' };
+        };
 
         const _makeTempCard = (skin) => {
             const owned   = acc.hasSkin(skin.id);
+            const expired = skin.expiresAt ? Date.now() > skin.expiresAt : false;
+            if (expired && !owned) return '';
             const equipped = activeSkin === skin.id;
             const rc = RC[skin.rarity] || '#ff3366';
             let action = '';
@@ -2523,12 +2549,16 @@ class UIManager {
             } else if (owned) {
                 action = `<div class="pshop-owned-badge">✓ Comprada</div>
                           <button class="pshop-equip-btn" style="border-color:${rc}55;color:${rc}" onclick="window.game.equipSkin('${skin.id}')">Equipar</button>`;
-            } else {
+            } else if (!expired) {
                 action = `<div class="pshop-price" style="color:${rc}">${skin.price}</div>
                           <button class="pshop-buy-btn" style="border-color:${rc}55;color:${rc};background:${rc}0d" data-pay-item="${skin.id}" onclick="window.game.iniciarPagamento('${skin.id}')">Adquirir</button>`;
             }
+            const t = skin.expiresAt ? _fmtTimer(skin.expiresAt) : null;
+            const timerHtml = t
+                ? `<div class="pshop-timer ${t.cls}" data-expires="${skin.expiresAt}">${t.text}</div>`
+                : '';
             return `
-                <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}"
+                <div class="pshop-card pshop-card--skin pshop-card--temp${owned ? ' pshop-card--owned' : ''}${expired ? ' pshop-card--expired' : ''}"
                      style="--skin-accent:${skin.accent};--skin-bg:${skin.gradient};border-color:${rc}28">
                     <div class="pshop-skin-glow" style="background:radial-gradient(ellipse at right,${skin.accent}12 0%,transparent 70%)"></div>
                     <span class="pshop-temp-ribbon">⏳ TEMPORÁRIA</span>
@@ -2539,11 +2569,13 @@ class UIManager {
                             <div class="pshop-rarity-badge" style="--rc:${rc}">${RL[skin.rarity] || 'Limitada'}</div>
                         </div>
                         <div class="pshop-subtitle">${skin.desc}</div>
+                        ${timerHtml}
                     </div>
                     <div class="pshop-actions">${action}</div>
                 </div>`;
         };
-        const tempSkinCards = tempSkins.map(s => _makeTempCard(s)).join('');
+        const tempSkinCards   = tempSkins.map(s => _makeTempCard(s)).join('');
+        const showTempSection = tempSkinCards.trim().length > 0;
 
         // ── Boosts ──
         const boostCards = SHOP_ITEMS.filter(i => i.category === 'boost').map(item => {
@@ -2665,7 +2697,7 @@ class UIManager {
                         <span class="pshop-section-title">SKINS & TEMAS</span>
                         <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
                     </div>
-                    ${defaultCard}${normalSkinCards}
+                    ${defaultCard}${colorCatHtml}${themeCatHtml}
                 </div>
 
                 <div class="pshop-section pshop-section--event">
@@ -2677,6 +2709,7 @@ class UIManager {
                     ${eventSkinCards}
                 </div>
 
+                ${showTempSection ? `
                 <div class="pshop-section pshop-section--temp">
                     <div class="pshop-section-header pshop-section-header--temp">
                         <span>⏳</span>
@@ -2684,7 +2717,7 @@ class UIManager {
                         <span class="pshop-section-sub">Disponíveis por tempo limitado · Não perca</span>
                     </div>
                     ${tempSkinCards}
-                </div>
+                </div>` : ''}
 
                 <div class="pshop-section">
                     <div class="pshop-section-header">
@@ -2696,6 +2729,18 @@ class UIManager {
                 </div>
 
             </div>`;
+
+        // Inicia countdown em tempo real para skins temporárias
+        if (container._skinTimerInterval) clearInterval(container._skinTimerInterval);
+        if (showTempSection) {
+            container._skinTimerInterval = setInterval(() => {
+                container.querySelectorAll('[data-expires]').forEach(el => {
+                    const t = _fmtTimer(parseInt(el.dataset.expires));
+                    el.textContent = t.text;
+                    el.className   = `pshop-timer${t.cls ? ' ' + t.cls : ''}`;
+                });
+            }, 1000);
+        }
     }
 
     _updateShop() {
