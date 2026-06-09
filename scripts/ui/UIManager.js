@@ -215,28 +215,29 @@ class UIManager {
             void panel.offsetWidth;
             panel.classList.add('open');
 
+            const _tL = window.LANG || { t: k => k };
             const titles = {
-                'generators':    '🔋 Geradores Neurais',
-                'upgrades':      '🔧 Melhorias',
-                'shop':          '🛒 Loja Neural',
-                'skills':        '⚡ Habilidades',
-                'missions':      '📋 Missões',
-                'achievements':  '🎯 Conquistas',
-                'leaderboard':   '🏆 Placar Global',
-                'boss':          '💀 Boss Battle',
-                'boss_battle':   '⚔️ Batalha',
-                'boss_ranking':  '🏆 Placar Global',
-                'boss_upgrades': '💥 Melhorias do Boss',
-                'profile':       '👤 Perfil',
-                'friends':       '👥 Amigos',
-                'rebirth':       '♻️ Renascimento',
-                'settings':      '⚙️ Configurações',
-                'more':          'Mais Opções',
-                'neural':        '🧠 Progressão Neural',
-                'agenda':        '📅 Missões & Conquistas',
-                'conta':         '👤 Conta',
+                'generators':    _tL.t('panel.title.generators'),
+                'upgrades':      _tL.t('panel.title.upgrades'),
+                'shop':          _tL.t('panel.title.shop'),
+                'skills':        _tL.t('panel.title.skills'),
+                'missions':      _tL.t('panel.title.missions'),
+                'achievements':  _tL.t('panel.title.achievements'),
+                'leaderboard':   _tL.t('panel.title.leaderboard'),
+                'boss':          _tL.t('panel.title.boss'),
+                'boss_battle':   _tL.t('panel.title.boss_battle'),
+                'boss_ranking':  _tL.t('panel.title.leaderboard'),
+                'boss_upgrades': _tL.t('panel.title.boss_upgrades'),
+                'profile':       _tL.t('panel.title.profile'),
+                'friends':       _tL.t('panel.title.friends'),
+                'rebirth':       _tL.t('panel.title.rebirth'),
+                'settings':      _tL.t('panel.title.settings'),
+                'more':          _tL.t('panel.title.more'),
+                'neural':        _tL.t('panel.title.neural'),
+                'agenda':        _tL.t('panel.title.agenda'),
+                'conta':         _tL.t('panel.title.conta'),
             };
-            if (title) title.textContent = titles[panelId] || 'Painel';
+            if (title) title.textContent = titles[panelId] || _tL.t('panel.title.default');
 
             const panelGroup = {
                 generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',
@@ -4457,16 +4458,17 @@ class UIManager {
         const ready    = eco.totalNeurons >= cost;
         const pct      = (progress * 100).toFixed(0);
 
+        const _pbL = window.LANG || { t: k => k };
         if (ready) {
-            btn.textContent = `♻ Renascer (+${tokens} 💎)`;
+            btn.textContent = `♻ ${_pbL.t('rebirth.btn.ready.prefix')} (+${tokens} 💎)`;
             btn.classList.add('prestige-ready');
             btn.classList.remove('prestige-approaching');
         } else if (progress >= 0.6) {
-            btn.textContent = `♻ ${pct}% — Aproximando!`;
+            btn.textContent = `♻ ${pct}% — ${_pbL.t('rebirth.approaching')}!`;
             btn.classList.remove('prestige-ready');
             btn.classList.add('prestige-approaching');
         } else {
-            btn.textContent = `♻ ${pct}% para Renascer`;
+            btn.textContent = `♻ ${pct}% ${_pbL.t('rebirth.pct.suffix')}`;
             btn.classList.remove('prestige-ready', 'prestige-approaching');
         }
         btn.disabled = !ready;
