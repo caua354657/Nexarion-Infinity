@@ -395,6 +395,14 @@ canvas { position: fixed; top: 0; left: 0; pointer-events: none; }
     border-color: #44ffff;
 }
 
+#click-btn:active {
+    transform: scale(0.91);
+    transition: transform 0.05s ease-out;
+    box-shadow:
+        0 0 20px rgba(0,245,255,0.2),
+        0 0 40px rgba(0,245,255,0.08),
+        inset 0 0 30px rgba(0,245,255,0.04);
+}
 #click-btn.click-anim { animation: click-squish 0.15s ease forwards; }
 #click-btn.crit-anim  { animation: crit-flash  0.3s  ease forwards; }
 

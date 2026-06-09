@@ -223,6 +223,31 @@ const _T = {
         'panel.title.default': 'Painel',
         // Rebirth HUD button
         'rebirth.pct.suffix': 'para Renascer',
+        // Shop VIP card
+        'vip.title': 'VIP PERMANENTE', 'vip.subtitle': 'Acesso vitalício premium',
+        'vip.owned': '✓ VIP ATIVO',
+        'vip.benefit.badge': '👑 Emblema VIP no perfil',
+        'vip.benefit.color': '🎨 Cor exclusiva no nome',
+        'vip.benefit.income': '⚡ +10% renda global',
+        'vip.benefit.effects': '✨ Efeitos visuais premium',
+        // Shop 2× Neuron card
+        'double.title': '2× NEURÔNIO', 'double.subtitle': 'Dobra permanentemente todos os ganhos',
+        'double.owned': '✓ ATIVO 2×',
+        'double.b1': '⚡ 2× neurônios por clique', 'double.b2': '🧠 2× produção passiva global',
+        // Shop 2× Boss Damage card
+        'boss_dmg.title': '2× DANO', 'boss_dmg.subtitle': 'Dobra permanentemente o dano no Boss',
+        'boss_dmg.owned': '✓ ATIVO 2×',
+        'boss_dmg.b1': '⚔️ 2× dano por clique no Boss', 'boss_dmg.b2': '🌍 Aplica no Boss World e painel',
+        // Shared shop benefits
+        'shop.benefit.permanent': '♾ Permanente para sempre', 'shop.benefit.saved': '💾 Salvo na conta',
+        'shop.badge.premium': 'Premium',
+        // Boost buy modal
+        'boost.qty.label': 'Quantidade',
+        'boost.price.label': 'Preço total', 'boost.dur.label': 'Duração total', 'boost.effect.label': 'Efeito',
+        'boost.btn.cancel': 'Cancelar', 'boost.btn.confirm': 'Comprar', 'boost.btn.no.neurons': 'Sem Neurônios',
+        'boost.effect.click': 'poder de clique', 'boost.effect.global': 'produção global',
+        // Diamond packs & permanent items
+        'dpack.buy.btn': 'COMPRAR', 'perm.purchased': '✓ Comprado',
     },
 
     'en': {
@@ -428,6 +453,31 @@ const _T = {
         'panel.title.default': 'Panel',
         // Rebirth HUD button
         'rebirth.pct.suffix': 'to Rebirth',
+        // Shop VIP card
+        'vip.title': 'PERMANENT VIP', 'vip.subtitle': 'Lifetime premium access',
+        'vip.owned': '✓ VIP ACTIVE',
+        'vip.benefit.badge': '👑 VIP badge on profile',
+        'vip.benefit.color': '🎨 Exclusive name color',
+        'vip.benefit.income': '⚡ +10% global income',
+        'vip.benefit.effects': '✨ Premium visual effects',
+        // Shop 2× Neuron card
+        'double.title': '2× NEURON', 'double.subtitle': 'Permanently doubles all gains',
+        'double.owned': '✓ ACTIVE 2×',
+        'double.b1': '⚡ 2× neurons per click', 'double.b2': '🧠 2× global passive production',
+        // Shop 2× Boss Damage card
+        'boss_dmg.title': '2× DAMAGE', 'boss_dmg.subtitle': 'Permanently doubles Boss damage',
+        'boss_dmg.owned': '✓ ACTIVE 2×',
+        'boss_dmg.b1': '⚔️ 2× damage per click on Boss', 'boss_dmg.b2': '🌍 Applies in Boss World and panel',
+        // Shared shop benefits
+        'shop.benefit.permanent': '♾ Permanent forever', 'shop.benefit.saved': '💾 Saved on account',
+        'shop.badge.premium': 'Premium',
+        // Boost buy modal
+        'boost.qty.label': 'Quantity',
+        'boost.price.label': 'Total price', 'boost.dur.label': 'Total duration', 'boost.effect.label': 'Effect',
+        'boost.btn.cancel': 'Cancel', 'boost.btn.confirm': 'Buy', 'boost.btn.no.neurons': 'Insufficient Neurons',
+        'boost.effect.click': 'click power', 'boost.effect.global': 'global production',
+        // Diamond packs & permanent items
+        'dpack.buy.btn': 'BUY', 'perm.purchased': '✓ Purchased',
     },
 
     'es': {
@@ -633,6 +683,31 @@ const _T = {
         'panel.title.default': 'Panel',
         // Rebirth HUD button
         'rebirth.pct.suffix': 'para Renacer',
+        // Shop VIP card
+        'vip.title': 'VIP PERMANENTE', 'vip.subtitle': 'Acceso vitalicio premium',
+        'vip.owned': '✓ VIP ACTIVO',
+        'vip.benefit.badge': '👑 Insignia VIP en perfil',
+        'vip.benefit.color': '🎨 Color exclusivo de nombre',
+        'vip.benefit.income': '⚡ +10% ingresos globales',
+        'vip.benefit.effects': '✨ Efectos visuales premium',
+        // Shop 2× Neuron card
+        'double.title': '2× NEURONA', 'double.subtitle': 'Duplica permanentemente todas las ganancias',
+        'double.owned': '✓ ACTIVO 2×',
+        'double.b1': '⚡ 2× neuronas por clic', 'double.b2': '🧠 2× producción pasiva global',
+        // Shop 2× Boss Damage card
+        'boss_dmg.title': '2× DAÑO', 'boss_dmg.subtitle': 'Duplica permanentemente el daño en el Jefe',
+        'boss_dmg.owned': '✓ ACTIVO 2×',
+        'boss_dmg.b1': '⚔️ 2× daño por clic en el Jefe', 'boss_dmg.b2': '🌍 Se aplica en Boss World y panel',
+        // Shared shop benefits
+        'shop.benefit.permanent': '♾ Permanente para siempre', 'shop.benefit.saved': '💾 Guardado en la cuenta',
+        'shop.badge.premium': 'Premium',
+        // Boost buy modal
+        'boost.qty.label': 'Cantidad',
+        'boost.price.label': 'Precio total', 'boost.dur.label': 'Duración total', 'boost.effect.label': 'Efecto',
+        'boost.btn.cancel': 'Cancelar', 'boost.btn.confirm': 'Comprar', 'boost.btn.no.neurons': 'Sin Neuronas',
+        'boost.effect.click': 'poder de clic', 'boost.effect.global': 'producción global',
+        // Diamond packs & permanent items
+        'dpack.buy.btn': 'COMPRAR', 'perm.purchased': '✓ Comprado',
     },
 };
 

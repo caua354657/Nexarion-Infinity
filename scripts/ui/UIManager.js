@@ -2198,6 +2198,7 @@ class UIManager {
 
     _ensureBoostBuyModal() {
         if (document.getElementById('boost-buy-overlay')) return;
+        const _bL = window.LANG || { t: k => k };
         const el = document.createElement('div');
         el.id = 'boost-buy-overlay';
         el.className = 'boost-buy-overlay';
@@ -2216,7 +2217,7 @@ class UIManager {
                 </div>
 
                 <div class="bbc-qty-section">
-                    <div class="bbc-qty-label">Quantidade</div>
+                    <div class="bbc-qty-label">${_bL.t('boost.qty.label')}</div>
                     <div class="bbc-qty-row">
                         <button class="bbc-qty-adj" onclick="window.game.ui._changeBoostQty(-1)">−</button>
                         <div class="bbc-qty-val" id="bbc-qty-val">1</div>
@@ -2232,22 +2233,22 @@ class UIManager {
 
                 <div class="bbc-summary">
                     <div class="bbc-sum-row">
-                        <span class="bbc-sum-label">Preço total</span>
+                        <span class="bbc-sum-label">${_bL.t('boost.price.label')}</span>
                         <span class="bbc-sum-val" id="bbc-total-price">0 ⚡</span>
                     </div>
                     <div class="bbc-sum-row">
-                        <span class="bbc-sum-label">Duração total</span>
+                        <span class="bbc-sum-label">${_bL.t('boost.dur.label')}</span>
                         <span class="bbc-sum-val" id="bbc-total-dur">0s</span>
                     </div>
                     <div class="bbc-sum-row">
-                        <span class="bbc-sum-label">Efeito</span>
+                        <span class="bbc-sum-label">${_bL.t('boost.effect.label')}</span>
                         <span class="bbc-sum-val bbc-effect-val" id="bbc-effect">—</span>
                     </div>
                 </div>
 
                 <div class="bbc-actions">
-                    <button class="bbc-cancel"  onclick="window.game.ui._hideBoostBuyModal()">Cancelar</button>
-                    <button class="bbc-confirm" id="bbc-confirm" onclick="window.game.ui._confirmBoostBuy()">Comprar</button>
+                    <button class="bbc-cancel"  onclick="window.game.ui._hideBoostBuyModal()">${_bL.t('boost.btn.cancel')}</button>
+                    <button class="bbc-confirm" id="bbc-confirm" onclick="window.game.ui._confirmBoostBuy()">${_bL.t('boost.btn.confirm')}</button>
                 </div>
             </div>`;
         el.addEventListener('click', e => { if (e.target === el) this._hideBoostBuyModal(); });
@@ -2304,8 +2305,13 @@ class UIManager {
         const totalSecs = item.duration * qty;
         const canAfford = this._game.economy.canAfford(totalCost);
 
+        const _bbL = window.LANG || { t: k => k };
         const RC = { common:'#a0a0a0', uncommon:'#00ff88', rare:'#00f5ff', epic:'#7b2fff', legendary:'#ffd700' };
-        const RL = { common:'Comum', uncommon:'Incomum', rare:'Raro', epic:'Épico', legendary:'Lendário' };
+        const RL = {
+            common:   _bbL.t('rarity.common'),   uncommon: _bbL.t('rarity.uncommon'),
+            rare:     _bbL.t('rarity.rare'),      epic:     _bbL.t('rarity.epic'),
+            legendary:_bbL.t('rarity.legendary'),
+        };
         const rc = RC[item.rarity] || '#00f5ff';
 
         const setEl    = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
@@ -2324,7 +2330,7 @@ class UIManager {
 
         setEl('bbc-total-dur', formatDuration(totalSecs));
 
-        const effectType = item.boostType === 'click_mult' ? 'poder de clique' : 'produção global';
+        const effectType = item.boostType === 'click_mult' ? _bbL.t('boost.effect.click') : _bbL.t('boost.effect.global');
         setEl('bbc-effect', item.boostValue + '× ' + effectType);
         setStyle('bbc-effect', 'color', item.boostType === 'click_mult' ? '#ffd700' : '#00f5ff');
 
@@ -2348,7 +2354,7 @@ class UIManager {
         if (confirmBtn) {
             confirmBtn.disabled = !canAfford;
             confirmBtn.classList.toggle('can-afford', canAfford);
-            confirmBtn.textContent = canAfford ? `Comprar ×${qty}` : 'Sem Neurônios';
+            confirmBtn.textContent = canAfford ? `${_bbL.t('boost.btn.confirm')} ×${qty}` : _bbL.t('boost.btn.no.neurons');
         }
     }
 
@@ -2402,24 +2408,24 @@ class UIManager {
         // ── VIP ──
         const isVip = acc.isVip();
         const vipAction = isVip
-            ? `<div class="pshop-owned-badge pshop-owned-vip">✓ VIP ATIVO</div>`
+            ? `<div class="pshop-owned-badge pshop-owned-vip">${_SL.t('vip.owned')}</div>`
             : `<div class="pshop-price pshop-price-gold">R$ 9,90</div>
-               <button class="pshop-buy-btn pshop-buy-gold" data-pay-item="vip" onclick="window.game.iniciarPagamento('vip')">Adquirir</button>`;
+               <button class="pshop-buy-btn pshop-buy-gold" data-pay-item="vip" onclick="window.game.iniciarPagamento('vip')">${_SL.t('skin.buy')}</button>`;
         const vipCard = `
             <div class="pshop-card pshop-card--vip${isVip ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow"></div>
                 <div class="pshop-icon pshop-icon--vip">👑</div>
                 <div class="pshop-info">
                     <div class="pshop-header-row">
-                        <div class="pshop-title pshop-title-gold">VIP PERMANENTE</div>
+                        <div class="pshop-title pshop-title-gold">${_SL.t('vip.title')}</div>
                         <div class="pshop-rarity-badge" style="--rc:#ffd700">VIP</div>
                     </div>
-                    <div class="pshop-subtitle">Acesso vitalício premium</div>
+                    <div class="pshop-subtitle">${_SL.t('vip.subtitle')}</div>
                     <div class="pshop-benefits">
-                        <div class="pshop-benefit">👑 Emblema VIP no perfil</div>
-                        <div class="pshop-benefit">🎨 Cor exclusiva no nome</div>
-                        <div class="pshop-benefit">⚡ +10% renda global</div>
-                        <div class="pshop-benefit">✨ Efeitos visuais premium</div>
+                        <div class="pshop-benefit">${_SL.t('vip.benefit.badge')}</div>
+                        <div class="pshop-benefit">${_SL.t('vip.benefit.color')}</div>
+                        <div class="pshop-benefit">${_SL.t('vip.benefit.income')}</div>
+                        <div class="pshop-benefit">${_SL.t('vip.benefit.effects')}</div>
                     </div>
                 </div>
                 <div class="pshop-actions">${vipAction}</div>
@@ -2428,24 +2434,24 @@ class UIManager {
         // ── 2× Neuron ──
         const hasDouble = acc.hasDoubleNeuron();
         const doubleAction = hasDouble
-            ? `<div class="pshop-owned-badge pshop-owned-double">✓ ATIVO 2×</div>`
+            ? `<div class="pshop-owned-badge pshop-owned-double">${_SL.t('double.owned')}</div>`
             : `<div class="pshop-price pshop-price-cyan">R$ 12,90</div>
-               <button class="pshop-buy-btn pshop-buy-cyan" data-pay-item="double_neuron" onclick="window.game.iniciarPagamento('double_neuron')">Adquirir</button>`;
+               <button class="pshop-buy-btn pshop-buy-cyan" data-pay-item="double_neuron" onclick="window.game.iniciarPagamento('double_neuron')">${_SL.t('skin.buy')}</button>`;
         const doubleCard = `
             <div class="pshop-card pshop-card--double${hasDouble ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow pshop-card-glow--double"></div>
                 <div class="pshop-icon pshop-icon--double">⚡</div>
                 <div class="pshop-info">
                     <div class="pshop-header-row">
-                        <div class="pshop-title pshop-title-cyan">2× NEURÔNIO</div>
-                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">Premium</div>
+                        <div class="pshop-title pshop-title-cyan">${_SL.t('double.title')}</div>
+                        <div class="pshop-rarity-badge" style="--rc:#00f5ff">${_SL.t('shop.badge.premium')}</div>
                     </div>
-                    <div class="pshop-subtitle">Dobra permanentemente todos os ganhos</div>
+                    <div class="pshop-subtitle">${_SL.t('double.subtitle')}</div>
                     <div class="pshop-benefits">
-                        <div class="pshop-benefit">⚡ 2× neurônios por clique</div>
-                        <div class="pshop-benefit">🧠 2× produção passiva global</div>
-                        <div class="pshop-benefit">♾ Permanente para sempre</div>
-                        <div class="pshop-benefit">💾 Salvo na conta</div>
+                        <div class="pshop-benefit">${_SL.t('double.b1')}</div>
+                        <div class="pshop-benefit">${_SL.t('double.b2')}</div>
+                        <div class="pshop-benefit">${_SL.t('shop.benefit.permanent')}</div>
+                        <div class="pshop-benefit">${_SL.t('shop.benefit.saved')}</div>
                     </div>
                 </div>
                 <div class="pshop-actions">${doubleAction}</div>
@@ -2454,25 +2460,25 @@ class UIManager {
         // ── 2× Dano no Boss ──
         const hasDoubleDmg  = g.shop.purchased.has('perm_boss_dmg_x2');
         const doubleDmgAction = hasDoubleDmg
-            ? `<div class="pshop-owned-badge" style="border-color:rgba(255,100,0,0.4);color:#ff6400">✓ ATIVO 2×</div>`
+            ? `<div class="pshop-owned-badge" style="border-color:rgba(255,100,0,0.4);color:#ff6400">${_SL.t('boss_dmg.owned')}</div>`
             : `<div class="pshop-price" style="color:#ff6400">R$ 9,90</div>
                <button class="pshop-buy-btn" style="border-color:rgba(255,100,0,0.4);color:#ff6400;background:rgba(255,100,0,0.08)"
-                       data-pay-item="boss_damage_x2" onclick="window.game.iniciarPagamento('boss_damage_x2')">Adquirir</button>`;
+                       data-pay-item="boss_damage_x2" onclick="window.game.iniciarPagamento('boss_damage_x2')">${_SL.t('skin.buy')}</button>`;
         const doubleDmgCard = `
             <div class="pshop-card pshop-card--double${hasDoubleDmg ? ' pshop-card--owned' : ''}">
                 <div class="pshop-card-glow" style="background:radial-gradient(ellipse at right,rgba(255,100,0,0.18) 0%,transparent 70%)"></div>
                 <div class="pshop-icon pshop-icon--double" style="background:rgba(255,100,0,0.1);border-color:rgba(255,100,0,0.28)">⚔️</div>
                 <div class="pshop-info">
                     <div class="pshop-header-row">
-                        <div class="pshop-title" style="color:#ff6400">2× DANO</div>
-                        <div class="pshop-rarity-badge" style="--rc:#ff6400">Premium</div>
+                        <div class="pshop-title" style="color:#ff6400">${_SL.t('boss_dmg.title')}</div>
+                        <div class="pshop-rarity-badge" style="--rc:#ff6400">${_SL.t('shop.badge.premium')}</div>
                     </div>
-                    <div class="pshop-subtitle">Dobra permanentemente o dano no Boss</div>
+                    <div class="pshop-subtitle">${_SL.t('boss_dmg.subtitle')}</div>
                     <div class="pshop-benefits">
-                        <div class="pshop-benefit">⚔️ 2× dano por clique no Boss</div>
-                        <div class="pshop-benefit">🌍 Aplica no Boss World e painel</div>
-                        <div class="pshop-benefit">♾ Permanente para sempre</div>
-                        <div class="pshop-benefit">💾 Salvo na conta</div>
+                        <div class="pshop-benefit">${_SL.t('boss_dmg.b1')}</div>
+                        <div class="pshop-benefit">${_SL.t('boss_dmg.b2')}</div>
+                        <div class="pshop-benefit">${_SL.t('shop.benefit.permanent')}</div>
+                        <div class="pshop-benefit">${_SL.t('shop.benefit.saved')}</div>
                     </div>
                 </div>
                 <div class="pshop-actions">${doubleDmgAction}</div>
@@ -2663,7 +2669,7 @@ class UIManager {
                     </div>
                     <div class="pshop-actions">
                         ${owned
-                            ? `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">✓ Comprado</div>`
+                            ? `<div class="pshop-owned-badge" style="border-color:${rc}44;color:${rc}">${_SL.t('perm.purchased')}</div>`
                             : `<button class="pshop-buy-btn pshop-std-buy" style="border-color:${rc}44;color:${rc}"
                                        onclick="window.game.buyShopItem('${item.id}')"
                                        ${canBuy ? '' : 'disabled'}>${item.cost} 💎</button>`
@@ -2694,7 +2700,7 @@ class UIManager {
                     </div>
                     <button class="dpack-buy-btn" data-pay-item="${pack.id}"
                             onclick="window.game.iniciarPagamento('${pack.id}')">
-                        COMPRAR
+                        ${_SL.t('dpack.buy.btn')}
                     </button>
                 </div>`;
             }
@@ -2708,7 +2714,7 @@ class UIManager {
                     <div class="dpack-price">${pack.price}</div>
                     <button class="dpack-buy-btn" data-pay-item="${pack.id}"
                             onclick="window.game.iniciarPagamento('${pack.id}')">
-                        COMPRAR
+                        ${_SL.t('dpack.buy.btn')}
                     </button>
                 </div>`;
         }).join('');
