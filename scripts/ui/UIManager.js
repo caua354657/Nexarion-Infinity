@@ -105,6 +105,8 @@ class UIManager {
         this._initBadgeCache();
         window.addEventListener('resize', () => this._onResize());
 
+        if (window.LANG) window.LANG.onchange = () => this._refreshLang();
+
         this._updateHUD();
         this._checkAuthWall();
 
@@ -198,6 +200,57 @@ class UIManager {
         });
     }
 
+    _getPanelTitle(panelId) {
+        const _tL = window.LANG || { t: k => k };
+        const titles = {
+            'generators':    _tL.t('panel.title.generators'),
+            'upgrades':      _tL.t('panel.title.upgrades'),
+            'shop':          _tL.t('panel.title.shop'),
+            'skills':        _tL.t('panel.title.skills'),
+            'missions':      _tL.t('panel.title.missions'),
+            'achievements':  _tL.t('panel.title.achievements'),
+            'leaderboard':   _tL.t('panel.title.leaderboard'),
+            'boss':          _tL.t('panel.title.boss'),
+            'boss_battle':   _tL.t('panel.title.boss_battle'),
+            'boss_ranking':  _tL.t('panel.title.leaderboard'),
+            'boss_upgrades': _tL.t('panel.title.boss_upgrades'),
+            'profile':       _tL.t('panel.title.profile'),
+            'friends':       _tL.t('panel.title.friends'),
+            'rebirth':       _tL.t('panel.title.rebirth'),
+            'settings':      _tL.t('panel.title.settings'),
+            'more':          _tL.t('panel.title.more'),
+            'neural':        _tL.t('panel.title.neural'),
+            'agenda':        _tL.t('panel.title.agenda'),
+            'conta':         _tL.t('panel.title.conta'),
+        };
+        return titles[panelId] || _tL.t('panel.title.default');
+    }
+
+    _refreshLang() {
+        // Update static [data-i18n] elements (already called inside LANG.set, but harmless)
+        window.LANG?.applyStatic();
+
+        // HUD elements with translated text
+        this._updateHUD();
+        this._updatePrestigeBtn();
+        this._updateEventBanner();
+
+        // Boost display: clear so cards rebuild with new language on next call
+        const bd = document.getElementById('boost-display');
+        if (bd) bd.innerHTML = '';
+        this._updateBoostDisplay();
+
+        // Destroy boost buy modal so it rebuilds in new language on next open
+        document.getElementById('boost-buy-overlay')?.remove();
+
+        // Re-render active panel (content + title)
+        if (this._activePanel) {
+            const title = document.getElementById('modal-title');
+            if (title) title.textContent = this._getPanelTitle(this._activePanel);
+            this._renderPanelContent(this._activePanel);
+        }
+    }
+
     openPanel(panelId) {
         try {
             this._activePanel = panelId;
@@ -215,29 +268,7 @@ class UIManager {
             void panel.offsetWidth;
             panel.classList.add('open');
 
-            const _tL = window.LANG || { t: k => k };
-            const titles = {
-                'generators':    _tL.t('panel.title.generators'),
-                'upgrades':      _tL.t('panel.title.upgrades'),
-                'shop':          _tL.t('panel.title.shop'),
-                'skills':        _tL.t('panel.title.skills'),
-                'missions':      _tL.t('panel.title.missions'),
-                'achievements':  _tL.t('panel.title.achievements'),
-                'leaderboard':   _tL.t('panel.title.leaderboard'),
-                'boss':          _tL.t('panel.title.boss'),
-                'boss_battle':   _tL.t('panel.title.boss_battle'),
-                'boss_ranking':  _tL.t('panel.title.leaderboard'),
-                'boss_upgrades': _tL.t('panel.title.boss_upgrades'),
-                'profile':       _tL.t('panel.title.profile'),
-                'friends':       _tL.t('panel.title.friends'),
-                'rebirth':       _tL.t('panel.title.rebirth'),
-                'settings':      _tL.t('panel.title.settings'),
-                'more':          _tL.t('panel.title.more'),
-                'neural':        _tL.t('panel.title.neural'),
-                'agenda':        _tL.t('panel.title.agenda'),
-                'conta':         _tL.t('panel.title.conta'),
-            };
-            if (title) title.textContent = titles[panelId] || _tL.t('panel.title.default');
+            if (title) title.textContent = this._getPanelTitle(panelId);
 
             const panelGroup = {
                 generators: 'neural', upgrades: 'neural', skills: 'neural', rebirth: 'neural',

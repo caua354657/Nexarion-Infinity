@@ -713,13 +713,17 @@ const _T = {
 
 window.LANG = {
     current: localStorage.getItem('nexarion_lang') || 'pt-BR',
+    onchange: null,
     t(key, fallback) {
         return _T[this.current]?.[key] ?? _T['pt-BR']?.[key] ?? fallback ?? key;
     },
     set(lang) {
         if (!['pt-BR', 'en', 'es'].includes(lang)) return;
+        if (this.current === lang) return;
+        this.current = lang;
         localStorage.setItem('nexarion_lang', lang);
-        location.reload();
+        this.applyStatic();
+        if (typeof this.onchange === 'function') this.onchange(lang);
     },
     langName(code) {
         return { 'pt-BR': 'Português (Brasil)', 'en': 'English', 'es': 'Español' }[code] || code;
