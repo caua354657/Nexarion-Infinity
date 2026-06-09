@@ -2359,7 +2359,7 @@ class UIManager {
             ultra_rare: 'Ultra Raro',
             limited:    'Ed. Limitada',
         };
-        const RARITY_ORDER = ['common','uncommon','rare','epic','mythic','legendary','ultra_rare','limited'];
+        const RARITY_ORDER = ['common','uncommon','rare','ultra_rare','epic','mythic','legendary','limited'];
 
         // ── VIP ──
         const isVip = acc.isVip();
@@ -2689,42 +2689,26 @@ class UIManager {
                     <div class="dpack-grid">${packHTML}</div>
                 </div>
 
-                <div class="pshop-section pshop-section--color">
-                    <div class="pshop-section-header pshop-section-header--color">
+                <div class="pshop-section pshop-section--skins-all">
+                    <div class="pshop-section-header">
                         <span>🎨</span>
-                        <span class="pshop-section-title">SKINS DE COR</span>
-                        <span class="pshop-section-sub">Paletas que tingem toda a interface do núcleo</span>
+                        <span class="pshop-section-title">SKINS & TEMAS</span>
+                        <span class="pshop-section-sub">Transforme completamente a atmosfera do núcleo</span>
                     </div>
+
+                    ${defaultCard}
+
+                    <div class="pshop-skin-divider"><span>🎨 Skins de Cor</span></div>
                     ${colorSkinCards}
-                </div>
 
-                <div class="pshop-section pshop-section--theme">
-                    <div class="pshop-section-header pshop-section-header--theme">
-                        <span>✨</span>
-                        <span class="pshop-section-title">SKINS TEMÁTICAS</span>
-                        <span class="pshop-section-sub">Atmosferas únicas que transformam o núcleo</span>
-                    </div>
-                    ${defaultCard}${themeSkinCards}
-                </div>
+                    <div class="pshop-skin-divider"><span>✨ Skins Temáticas</span></div>
+                    ${themeSkinCards}
 
-                <div class="pshop-section pshop-section--event">
-                    <div class="pshop-section-header pshop-section-header--event">
-                        <span>🎭</span>
-                        <span class="pshop-section-title">SKINS DE EVENTO</span>
-                        <span class="pshop-section-sub">Edições exclusivas · Identidade sazonal preservada</span>
-                    </div>
+                    <div class="pshop-skin-divider"><span>🎭 Skins de Evento</span></div>
                     ${eventSkinCards}
-                </div>
 
-                ${showTempSection ? `
-                <div class="pshop-section pshop-section--temp">
-                    <div class="pshop-section-header pshop-section-header--temp">
-                        <span>⏳</span>
-                        <span class="pshop-section-title">SKINS TEMPORÁRIAS</span>
-                        <span class="pshop-section-sub">Disponíveis por tempo limitado · Não perca</span>
-                    </div>
-                    ${tempSkinCards}
-                </div>` : ''}
+                    ${showTempSection ? `<div class="pshop-skin-divider"><span>⏳ Skins Temporárias</span></div>${tempSkinCards}` : ''}
+                </div>
 
                 <div class="pshop-section">
                     <div class="pshop-section-header">
