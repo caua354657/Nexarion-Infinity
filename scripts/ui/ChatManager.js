@@ -156,8 +156,8 @@ const ChatManager = (function () {
         }).join('');
 
         return `
-        <div class="chat-backdrop" id="chat-backdrop"></div>
         <div id="chat-widget" class="chat-widget">
+            <div class="chat-backdrop" id="chat-backdrop"></div>
             <button id="chat-toggle" class="chat-toggle" title="Chat Global" aria-label="Chat Global">
                 <span>💬</span>
                 <span id="chat-badge" class="chat-badge" hidden>0</span>
@@ -224,12 +224,11 @@ const ChatManager = (function () {
         // ── Bindings ──────────────────────────────────────────────────
         dom.toggle.addEventListener('click', togglePanel);
         dom.close.addEventListener('click', closePanel);
-        dom.backdrop.addEventListener('click', closePanel);
 
         dom.send.addEventListener('click', sendMessage);
         dom.input.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-            if (e.key === 'Escape') { hideEmojiPicker(); closePanel(); }
+            if (e.key === 'Escape') hideEmojiPicker();
         });
         dom.input.addEventListener('input', updateSendState);
 

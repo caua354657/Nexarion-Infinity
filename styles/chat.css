@@ -63,19 +63,19 @@
     50%       { box-shadow: 0 0 0 6px rgba(255,0,128,0); }
 }
 
-/* ── Backdrop ───────────────────────────────────────────────────────── */
+/* ── Backdrop (vive DENTRO do #chat-widget para não sobrepor o painel) */
 .chat-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 9001;
+    background: rgba(0,0,0,0.55);
+    z-index: 0;          /* dentro do stacking context do widget */
     opacity: 0;
-    pointer-events: none;
+    pointer-events: none; /* nunca intercepta cliques */
     transition: opacity 0.25s ease;
 }
 .chat-backdrop--open {
     opacity: 1;
-    pointer-events: auto;
+    /* pointer-events continua none — fechar só pelo X */
 }
 
 /* ── Card panel — full screen centred ──────────────────────────────── */
@@ -91,7 +91,7 @@
     flex-direction: column;
     overflow: hidden;
     box-shadow: none;
-    z-index: 9002;
+    z-index: 1;          /* acima do backdrop (0), dentro do widget */
     transform: scale(0.96);
     opacity: 0;
     pointer-events: none;
