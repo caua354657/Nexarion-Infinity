@@ -2,13 +2,14 @@
 
 const ChatManager = (function () {
 
-    // ── Config ─────────────────────────────────────────────────────────────
-    const API              = 'api/chat.php';
-    const POLL_OPEN_MS     = 3000;
-    const POLL_CLOSED_MS   = 16000;
-    const CLIENT_CD_MS     = 3200;
-    const MAX_LEN          = 200;
-    const MAX_DOM_MSGS     = 150;
+    // ── Config ──────────────────────────────────────────────────────────────
+    const API            = 'api/chat.php';
+    const POLL_OPEN_MS   = 3000;
+    const POLL_CLOSED_MS = 16000;
+    const CLIENT_CD_MS   = 3200;
+    const MAX_LEN        = 200;
+    const MAX_DOM_MSGS   = 150;
+    const MARKS_KEY      = 'chat_marked_v1';
 
     // ── Emoji categories ────────────────────────────────────────────────────
     const EMOJI_CATS = [
@@ -27,22 +28,23 @@ const ChatManager = (function () {
     ];
 
     // ── State ───────────────────────────────────────────────────────────────
-    let isOpen       = false;
-    let lastId       = 0;
-    let unreadCount  = 0;
-    let cooldownEnd  = 0;
-    let isSending    = false;
-    let emojiOpen    = false;
-    let activeTab    = 0;
-    let pollTimer    = null;
-    let cdRaf        = null;
-    let dom          = {};
+    let isOpen     = false;
+    let lastId     = 0;
+    let unreadCount = 0;
+    let cooldownEnd = 0;
+    let isSending  = false;
+    let emojiOpen  = false;
+    let activeTab  = 0;
+    let pollTimer  = null;
+    let cdRaf      = null;
+    let dom        = {};
+    let markedIds  = new Set();  // IDs of starred messages (localStorage)
 
-    // ── Game accessors (resilient to game not yet initialised) ─────────────
-    const gm = () => window.game || null;
-    const currentUserId  = () => gm()?.account?.getAccount()?.id ?? null;
-    const currentLevel   = () => gm()?.level?.level ?? 1;
-    const isLoggedIn     = () => gm()?.account?.isLoggedIn?.() ?? false;
+    // ── Game accessors ──────────────────────────────────────────────────────
+    const gm           = () => window.game || null;
+    const currentUserId = () => gm()?.account?.getAccount()?.id ?? null;
+    const currentLevel  = () => gm()?.level?.level ?? 1;
+    const isLoggedIn    = () => gm()?.account?.isLoggedIn?.() ?? false;
 
     // ── Utilities ───────────────────────────────────────────────────────────
     function esc(s) {
@@ -54,11 +56,11 @@ const ChatManager = (function () {
     }
 
     function timeAgo(ts) {
-        const diff = Math.floor(Date.now() / 1000) - Number(ts);
-        if (diff < 60)    return 'agora';
-        if (diff < 3600)  return Math.floor(diff / 60) + 'min';
-        if (diff < 86400) return Math.floor(diff / 3600) + 'h';
-        return Math.floor(diff / 86400) + 'd';
+        const d = Math.floor(Date.now() / 1000) - Number(ts);
+        if (d < 60)    return 'agora';
+        if (d < 3600)  return Math.floor(d / 60) + 'min';
+        if (d < 86400) return Math.floor(d / 3600) + 'h';
+        return Math.floor(d / 86400) + 'd';
     }
 
     function photoUrl(foto) {
@@ -66,7 +68,7 @@ const ChatManager = (function () {
     }
 
     function avatarHtml(foto, username, vip) {
-        const url   = photoUrl(foto);
+        const url    = photoUrl(foto);
         const letter = (username || '?')[0].toUpperCase();
         const vipCls = vip ? ' chat-av-letter--vip' : '';
         if (url) {
@@ -77,13 +79,16 @@ const ChatManager = (function () {
     }
 
     function msgHtml(msg) {
-        const myId  = currentUserId();
-        const isMe  = myId !== null && String(msg.user_id) === String(myId);
-        const vip   = Number(msg.vip) === 1;
-        const badge = vip ? '<span class="chat-vip">VIP</span>' : '';
+        const myId   = currentUserId();
+        const isMe   = myId !== null && String(msg.user_id) === String(myId);
+        const vip    = Number(msg.vip) === 1;
+        const marked = markedIds.has(Number(msg.id));
+        const badge  = vip ? '<span class="chat-vip">VIP</span>' : '';
         const nameCls = 'chat-name' + (vip ? ' chat-name--vip' : '');
+        const markedCls = marked ? ' chat-msg--marked' : '';
+        const starIcon  = marked ? '★' : '☆';
 
-        return `<div class="chat-msg${isMe ? ' chat-msg--me' : ''}"
+        return `<div class="chat-msg${isMe ? ' chat-msg--me' : ''}${markedCls}"
                      data-id="${msg.id}" data-uid="${msg.user_id}">
             <div class="chat-av-wrap" data-uid="${msg.user_id}">
                 ${avatarHtml(msg.foto, msg.username, vip)}
@@ -97,12 +102,47 @@ const ChatManager = (function () {
                 </div>
                 <div class="chat-text">${esc(msg.mensagem)}</div>
             </div>
+            <div class="chat-msg-actions">
+                <button class="chat-mark-btn" data-id="${msg.id}" title="Marcar mensagem">${starIcon}</button>
+            </div>
         </div>`;
+    }
+
+    // ── Marked messages persistence ─────────────────────────────────────────
+    function loadMarks() {
+        try {
+            const raw = localStorage.getItem(MARKS_KEY);
+            markedIds = raw ? new Set(JSON.parse(raw)) : new Set();
+        } catch (_) { markedIds = new Set(); }
+    }
+
+    function saveMarks() {
+        try { localStorage.setItem(MARKS_KEY, JSON.stringify([...markedIds])); }
+        catch (_) {}
+    }
+
+    function toggleMark(id) {
+        const numId = Number(id);
+        if (markedIds.has(numId)) {
+            markedIds.delete(numId);
+        } else {
+            markedIds.add(numId);
+        }
+        saveMarks();
+
+        // Update DOM element in place
+        const el = dom.msgs.querySelector(`.chat-msg[data-id="${id}"]`);
+        if (el) {
+            const isNowMarked = markedIds.has(numId);
+            el.classList.toggle('chat-msg--marked', isNowMarked);
+            const btn = el.querySelector('.chat-mark-btn');
+            if (btn) btn.textContent = isNowMarked ? '★' : '☆';
+        }
     }
 
     // ── Build DOM ───────────────────────────────────────────────────────────
     function buildHtml() {
-        const tabs  = EMOJI_CATS.map((c, i) =>
+        const tabs = EMOJI_CATS.map((c, i) =>
             `<button class="chat-etab${i === 0 ? ' chat-etab--active' : ''}"
                      data-cat="${i}" title="${c.name}">${c.label}</button>`
         ).join('');
@@ -116,6 +156,7 @@ const ChatManager = (function () {
         }).join('');
 
         return `
+        <div class="chat-backdrop" id="chat-backdrop"></div>
         <div id="chat-widget" class="chat-widget">
             <button id="chat-toggle" class="chat-toggle" title="Chat Global" aria-label="Chat Global">
                 <span>💬</span>
@@ -158,9 +199,11 @@ const ChatManager = (function () {
 
     // ── Init ────────────────────────────────────────────────────────────────
     function init() {
+        loadMarks();
         document.body.insertAdjacentHTML('beforeend', buildHtml());
 
         dom = {
+            backdrop: document.getElementById('chat-backdrop'),
             widget:   document.getElementById('chat-widget'),
             toggle:   document.getElementById('chat-toggle'),
             panel:    document.getElementById('chat-panel'),
@@ -178,22 +221,21 @@ const ChatManager = (function () {
             hintLink: document.getElementById('chat-login-link'),
         };
 
-        // ── Event bindings ────────────────────────────────────────────
+        // ── Bindings ──────────────────────────────────────────────────
         dom.toggle.addEventListener('click', togglePanel);
         dom.close.addEventListener('click', closePanel);
+        dom.backdrop.addEventListener('click', closePanel);
 
         dom.send.addEventListener('click', sendMessage);
         dom.input.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-            if (e.key === 'Escape') hideEmojiPicker();
+            if (e.key === 'Escape') { hideEmojiPicker(); closePanel(); }
         });
         dom.input.addEventListener('input', updateSendState);
 
         dom.emojiBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            toggleEmojiPicker();
+            e.stopPropagation(); toggleEmojiPicker();
         });
-
         dom.picker.addEventListener('click', e => {
             const emoji = e.target.closest('.chat-emoji');
             if (emoji) { insertEmoji(emoji.dataset.emoji); return; }
@@ -201,58 +243,84 @@ const ChatManager = (function () {
             if (tab) switchEmojiTab(Number(tab.dataset.cat));
         });
 
+        // Avatar/name → profile popup; star button → mark
         dom.msgs.addEventListener('click', e => {
-            const el = e.target.closest('[data-uid]');
-            if (el) showProfile(Number(el.dataset.uid), el);
+            const markBtn = e.target.closest('.chat-mark-btn');
+            if (markBtn) { e.stopPropagation(); toggleMark(markBtn.dataset.id); return; }
+            const uid = e.target.closest('[data-uid]');
+            if (uid) showProfile(Number(uid.dataset.uid), uid);
         });
 
-        // Fix broken avatar images
+        // Fix broken avatars in messages
         dom.msgs.addEventListener('error', e => {
             const img = e.target;
             if (!img.classList.contains('chat-av-img')) return;
-            const letter = img.dataset.fb || '?';
-            const vip    = img.dataset.vip === '1';
             const div = document.createElement('div');
-            div.className = 'chat-av-letter' + (vip ? ' chat-av-letter--vip' : '');
-            div.textContent = letter;
+            div.className = 'chat-av-letter' + (img.dataset.vip === '1' ? ' chat-av-letter--vip' : '');
+            div.textContent = img.dataset.fb || '?';
             img.replaceWith(div);
         }, true);
 
-        // Close emoji picker / popup when clicking outside
+        // Dismiss emoji picker / popup on outside click
         document.addEventListener('click', e => {
             if (emojiOpen && !dom.picker.contains(e.target) && e.target !== dom.emojiBtn) {
                 hideEmojiPicker();
             }
-            if (!dom.popup.hidden && !dom.popup.contains(e.target) && !e.target.closest('[data-uid]')) {
+            if (!dom.popup.hidden &&
+                !dom.popup.contains(e.target) &&
+                !e.target.closest('[data-uid]') &&
+                !e.target.closest('.chat-mark-btn')) {
                 dom.popup.hidden = true;
             }
         });
 
-        // Login link → open auth panel
+        // Login hint link → open auth overlay
         dom.hintLink.addEventListener('click', () => {
-            const overlay = document.getElementById('auth-overlay');
-            if (overlay) overlay.classList.add('open');
+            const authEl = document.getElementById('auth-overlay');
+            if (authEl) { authEl.style.display = 'flex'; authEl.classList.add('open'); }
+            closePanel();
         });
 
-        // Pause polling when tab is hidden
+        // Pause/resume polling with tab visibility
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) stopPoll();
             else if (isOpen) startFastPoll();
             else startSlowPoll();
         });
 
+        // ── Hide chat when auth overlay is visible ────────────────────
+        observeAuthOverlay();
+
         updateLoginState();
         startSlowPoll();
     }
 
+    // ── Auth overlay observation ────────────────────────────────────────────
+    function observeAuthOverlay() {
+        const authEl = document.getElementById('auth-overlay');
+        if (!authEl) return;
+
+        function syncVisibility() {
+            const authOpen = authEl.classList.contains('open') ||
+                             authEl.style.display === 'flex';
+            dom.widget.style.display = authOpen ? 'none' : '';
+            if (authOpen && isOpen) closePanel();
+        }
+
+        syncVisibility(); // initial check
+
+        const obs = new MutationObserver(syncVisibility);
+        obs.observe(authEl, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+
     // ── Login state ─────────────────────────────────────────────────────────
     function updateLoginState() {
-        const loggedIn = isLoggedIn();
-        dom.hint.hidden = loggedIn;
-        dom.input.hidden = !loggedIn;
-        dom.emojiBtn.hidden = !loggedIn;
-        dom.send.hidden = !loggedIn;
-        if (loggedIn) updateSendState();
+        const logged = isLoggedIn();
+        dom.hint.hidden  = logged;
+        dom.input.hidden = !logged;
+        dom.emojiBtn.hidden = !logged;
+        dom.send.hidden  = !logged;
+        if (logged) updateSendState();
     }
 
     // ── Panel open / close ──────────────────────────────────────────────────
@@ -261,22 +329,21 @@ const ChatManager = (function () {
     function openPanel() {
         isOpen = true;
         dom.panel.classList.add('chat-panel--open');
+        dom.backdrop.classList.add('chat-backdrop--open');
         dom.toggle.classList.add('chat-toggle--open');
         clearUnread();
         hideEmojiPicker();
         updateLoginState();
         stopPoll();
-        if (lastId === 0) {
-            loadHistory();
-        } else {
-            scrollToBottom();
-        }
+        if (lastId === 0) loadHistory();
+        else scrollToBottom();
         startFastPoll();
     }
 
     function closePanel() {
         isOpen = false;
         dom.panel.classList.remove('chat-panel--open');
+        dom.backdrop.classList.remove('chat-backdrop--open');
         dom.toggle.classList.remove('chat-toggle--open');
         hideEmojiPicker();
         dom.popup.hidden = true;
@@ -313,7 +380,7 @@ const ChatManager = (function () {
             const d = await r.json();
             if (!d.ok) { dom.msgs.innerHTML = '<div class="chat-state-msg">Erro ao carregar.</div>'; return; }
             dom.msgs.innerHTML = '';
-            if (d.messages.length === 0) {
+            if (!d.messages.length) {
                 dom.msgs.innerHTML = '<div class="chat-state-msg">Nenhuma mensagem ainda. Seja o primeiro!</div>';
             } else {
                 appendMessages(d.messages, false);
@@ -329,10 +396,10 @@ const ChatManager = (function () {
         try {
             const r = await fetch(`${API}?action=history&since=${lastId}`);
             const d = await r.json();
-            if (!d.ok || !d.messages.length) { updateOnline(d.online ?? 0); return; }
+            if (!d.ok || !d.messages.length) { if (d.online !== undefined) updateOnline(d.online); return; }
             const atBottom = isAtBottom();
-            // If history was empty state, clear it
-            if (dom.msgs.querySelector('.chat-state-msg')) dom.msgs.innerHTML = '';
+            const st = dom.msgs.querySelector('.chat-state-msg');
+            if (st) st.remove();
             appendMessages(d.messages, true);
             if (isOpen && atBottom) scrollToBottom();
             if (!isOpen) addUnread(d.messages.length);
@@ -343,10 +410,7 @@ const ChatManager = (function () {
     function isAtBottom() {
         return dom.msgs.scrollHeight - dom.msgs.scrollTop - dom.msgs.clientHeight < 60;
     }
-
-    function scrollToBottom() {
-        dom.msgs.scrollTop = dom.msgs.scrollHeight;
-    }
+    function scrollToBottom() { dom.msgs.scrollTop = dom.msgs.scrollHeight; }
 
     function appendMessages(msgs, animate) {
         const frag = document.createDocumentFragment();
@@ -359,7 +423,7 @@ const ChatManager = (function () {
             lastId = Math.max(lastId, Number(m.id));
         }
         dom.msgs.appendChild(frag);
-        // Trim old messages from the DOM
+        // Keep DOM lean
         const all = dom.msgs.querySelectorAll('.chat-msg');
         if (all.length > MAX_DOM_MSGS) {
             for (let i = 0; i < all.length - MAX_DOM_MSGS; i++) all[i].remove();
@@ -403,7 +467,6 @@ const ChatManager = (function () {
 
             if (d.ok) {
                 dom.input.value = '';
-                // Remove empty-state placeholder
                 const st = dom.msgs.querySelector('.chat-state-msg');
                 if (st) st.remove();
                 appendMessages([d.message], true);
@@ -419,9 +482,7 @@ const ChatManager = (function () {
         } finally {
             isSending = false;
             dom.input.disabled = false;
-            if (Date.now() >= cooldownEnd) {
-                dom.send.disabled = dom.input.value.trim().length === 0;
-            }
+            if (Date.now() >= cooldownEnd) dom.send.disabled = dom.input.value.trim().length === 0;
             dom.input.focus();
         }
     }
@@ -461,21 +522,18 @@ const ChatManager = (function () {
 
     // ── Emoji picker ────────────────────────────────────────────────────────
     function toggleEmojiPicker() { emojiOpen ? hideEmojiPicker() : showEmojiPicker(); }
-
     function showEmojiPicker() {
         emojiOpen = true;
         dom.picker.hidden = false;
         dom.emojiBtn.classList.add('chat-emoji-btn--active');
         requestAnimationFrame(() => dom.picker.classList.add('chat-picker--open'));
     }
-
     function hideEmojiPicker() {
         emojiOpen = false;
         dom.picker.classList.remove('chat-picker--open');
         dom.emojiBtn.classList.remove('chat-emoji-btn--active');
         setTimeout(() => { if (!emojiOpen) dom.picker.hidden = true; }, 220);
     }
-
     function switchEmojiTab(idx) {
         activeTab = idx;
         dom.picker.querySelectorAll('.chat-etab').forEach((t, i) =>
@@ -483,12 +541,11 @@ const ChatManager = (function () {
         dom.picker.querySelectorAll('.chat-egrid').forEach((g, i) =>
             g.classList.toggle('chat-egrid--hidden', i !== idx));
     }
-
     function insertEmoji(emoji) {
-        const el   = dom.input;
-        const s    = el.selectionStart ?? el.value.length;
-        const e    = el.selectionEnd   ?? el.value.length;
-        el.value   = el.value.slice(0, s) + emoji + el.value.slice(e);
+        const el = dom.input;
+        const s  = el.selectionStart ?? el.value.length;
+        const e  = el.selectionEnd   ?? el.value.length;
+        el.value = el.value.slice(0, s) + emoji + el.value.slice(e);
         el.selectionStart = el.selectionEnd = s + emoji.length;
         el.focus();
         updateSendState();
@@ -497,7 +554,6 @@ const ChatManager = (function () {
     // ── Profile popup ────────────────────────────────────────────────────────
     async function showProfile(userId, anchor) {
         if (!userId) return;
-
         dom.popup.innerHTML = '<div class="chat-popup-loading">···</div>';
         dom.popup.hidden = false;
         positionPopup(anchor);
@@ -513,24 +569,22 @@ const ChatManager = (function () {
             const avHtml = url
                 ? `<img class="chat-popup-av" src="${esc(url)}" alt="">`
                 : `<div class="chat-popup-av chat-popup-av--letter${vip ? ' chat-popup-av--vip' : ''}">${esc(letter)}</div>`;
-
-            const since = d.since
+            const since  = d.since
                 ? new Date(d.since).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
                 : '';
-            const vipBadge = vip ? '<span class="chat-vip">VIP</span>' : '';
-            const nameCls = 'chat-popup-name' + (vip ? ' chat-popup-name--vip' : '');
 
             dom.popup.innerHTML = `
                 <div class="chat-popup-inner">
                     ${avHtml}
                     <div>
-                        <div class="${nameCls}">${esc(d.username)}</div>
-                        <div class="chat-popup-meta">Nv.${d.nivel} ${vipBadge}</div>
+                        <div class="chat-popup-name${vip ? ' chat-popup-name--vip' : ''}">${esc(d.username)}</div>
+                        <div class="chat-popup-meta">
+                            Nv.${d.nivel}${vip ? ' · <span class="chat-vip">VIP</span>' : ''}
+                        </div>
                         ${since ? `<div class="chat-popup-since">Membro desde ${since}</div>` : ''}
                     </div>
                 </div>`;
 
-            // Fix broken popup avatar
             const avImg = dom.popup.querySelector('img.chat-popup-av');
             if (avImg) {
                 avImg.addEventListener('error', () => {
@@ -547,17 +601,14 @@ const ChatManager = (function () {
     }
 
     function positionPopup(anchor) {
-        const panelRect  = dom.panel.getBoundingClientRect();
-        const anchorRect = anchor.getBoundingClientRect();
-        const relTop     = anchorRect.top - panelRect.top;
-
-        if (relTop > panelRect.height / 2) {
-            // anchor in bottom half → show popup above it
-            dom.popup.style.bottom = (panelRect.height - relTop + 4) + 'px';
+        const pr = dom.panel.getBoundingClientRect();
+        const ar = anchor.getBoundingClientRect();
+        const relTop = ar.top - pr.top;
+        if (relTop > pr.height / 2) {
+            dom.popup.style.bottom = (pr.height - relTop + 4) + 'px';
             dom.popup.style.top    = 'auto';
         } else {
-            // anchor in top half → show below it
-            dom.popup.style.top    = (relTop + anchorRect.height + 4) + 'px';
+            dom.popup.style.top    = (relTop + ar.height + 4) + 'px';
             dom.popup.style.bottom = 'auto';
         }
     }
