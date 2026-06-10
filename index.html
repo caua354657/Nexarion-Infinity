@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="styles/animations.css">
     <link rel="stylesheet" href="styles/responsive.css">
     <link rel="stylesheet" href="styles/skins.css">
+    <link rel="stylesheet" href="styles/chat.css">
     <style>
         /* These are in the CSS files now — kept empty for potential overrides */
     </style>
@@ -317,6 +318,7 @@
 <script src="scripts/ui/NotificationManager.js"></script>
 <script src="scripts/ui/TutorialManager.js"></script>
 <script src="scripts/ui/UIManager.js"></script>
+<script src="scripts/ui/ChatManager.js"></script>
 
 <!-- ── Principal ── -->
 <script src="scripts/core/GameManager.js"></script>
@@ -341,7 +343,7 @@
         window.buyUpgrade   = id => window.game.buyUpgrade(id);
         window.buyVip       = () => window.game.buyVip();
 
-        window.game.init().catch(err => {
+        window.game.init().then(() => ChatManager.init()).catch(err => {
             console.error('Nexarion Infinity erro de inicialização:', err);
             document.body.innerHTML = `<div style="color:#ff0080;font-family:monospace;padding:40px;background:#050510;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;"><div style="font-size:24px;">⚠ Erro de Inicialização</div><pre style="font-size:12px;color:#00f5ff;max-width:800px;overflow:auto;">${err.stack || err}</pre><button onclick="location.reload()" style="margin-top:20px;padding:12px 28px;background:#7b2fff;border:none;border-radius:8px;color:#fff;font-size:16px;cursor:pointer;">Recarregar</button></div>`;
         });
