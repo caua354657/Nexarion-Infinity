@@ -9,7 +9,6 @@ const ChatManager = (function () {
     const CLIENT_CD_MS   = 3200;
     const MAX_LEN        = 200;
     const MAX_DOM_MSGS   = 150;
-    const MARKS_KEY      = 'chat_marked_v1';
 
     // ── Emoji categories ────────────────────────────────────────────────────
     const EMOJI_CATS = [
@@ -38,7 +37,7 @@ const ChatManager = (function () {
     let pollTimer  = null;
     let cdRaf      = null;
     let dom        = {};
-    let markedIds  = new Set();  // IDs of starred messages (localStorage)
+    let replyTarget = null;  // { id, username, text } | null
 
     // ── Game accessors ──────────────────────────────────────────────────────
     const gm           = () => window.game || null;
@@ -85,69 +84,78 @@ const ChatManager = (function () {
     }
 
     function msgHtml(msg) {
-        const myId   = currentUserId();
-        const isMe   = myId !== null && String(msg.user_id) === String(myId);
-        const vip    = Number(msg.vip) === 1;
-        const marked = markedIds.has(Number(msg.id));
-        const badge  = vip ? '<span class="chat-vip">VIP</span>' : '';
+        const myId    = currentUserId();
+        const isMe    = myId !== null && String(msg.user_id) === String(myId);
+        const vip     = Number(msg.vip) === 1;
+        const badge   = vip ? '<span class="chat-vip">VIP</span>' : '';
         const nameCls = 'chat-name' + (vip ? ' chat-name--vip' : '');
-        const markedCls  = marked ? ' chat-msg--marked' : '';
-        const replyIcon  = marked ? '↩' : '↩';
-        const replyMark  = marked ? ' chat-mark-btn--active' : '';
+        const quoteHtml = msg.reply_username
+            ? `<div class="chat-quote-wrap"><div class="chat-quote">
+                   <span class="chat-quote-name">${esc(String(msg.reply_username))}</span>
+                   <span class="chat-quote-text">${esc(String(msg.reply_mensagem || ''))}</span>
+               </div></div>`
+            : '';
 
-        return `<div class="chat-msg${isMe ? ' chat-msg--me' : ''}${markedCls}"
+        return `<div class="chat-msg${isMe ? ' chat-msg--me' : ''}"
                      data-id="${msg.id}" data-uid="${msg.user_id}">
             <div class="chat-av-wrap" data-uid="${msg.user_id}">
                 ${avatarHtml(msg.foto, msg.username, vip)}
             </div>
             <div class="chat-bubble">
+                ${quoteHtml}
                 <div class="chat-meta">
                     <span class="${nameCls}" data-uid="${msg.user_id}">${esc(msg.username)}</span>
                     ${badge}
                     <span class="chat-level">Nv.${Number(msg.nivel)}</span>
-                    <span class="chat-time">${formatMsgTime(msg.ts)}</span>
                 </div>
                 <div class="chat-text">${esc(msg.mensagem)}</div>
             </div>
+            <span class="chat-time">${formatMsgTime(msg.ts)}</span>
             <div class="chat-msg-actions">
-                <button class="chat-mark-btn${replyMark}" data-id="${msg.id}" title="Marcar para responder">${replyIcon}</button>
+                ${isMe ? `<button class="chat-del-btn" data-id="${msg.id}" title="Excluir mensagem">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                    </svg>
+                </button>` : ''}
+                <button class="chat-mark-btn" data-id="${msg.id}" title="Marcar para responder">↩</button>
             </div>
         </div>`;
     }
 
-    // ── Marked messages persistence ─────────────────────────────────────────
-    function loadMarks() {
-        try {
-            const raw = localStorage.getItem(MARKS_KEY);
-            markedIds = raw ? new Set(JSON.parse(raw)) : new Set();
-        } catch (_) { markedIds = new Set(); }
+    // ── Reply target ──────────────────────────────────────────────────────────
+    function setReplyTarget(msgEl) {
+        const id = Number(msgEl.dataset.id);
+        if (replyTarget && replyTarget.id === id) { clearReplyTarget(); return; }
+
+        dom.msgs.querySelectorAll('.chat-msg--marked').forEach(el => el.classList.remove('chat-msg--marked'));
+        dom.msgs.querySelectorAll('.chat-mark-btn--active').forEach(b => b.classList.remove('chat-mark-btn--active'));
+
+        msgEl.classList.add('chat-msg--marked');
+        const btn = msgEl.querySelector('.chat-mark-btn');
+        if (btn) btn.classList.add('chat-mark-btn--active');
+
+        const username = msgEl.querySelector('.chat-name')?.textContent || '?';
+        const text = msgEl.querySelector('.chat-text')?.textContent || '';
+        replyTarget = { id, username, text: text.slice(0, 80) };
+        showReplyBar();
+        if (!dom.input.hidden) dom.input.focus();
     }
 
-    function saveMarks() {
-        try { localStorage.setItem(MARKS_KEY, JSON.stringify([...markedIds])); }
-        catch (_) {}
+    function clearReplyTarget() {
+        replyTarget = null;
+        dom.msgs.querySelectorAll('.chat-msg--marked').forEach(el => el.classList.remove('chat-msg--marked'));
+        dom.msgs.querySelectorAll('.chat-mark-btn--active').forEach(b => b.classList.remove('chat-mark-btn--active'));
+        hideReplyBar();
     }
 
-    function toggleMark(id) {
-        const numId = Number(id);
-        if (markedIds.has(numId)) {
-            markedIds.delete(numId);
-        } else {
-            markedIds.add(numId);
-        }
-        saveMarks();
+    function showReplyBar() {
+        dom.replyName.textContent = replyTarget.username;
+        dom.replyText.textContent = replyTarget.text;
+        dom.replyBar.classList.add('chat-reply-bar--open');
+    }
 
-        // Update DOM element in place
-        const el = dom.msgs.querySelector(`.chat-msg[data-id="${id}"]`);
-        if (el) {
-            const isNowMarked = markedIds.has(numId);
-            el.classList.toggle('chat-msg--marked', isNowMarked);
-            const btn = el.querySelector('.chat-mark-btn');
-            if (btn) {
-                btn.textContent = '↩';
-                btn.classList.toggle('chat-mark-btn--active', isNowMarked);
-            }
-        }
+    function hideReplyBar() {
+        dom.replyBar.classList.remove('chat-reply-bar--open');
     }
 
     // ── Build DOM ───────────────────────────────────────────────────────────
@@ -190,6 +198,16 @@ const ChatManager = (function () {
                 <div id="chat-login-hint" class="chat-login-hint" hidden>
                     <a id="chat-login-link">Faça login</a> para enviar mensagens
                 </div>
+                <div id="chat-reply-bar" class="chat-reply-bar">
+                    <div class="chat-reply-bar-inner">
+                        <span class="chat-reply-bar-icon">↩</span>
+                        <div class="chat-reply-bar-info">
+                            <span id="chat-reply-name" class="chat-reply-bar-name"></span>
+                            <span id="chat-reply-text" class="chat-reply-bar-text"></span>
+                        </div>
+                    </div>
+                    <button id="chat-reply-cancel" class="chat-reply-bar-cancel" title="Cancelar resposta">✕</button>
+                </div>
                 <div class="chat-footer">
                     <button id="chat-emoji-btn" class="chat-emoji-btn" title="Emojis" aria-label="Emojis">😊</button>
                     <input id="chat-input" class="chat-input" type="text"
@@ -209,26 +227,29 @@ const ChatManager = (function () {
 
     // ── Init ────────────────────────────────────────────────────────────────
     function init() {
-        loadMarks();
         document.body.insertAdjacentHTML('beforeend', buildHtml());
 
         dom = {
-            backdrop: document.getElementById('chat-backdrop'),
-            widget:   document.getElementById('chat-widget'),
-            toggle:   document.getElementById('chat-toggle'),
-            panel:    document.getElementById('chat-panel'),
-            close:    document.getElementById('chat-close'),
-            msgs:     document.getElementById('chat-msgs'),
-            picker:   document.getElementById('chat-picker'),
-            input:    document.getElementById('chat-input'),
-            send:     document.getElementById('chat-send'),
-            emojiBtn: document.getElementById('chat-emoji-btn'),
-            badge:    document.getElementById('chat-badge'),
-            online:   document.getElementById('chat-online'),
-            popup:    document.getElementById('chat-popup'),
-            toast:    document.getElementById('chat-toast'),
-            hint:     document.getElementById('chat-login-hint'),
-            hintLink: document.getElementById('chat-login-link'),
+            backdrop:    document.getElementById('chat-backdrop'),
+            widget:      document.getElementById('chat-widget'),
+            toggle:      document.getElementById('chat-toggle'),
+            panel:       document.getElementById('chat-panel'),
+            close:       document.getElementById('chat-close'),
+            msgs:        document.getElementById('chat-msgs'),
+            picker:      document.getElementById('chat-picker'),
+            input:       document.getElementById('chat-input'),
+            send:        document.getElementById('chat-send'),
+            emojiBtn:    document.getElementById('chat-emoji-btn'),
+            badge:       document.getElementById('chat-badge'),
+            online:      document.getElementById('chat-online'),
+            popup:       document.getElementById('chat-popup'),
+            toast:       document.getElementById('chat-toast'),
+            hint:        document.getElementById('chat-login-hint'),
+            hintLink:    document.getElementById('chat-login-link'),
+            replyBar:    document.getElementById('chat-reply-bar'),
+            replyName:   document.getElementById('chat-reply-name'),
+            replyText:   document.getElementById('chat-reply-text'),
+            replyCancel: document.getElementById('chat-reply-cancel'),
         };
 
         // ── Bindings ──────────────────────────────────────────────────
@@ -252,12 +273,31 @@ const ChatManager = (function () {
             if (tab) switchEmojiTab(Number(tab.dataset.cat));
         });
 
-        // Avatar/name → profile popup; star button → mark
+        // Avatar/name → profile popup; reply/delete buttons → actions
         dom.msgs.addEventListener('click', e => {
+            const delBtn = e.target.closest('.chat-del-btn');
+            if (delBtn) {
+                e.stopPropagation();
+                const msgEl = delBtn.closest('.chat-msg');
+                deleteMessage(Number(delBtn.dataset.id), msgEl);
+                return;
+            }
             const markBtn = e.target.closest('.chat-mark-btn');
-            if (markBtn) { e.stopPropagation(); toggleMark(markBtn.dataset.id); return; }
+            if (markBtn) {
+                e.stopPropagation();
+                const msgEl = markBtn.closest('.chat-msg');
+                if (msgEl) setReplyTarget(msgEl);
+                return;
+            }
             const uid = e.target.closest('[data-uid]');
             if (uid) showProfile(Number(uid.dataset.uid), uid);
+        });
+
+        dom.replyCancel.addEventListener('click', clearReplyTarget);
+
+        // Clear unread badge when user scrolls to the bottom
+        dom.msgs.addEventListener('scroll', () => {
+            if (isAtBottom()) clearUnread();
         });
 
         // Fix broken avatars in messages
@@ -470,12 +510,14 @@ const ChatManager = (function () {
             const fd = new FormData();
             fd.append('msg', text);
             fd.append('nivel', String(currentLevel()));
+            if (replyTarget) fd.append('reply_to', String(replyTarget.id));
 
             const r = await fetch(`${API}?action=send`, { method: 'POST', body: fd });
             const d = await r.json();
 
             if (d.ok) {
                 dom.input.value = '';
+                clearReplyTarget();
                 const st = dom.msgs.querySelector('.chat-state-msg');
                 if (st) st.remove();
                 appendMessages([d.message], true);
@@ -493,6 +535,26 @@ const ChatManager = (function () {
             dom.input.disabled = false;
             if (Date.now() >= cooldownEnd) dom.send.disabled = dom.input.value.trim().length === 0;
             dom.input.focus();
+        }
+    }
+
+    async function deleteMessage(id, msgEl) {
+        if (!isLoggedIn() || !id) return;
+        try {
+            const fd = new FormData();
+            fd.append('id', String(id));
+            const r = await fetch(`${API}?action=delete`, { method: 'POST', body: fd });
+            const d = await r.json();
+            if (d.ok && msgEl) {
+                if (replyTarget && replyTarget.id === id) clearReplyTarget();
+                msgEl.style.transition = 'opacity 0.18s';
+                msgEl.style.opacity = '0';
+                setTimeout(() => msgEl.remove(), 180);
+            } else if (!d.ok) {
+                showToast(d.msg || 'Erro ao excluir.');
+            }
+        } catch (_) {
+            showToast('Erro de conexão.');
         }
     }
 

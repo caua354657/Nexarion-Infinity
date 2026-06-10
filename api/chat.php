@@ -30,6 +30,11 @@ try {
     ");
 } catch (PDOException $e) { /* already exists */ }
 
+// ── Add reply_to column if not present (idempotent) ───────────────────────
+try {
+    db()->exec("ALTER TABLE chat_messages ADD COLUMN reply_to INT UNSIGNED NULL DEFAULT NULL");
+} catch (PDOException $e) { /* already exists */ }
+
 // ── Lazy cleanup: 10 % chance — removes messages older than 7 days ─────────
 if (mt_rand(1, 10) === 1) {
     try { db()->exec("DELETE FROM chat_messages WHERE criado_em < NOW() - INTERVAL 7 DAY"); }
@@ -55,6 +60,7 @@ switch ($action) {
     case 'history': actionHistory(); break;
     case 'send':    actionSend();    break;
     case 'perfil':  actionPerfil();  break;
+    case 'delete':  actionDelete();  break;
     default:        respond(['ok' => false, 'msg' => 'Ação inválida']);
 }
 
@@ -65,11 +71,15 @@ function actionHistory(): void
 
     if ($since > 0) {
         $stmt = db()->prepare("
-            SELECT id, user_id, username, nivel, vip, foto, mensagem,
-                   UNIX_TIMESTAMP(criado_em) AS ts
-            FROM chat_messages
-            WHERE id > ?
-            ORDER BY id ASC
+            SELECT m.id, m.user_id, m.username, m.nivel, m.vip, m.foto, m.mensagem,
+                   UNIX_TIMESTAMP(m.criado_em) AS ts,
+                   m.reply_to,
+                   r.username AS reply_username,
+                   LEFT(r.mensagem, 80) AS reply_mensagem
+            FROM chat_messages m
+            LEFT JOIN chat_messages r ON r.id = m.reply_to
+            WHERE m.id > ?
+            ORDER BY m.id ASC
             LIMIT 60
         ");
         $stmt->execute([$since]);
@@ -77,10 +87,14 @@ function actionHistory(): void
     } else {
         $rows = array_reverse(
             db()->query("
-                SELECT id, user_id, username, nivel, vip, foto, mensagem,
-                       UNIX_TIMESTAMP(criado_em) AS ts
-                FROM chat_messages
-                ORDER BY id DESC
+                SELECT m.id, m.user_id, m.username, m.nivel, m.vip, m.foto, m.mensagem,
+                       UNIX_TIMESTAMP(m.criado_em) AS ts,
+                       m.reply_to,
+                       r.username AS reply_username,
+                       LEFT(r.mensagem, 80) AS reply_mensagem
+                FROM chat_messages m
+                LEFT JOIN chat_messages r ON r.id = m.reply_to
+                ORDER BY m.id DESC
                 LIMIT 50
             ")->fetchAll()
         );
@@ -104,8 +118,16 @@ function actionSend(): void
         respond(['ok' => false, 'msg' => 'Faça login para enviar mensagens.']);
     }
 
-    $rawMsg = trim($_POST['msg'] ?? '');
-    $nivel  = max(1, min(9999, (int)($_POST['nivel'] ?? 1)));
+    $rawMsg  = trim($_POST['msg'] ?? '');
+    $nivel   = max(1, min(9999, (int)($_POST['nivel'] ?? 1)));
+    $replyTo = isset($_POST['reply_to']) ? (int)$_POST['reply_to'] : null;
+    if ($replyTo !== null && $replyTo > 0) {
+        $chk = db()->prepare("SELECT id FROM chat_messages WHERE id = ?");
+        $chk->execute([$replyTo]);
+        if (!$chk->fetch()) $replyTo = null;
+    } else {
+        $replyTo = null;
+    }
 
     if ($rawMsg === '')           respond(['ok' => false, 'msg' => 'Mensagem vazia.']);
     if (mb_strlen($rawMsg) > 200) respond(['ok' => false, 'msg' => 'Máximo 200 caracteres.']);
@@ -151,20 +173,43 @@ function actionSend(): void
     $msg = filterProfanity($rawMsg);
 
     $ins = db()->prepare("
-        INSERT INTO chat_messages (user_id, username, nivel, vip, foto, mensagem)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO chat_messages (user_id, username, nivel, vip, foto, mensagem, reply_to)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
-    $ins->execute([$uid, $user['nome_usuario'], $nivel, (int)$user['vip'], $user['foto'], $msg]);
+    $ins->execute([$uid, $user['nome_usuario'], $nivel, (int)$user['vip'], $user['foto'], $msg, $replyTo]);
     $newId = (int)db()->lastInsertId();
 
     $fetch = db()->prepare("
-        SELECT id, user_id, username, nivel, vip, foto, mensagem,
-               UNIX_TIMESTAMP(criado_em) AS ts
-        FROM chat_messages WHERE id = ?
+        SELECT m.id, m.user_id, m.username, m.nivel, m.vip, m.foto, m.mensagem,
+               UNIX_TIMESTAMP(m.criado_em) AS ts,
+               m.reply_to,
+               r.username AS reply_username,
+               LEFT(r.mensagem, 80) AS reply_mensagem
+        FROM chat_messages m
+        LEFT JOIN chat_messages r ON r.id = m.reply_to
+        WHERE m.id = ?
     ");
     $fetch->execute([$newId]);
 
     respond(['ok' => true, 'message' => $fetch->fetch()]);
+}
+
+// ── delete ────────────────────────────────────────────────────────────────────
+function actionDelete(): void
+{
+    $uid = uid();
+    if ($uid === null) respond(['ok' => false, 'msg' => 'Não autenticado.']);
+
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) respond(['ok' => false, 'msg' => 'ID inválido.']);
+
+    $stmt = db()->prepare("DELETE FROM chat_messages WHERE id = ? AND user_id = ?");
+    $stmt->execute([$id, $uid]);
+
+    if ($stmt->rowCount() === 0) {
+        respond(['ok' => false, 'msg' => 'Mensagem não encontrada.']);
+    }
+    respond(['ok' => true]);
 }
 
 // ── perfil ────────────────────────────────────────────────────────────────────
