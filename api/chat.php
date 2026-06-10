@@ -133,10 +133,10 @@ function actionSend(): void
         if ((int)($flood->fetch()['cnt'] ?? 0) >= 5) {
             respond(['ok' => false, 'msg' => 'Muitas mensagens em pouco tempo!']);
         }
-        // 3. Duplicate: same text in last 30 s
+        // 3. Duplicate: same text within 60 s
         foreach ($rows as $r) {
-            if ($r['mensagem'] === $rawMsg && (time() - (int)$r['ts']) < 30) {
-                respond(['ok' => false, 'msg' => 'Mensagem duplicada.']);
+            if ($r['mensagem'] === $rawMsg && (time() - (int)$r['ts']) < 60) {
+                respond(['ok' => false, 'msg' => 'Mensagem duplicada. Aguarde 1 minuto.']);
             }
         }
     }

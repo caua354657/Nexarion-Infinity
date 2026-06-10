@@ -198,12 +198,12 @@
 .chat-msg--me   { background: rgba(0,245,255,0.03); }
 .chat-msg--me:hover { background: rgba(0,245,255,0.065); }
 
-/* Marked/starred message */
+/* Marked-for-reply message */
 .chat-msg--marked {
-    background: rgba(255,215,0,0.04) !important;
-    border-left-color: rgba(255,215,0,0.5) !important;
+    background: rgba(0,245,255,0.05) !important;
+    border-left-color: rgba(0,245,255,0.5) !important;
 }
-.chat-msg--marked .chat-mark-btn { color: #ffd700 !important; opacity: 1 !important; }
+.chat-msg--marked .chat-mark-btn { opacity: 1 !important; }
 
 .chat-msg--new {
     animation: chat-msg-in 0.28s ease both;
@@ -224,25 +224,29 @@
     transition: opacity 0.15s;
 }
 .chat-mark-btn {
-    width: 24px;
-    height: 24px;
-    border-radius: 5px;
-    border: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
     background: rgba(8,8,25,0.85);
-    color: rgba(200,224,240,0.5);
-    font-size: 13px;
+    color: rgba(200,224,240,0.45);
+    font-size: 15px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.15s, background 0.15s;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
     line-height: 1;
-    border: 1px solid rgba(255,255,255,0.08);
 }
 .chat-mark-btn:hover {
-    color: #ffd700;
-    background: rgba(255,215,0,0.12);
-    border-color: rgba(255,215,0,0.25);
+    color: #00f5ff;
+    background: rgba(0,245,255,0.1);
+    border-color: rgba(0,245,255,0.3);
+}
+.chat-mark-btn--active {
+    color: #00f5ff !important;
+    background: rgba(0,245,255,0.12) !important;
+    border-color: rgba(0,245,255,0.4) !important;
 }
 
 /* ── Avatar ──────────────────────────────────────────────────────────── */

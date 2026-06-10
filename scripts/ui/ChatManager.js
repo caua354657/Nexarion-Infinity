@@ -55,12 +55,18 @@ const ChatManager = (function () {
             .replace(/"/g,'&quot;');
     }
 
-    function timeAgo(ts) {
-        const d = Math.floor(Date.now() / 1000) - Number(ts);
-        if (d < 60)    return 'agora';
-        if (d < 3600)  return Math.floor(d / 60) + 'min';
-        if (d < 86400) return Math.floor(d / 3600) + 'h';
-        return Math.floor(d / 86400) + 'd';
+    function formatMsgTime(ts) {
+        const date = new Date(Number(ts) * 1000);
+        const now  = new Date();
+        const hm   = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const isSameDay = date.toDateString() === now.toDateString();
+        if (isSameDay) return hm;
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        if (date.toDateString() === yesterday.toDateString()) return `ontem ${hm}`;
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        return `${dd}/${mm} ${hm}`;
     }
 
     function photoUrl(foto) {
@@ -85,8 +91,9 @@ const ChatManager = (function () {
         const marked = markedIds.has(Number(msg.id));
         const badge  = vip ? '<span class="chat-vip">VIP</span>' : '';
         const nameCls = 'chat-name' + (vip ? ' chat-name--vip' : '');
-        const markedCls = marked ? ' chat-msg--marked' : '';
-        const starIcon  = marked ? '★' : '☆';
+        const markedCls  = marked ? ' chat-msg--marked' : '';
+        const replyIcon  = marked ? '↩' : '↩';
+        const replyMark  = marked ? ' chat-mark-btn--active' : '';
 
         return `<div class="chat-msg${isMe ? ' chat-msg--me' : ''}${markedCls}"
                      data-id="${msg.id}" data-uid="${msg.user_id}">
@@ -98,12 +105,12 @@ const ChatManager = (function () {
                     <span class="${nameCls}" data-uid="${msg.user_id}">${esc(msg.username)}</span>
                     ${badge}
                     <span class="chat-level">Nv.${Number(msg.nivel)}</span>
-                    <span class="chat-time">${timeAgo(msg.ts)}</span>
+                    <span class="chat-time">${formatMsgTime(msg.ts)}</span>
                 </div>
                 <div class="chat-text">${esc(msg.mensagem)}</div>
             </div>
             <div class="chat-msg-actions">
-                <button class="chat-mark-btn" data-id="${msg.id}" title="Marcar mensagem">${starIcon}</button>
+                <button class="chat-mark-btn${replyMark}" data-id="${msg.id}" title="Marcar para responder">${replyIcon}</button>
             </div>
         </div>`;
     }
@@ -136,7 +143,10 @@ const ChatManager = (function () {
             const isNowMarked = markedIds.has(numId);
             el.classList.toggle('chat-msg--marked', isNowMarked);
             const btn = el.querySelector('.chat-mark-btn');
-            if (btn) btn.textContent = isNowMarked ? '★' : '☆';
+            if (btn) {
+                btn.textContent = '↩';
+                btn.classList.toggle('chat-mark-btn--active', isNowMarked);
+            }
         }
     }
 
