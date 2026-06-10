@@ -601,14 +601,15 @@ const ChatManager = (function () {
     }
 
     function positionPopup(anchor) {
-        const pr = dom.panel.getBoundingClientRect();
         const ar = anchor.getBoundingClientRect();
-        const relTop = ar.top - pr.top;
-        if (relTop > pr.height / 2) {
-            dom.popup.style.bottom = (pr.height - relTop + 4) + 'px';
+        const vh = window.innerHeight;
+        if (ar.top > vh / 2) {
+            // anchor in bottom half → show popup above it
             dom.popup.style.top    = 'auto';
+            dom.popup.style.bottom = (vh - ar.top + 8) + 'px';
         } else {
-            dom.popup.style.top    = (relTop + ar.height + 4) + 'px';
+            // anchor in top half → show popup below it
+            dom.popup.style.top    = (ar.bottom + 8) + 'px';
             dom.popup.style.bottom = 'auto';
         }
     }
