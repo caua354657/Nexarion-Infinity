@@ -35,9 +35,24 @@ try {
     db()->exec("ALTER TABLE chat_messages ADD COLUMN reply_to INT UNSIGNED NULL DEFAULT NULL");
 } catch (PDOException $e) { /* already exists */ }
 
+// ── Presence table (idempotent) ───────────────────────────────────────────
+try {
+    db()->exec("
+        CREATE TABLE IF NOT EXISTS `chat_presence` (
+            `session_id` VARCHAR(64)       NOT NULL,
+            `user_id`    INT UNSIGNED      NULL DEFAULT NULL,
+            `last_seen`  TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`session_id`),
+            KEY `idx_presence_seen` (`last_seen`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+} catch (PDOException $e) { /* already exists */ }
+
 // ── Lazy cleanup: 10 % chance — removes messages older than 7 days ─────────
 if (mt_rand(1, 10) === 1) {
     try { db()->exec("DELETE FROM chat_messages WHERE criado_em < NOW() - INTERVAL 7 DAY"); }
+    catch (PDOException $e) {}
+    try { db()->exec("DELETE FROM chat_presence WHERE last_seen < NOW() - INTERVAL 10 MINUTE"); }
     catch (PDOException $e) {}
 }
 
@@ -100,11 +115,21 @@ function actionHistory(): void
         );
     }
 
-    // Online ≈ distinct senders in last 30 minutes
+    // ── Update presence for this visitor ──────────────────────────
+    try {
+        $sessId = session_id();
+        $pUid   = uid();
+        db()->prepare("
+            INSERT INTO chat_presence (session_id, user_id, last_seen)
+            VALUES (?, ?, NOW())
+            ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), last_seen = NOW()
+        ")->execute([$sessId, $pUid]);
+    } catch (PDOException $e) {}
+
+    // Online = distinct sessions active in last 2 minutes
     $online = (int)(db()->query("
-        SELECT COUNT(DISTINCT user_id) AS cnt
-        FROM chat_messages
-        WHERE criado_em > NOW() - INTERVAL 30 MINUTE
+        SELECT COUNT(*) AS cnt FROM chat_presence
+        WHERE last_seen > NOW() - INTERVAL 2 MINUTE
     ")->fetch()['cnt'] ?? 0);
 
     respond(['ok' => true, 'messages' => $rows, 'online' => $online]);
