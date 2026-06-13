@@ -43,7 +43,8 @@ class UIManager {
         this._game = game;
         this._activePanel  = null;
         this._activeTab    = null;
-        this._worldOpen    = false;
+        this._worldOpen      = false;
+        this._sessionWorldXP = 0;
         this._activeBossTab = 'boss';
         this._activeShopTab = 'boosts';
         this._activeSkillTab = 'click';
@@ -230,7 +231,9 @@ class UIManager {
             'wardrobe_color':     _tL.t('panel.title.wardrobe_color'),
             'wardrobe_theme':     _tL.t('panel.title.wardrobe_theme'),
             'wardrobe_limited':   _tL.t('panel.title.wardrobe_limited'),
-            'worlds':             '🌍 Mundos & Álbum',
+            'worlds':             _tL.t('panel.title.worlds'),
+            'worlds_map':         _tL.t('panel.title.worlds_map'),
+            'worlds_album':       _tL.t('panel.title.worlds_album'),
         };
         return titles[panelId] || _tL.t('panel.title.default');
     }
@@ -377,10 +380,14 @@ class UIManager {
             case 'wardrobe_color':   this._renderWardrobe(content, ['color']); break;
             case 'wardrobe_theme':   this._renderWardrobe(content, ['theme', 'event']); break;
             case 'wardrobe_limited': this._renderWardrobe(content, ['temp']); break;
-            case 'worlds':
-                if (typeof WorldUI !== 'undefined') WorldUI.render(this._game, content);
+            case 'worlds':       this._renderNavGroup(content, 'worlds'); break;
+            case 'worlds_map':
+            case 'worlds_album': {
+                const _wMode = panelId === 'worlds_map' ? 'map' : 'album';
+                if (typeof WorldUI !== 'undefined') WorldUI.render(this._game, content, _wMode);
                 else content.innerHTML = '<div class="empty-msg">Módulo de Mundos carregando...</div>';
                 break;
+            }
             default: content.innerHTML = '<div class="empty-msg">Em breve...</div>';
         }
     }
@@ -1186,7 +1193,21 @@ class UIManager {
         const all = this._game.achievements.getProgress(
             this._game.stats, this._game.economy, this._game.upgradeManager);
 
-        let html = '<div id="achievements-list" style="display:flex;flex-direction:column;gap:5px;">';
+        const doneCount  = all.filter(a => a.done).length;
+        const totalCount = typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.length : all.length;
+        const topPct     = totalCount ? Math.floor(doneCount / totalCount * 100) : 0;
+
+        let html = `
+        <div class="ach-top-bar">
+            <div class="ach-top-bar-label">
+                <span>🏆 Conquistas — <span class="ach-top-bar-count">${doneCount}/${totalCount}</span></span>
+                <span class="ach-top-bar-pct">${topPct}%</span>
+            </div>
+            <div class="ach-top-bar-track">
+                <div class="ach-top-bar-fill" style="width:${topPct}%"></div>
+            </div>
+        </div>
+        <div id="achievements-list" style="display:flex;flex-direction:column;gap:5px;">`;
         all.forEach(a => {
             if (a.secret && !a.done) return;
             const prog = a.progress && !a.done ? (() => {
@@ -1196,13 +1217,17 @@ class UIManager {
                 const pct    = Math.min(100, a.progress.cur / a.progress.max * 100);
                 return `<div class="ach-prog"><div class="ach-prog-bar" style="width:${pct}%"></div></div><div class="ach-prog-label">${curStr} / ${maxStr}</div>`;
             })() : '';
+            const tipText = a.secret ? 'Conquista secreta — descubra como desbloquear!' : (a.desc || '');
             html += `
                 <div class="achievement-item ${a.done ? 'done' : ''}">
                     <span class="ach-icon">${a.done ? a.icon : '🔒'}</span>
                     <div class="ach-info">
-                        <div class="ach-name">${a.done ? a.name : '???'}</div>
-                        ${a.done || a.progress ? `<div class="ach-desc">${a.desc}</div>` : ''}
+                        <div class="ach-name">${a.done ? a.name : (a.secret ? '???' : a.name)}</div>
                         ${prog}
+                    </div>
+                    <div class="ach-tip-wrap">
+                        <span class="ach-tip-icon">?</span>
+                        <div class="ach-tip-bubble">${tipText}</div>
                     </div>
                 </div>`;
         });
@@ -2198,6 +2223,10 @@ class UIManager {
                 { id: 'shop_boosts',  icon: '⚡',  label: _L.t('nav.shop_boosts'),   sub: _L.t('nav.shop_boosts.sub'),   theme: 'gold'    },
                 { id: 'wardrobe',     icon: '🎭', label: _L.t('nav.wardrobe_main'), sub: _L.t('nav.wardrobe_main.sub'), theme: 'purple'  },
             ],
+            worlds: [
+                { id: 'worlds_map',   icon: '🌍', label: _L.t('nav.worlds_map'),   sub: _L.t('nav.worlds_map.sub'),   theme: 'neural' },
+                { id: 'worlds_album', icon: '📖', label: _L.t('nav.worlds_album'), sub: _L.t('nav.worlds_album.sub'), theme: 'gold'   },
+            ],
         };
 
         const rawItems = groups[groupId] || [];
@@ -2655,8 +2684,7 @@ class UIManager {
         const eventSkins = skins
             .filter(s => s.event)
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
-        const tempSkins = skins
-            .filter(s => s.temp)
+        const tempSkins = (g.limitedSkins?.getActiveSkins?.() ?? skins.filter(s => s.temp))
             .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
         const colorSkins = normalSkins.filter(s => s.category === 'color');
@@ -3781,6 +3809,10 @@ class UIManager {
         g.events.on('bossStateUpdate', () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
         g.events.on('bossHit',         () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
         g.events.on('bossDefeated',    () => { if (this._worldOpen) this._updateBossWorld(); if (this._activePanel === 'boss_battle') this._renderBossInfoContent(); });
+        g.events.on('bossXpAwarded',   ({ xp }) => {
+            this._sessionWorldXP = (this._sessionWorldXP || 0) + xp;
+            this._spawnBossXpFloat(xp);
+        });
 
         // Notification buttons
         document.getElementById('bn-battle')?.addEventListener('click', () => {
@@ -3858,10 +3890,18 @@ class UIManager {
             if (mc) mc.innerHTML = '';
         }
         this._worldOpen = true;
+        this._sessionWorldXP = 0;
         this._game.boss.openBossWorld();
 
         world.className = 'open';
         world.setAttribute('data-type', this._game.boss.boss?.type || '');
+        // Apply equipped world color theme (overrides data-type CSS vars)
+        const _ew = this._game.worlds?.getEquippedWorld?.();
+        if (_ew) {
+            world.style.setProperty('--world-color',  _ew.accent);
+            world.style.setProperty('--world-color2', _ew.worldColor2);
+            world.style.setProperty('--world-dark',   _ew.worldDark);
+        }
         this._spawnWorldParticles();
         this._renderBossWorld();
     }
@@ -4211,6 +4251,8 @@ class UIManager {
         const fmt = typeof formatNum === 'function' ? formatNum : n => n.toLocaleString();
         const btnLabel = isExit ? `✓ ${_brL.t('missions.claim')} & ${_brL.t('profile.logout').split(' ')[0]}` : `✓ ${_brL.t('missions.claim')}`;
 
+        const sessionXP = this._sessionWorldXP || 0;
+
         const killRow = rewards.kills > 0 ? `
             <div class="bw-rc-row">
                 <span class="bw-rc-icon">💀</span>
@@ -4229,6 +4271,12 @@ class UIManager {
                 <span class="bw-rc-label">${_brL.t('stats.diamonds')}</span>
                 <span class="bw-rc-val bw-rc-cyan">+${rewards.diamonds}</span>
             </div>` : '';
+        const xpRow = sessionXP > 0 ? `
+            <div class="bw-rc-row">
+                <span class="bw-rc-icon">⭐</span>
+                <span class="bw-rc-label">XP de Conta</span>
+                <span class="bw-rc-val bw-rc-xp">+${fmt(sessionXP)} XP</span>
+            </div>` : '';
 
         const overlay = document.createElement('div');
         overlay.className = 'bw-reward-overlay';
@@ -4240,7 +4288,7 @@ class UIManager {
                     <div class="bw-rc-sub">${isExit ? _brL.t('boss.world.entering').replace('…','') : _brL.t('boss.cooldown.title')}</div>
                 </div>
                 <div class="bw-rc-rows">
-                    ${killRow}${neuronRow}${diamondRow}
+                    ${killRow}${neuronRow}${diamondRow}${xpRow}
                 </div>
                 <button class="bw-rc-btn" id="bw-reward-claim-btn">${btnLabel}</button>
             </div>`;
@@ -4421,6 +4469,16 @@ class UIManager {
                           style="${!defeated ? `color:${rc}` : ''}">${timerInit}</span>
                     ${myDmgHTML}
                 </div>
+                ${(() => {
+                    const _ew = this._game.worlds?.getEquippedWorld?.();
+                    if (!_ew || !_ew.bossXpBonus) return '';
+                    const pct = Math.round(_ew.bossXpBonus * 100);
+                    return `<div class="bw-world-xp-badge" style="--bwxp:${_ew.accent}">
+                        <span class="bw-world-xp-icon">${_ew.emoji}</span>
+                        <span>${_ew.name}</span>
+                        <span class="bw-world-xp-bonus">+${pct}% XP</span>
+                    </div>`;
+                })()}
             </div>
 
             <div class="bw-arena${defeated ? ' bw-arena--dead' : ''}" style="--glow:${def.glowColor || rc + '44'}">
@@ -4435,6 +4493,7 @@ class UIManager {
                 ${sessKills > 0 ? `<span class="bw-drop-item bw-drop-kills">💀 ${sessKills}</span>` : ''}
                 <span class="bw-drop-item bw-drop-gold">🧠 ${sessNeurons > 0 ? formatNum(sessNeurons) : '—'}</span>
                 <span class="bw-drop-item bw-drop-cyan">💎 ${sessDiamonds > 0 ? sessDiamonds : '—'}</span>
+                ${(this._sessionWorldXP || 0) > 0 ? `<span class="bw-drop-item bw-drop-xp">⭐ ${formatNum(this._sessionWorldXP)} XP</span>` : ''}
             </div>
 
             <div class="bw-info-row">
@@ -4510,6 +4569,24 @@ class UIManager {
                 setTimeout(() => icon.classList.remove('bw-boss-icon--hit'), 280);
             });
         }
+    }
+
+    _spawnBossXpFloat(xp) {
+        if (!xp) return;
+        // Delay so _updateBossWorld re-render finishes first; attach to #boss-world (not arena) to survive innerHTML replacement
+        setTimeout(() => {
+            const world = document.getElementById('boss-world');
+            if (!world || !world.classList.contains('open')) return;
+            const fmt = typeof formatNum === 'function' ? formatNum : n => n.toLocaleString();
+            const el = document.createElement('div');
+            el.className = 'bw-xp-float';
+            el.textContent = `+${fmt(xp)} XP`;
+            // Center horizontally in the arena area (avoid edges)
+            el.style.left = `${30 + Math.random() * 40}%`;
+            el.style.top  = `${30 + Math.random() * 20}%`;
+            world.appendChild(el);
+            setTimeout(() => el.remove(), 1600);
+        }, 220);
     }
 
     _renderRebirth(container) {

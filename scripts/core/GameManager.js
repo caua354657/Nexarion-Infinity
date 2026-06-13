@@ -16,6 +16,7 @@ class GameManager {
         this.randomEvents = new RandomEventManager(this.boosts, this.economy, this.events);
         this.boss = new BossManager(this);
         this.worlds = new WorldManager(this);
+        this.limitedSkins = new LimitedSkinsManager(this);
         this.ui = new UIManager(this);
         this.notifications = new NotificationManager(this.events);
         this.tutorial = new TutorialManager(this.events, this.missions);
@@ -71,6 +72,7 @@ class GameManager {
         }
 
         this.worlds.init();
+        this.limitedSkins.init();
         if (this.account.isVip()) this.shop.applyVipBonus();
         if (this.account.hasDoubleNeuron()) this.economy.setPremiumMult(2);
         if (this.account.hasBossDmgX2?.()) {
@@ -192,6 +194,7 @@ class GameManager {
         if (this._autoSaveTimer >= Config.AUTOSAVE_INTERVAL / 1000) {
             this._autoSaveTimer = 0;
             this.save();
+            this.limitedSkins?._tick?.(); // check for skin rotation expiry
         }
 
         this._serverSyncTimer += dt;
@@ -207,7 +210,7 @@ class GameManager {
         const earned = this.economy.getEffectiveNPS() * dt;
         if (earned > 0) {
             this.economy.addNeurons(earned);
-            const xpMult = this.skills.getXpMult() * this.shop.getXpMult() * (this.worlds?.getXpMult?.() || 1);
+            const xpMult = this.skills.getXpMult() * this.shop.getXpMult();
             this.level.addXP(this.level.xpFromNeurons(earned) * xpMult);
             this.missions.onEarn(earned);
         }
@@ -257,7 +260,7 @@ class GameManager {
         const value = Math.ceil(this.economy.getClickValue() * comboMult * critMult);
 
         this.economy.addNeurons(value);
-        const xpMult = this.skills.getXpMult() * this.shop.getXpMult() * (this.worlds?.getXpMult?.() || 1);
+        const xpMult = this.skills.getXpMult() * this.shop.getXpMult();
         this.level.addXP((this.level.xpFromNeurons(value) + 1) * xpMult);
         this.missions.onEarn(value);
 
@@ -610,7 +613,7 @@ class GameManager {
     }
 
     doPrestige() {
-        const tokenMult = (1 + this.shop.getTokenBonus()) * (this.worlds?.getPrestigeMult?.() || 1);
+        const tokenMult = (1 + this.shop.getTokenBonus());
         const tokens    = this.economy.doPrestige(this.upgradeManager, tokenMult);
         if (tokens > 0) {
             this._lbSyncAt = 0; // bypass debounce — prestige is an important milestone
@@ -670,6 +673,7 @@ class GameManager {
             tutorial:     safe(() => this.tutorial.getState()),
             boss:         safe(() => this.boss.getState()),
             worlds:       safe(() => this.worlds.getState()),
+            limitedSkins: safe(() => this.limitedSkins.getState()),
             stats:        { ...this.stats },
             audio:        safe(() => this.audio.getState()),
         };
@@ -782,7 +786,8 @@ class GameManager {
         ld(() => this.randomEvents.loadState(s.events));
         ld(() => this.tutorial.loadState(s.tutorial));
         ld(() => { if (s.boss)   this.boss.loadState(s.boss); });
-        ld(() => { if (s.worlds) this.worlds.loadState(s.worlds); });
+        ld(() => { if (s.worlds)       this.worlds.loadState(s.worlds); });
+        ld(() => { if (s.limitedSkins) this.limitedSkins.loadState(s.limitedSkins); });
         ld(() => { if (s.stats) Object.assign(this.stats, s.stats); });
         ld(() => { if (s.audio) this.audio.loadState(s.audio); });
         this.economy.neuronsPerSec = this.upgradeManager.getNPS();

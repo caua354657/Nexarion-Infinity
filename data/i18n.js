@@ -279,6 +279,23 @@ const _T = {
         'boost.effect.click': 'poder de clique', 'boost.effect.global': 'produção global',
         // Diamond packs & permanent items
         'dpack.buy.btn': 'COMPRAR', 'perm.purchased': '✓ Comprado',
+        // Worlds & Album panel
+        'nav.worlds_map': 'Mapa de Mundos',   'nav.worlds_map.sub': '6 mundos com bônus permanentes',
+        'nav.worlds_album': 'Álbum de Coleção', 'nav.worlds_album.sub': 'Bosses e skins colecionáveis',
+        'panel.title.worlds': '🌍 Mundos & Álbum',
+        'panel.title.worlds_map': '🗺️ Mapa de Mundos',
+        'panel.title.worlds_album': '📖 Álbum de Coleção',
+        'wu.tab.worlds': 'Mundos', 'wu.tab.album': 'Álbum',
+        'wu.world.order': 'Mundo', 'wu.world.equip': 'Equipar', 'wu.world.equipped': 'Equipado',
+        'wu.world.unlocked': 'Desbloqueado',
+        'wu.world.requires': 'Requer Nível', 'wu.world.your.level': 'Você está no Nível',
+        'wu.album.bosses': 'Bosses', 'wu.album.skins': 'Skins',
+        'wu.album.skins.perm': 'Skins Permanentes', 'wu.album.skins.lim': 'Skins Limitadas',
+        'wu.album.defeated': 'Derrotado', 'wu.album.not.defeated': 'Não derrotado',
+        'wu.album.owned': 'Possuída', 'wu.album.locked': 'Bloqueada',
+        'wu.album.defeated.count': 'derrotados', 'wu.album.owned.count': 'possuídas',
+        'wu.album.no.skins': 'Nenhuma skin permanente disponível ainda.',
+        'wu.album.no.lim.skins': 'Nenhuma skin limitada disponível ainda.',
     },
 
     'en': {
@@ -540,6 +557,23 @@ const _T = {
         'boost.effect.click': 'click power', 'boost.effect.global': 'global production',
         // Diamond packs & permanent items
         'dpack.buy.btn': 'BUY', 'perm.purchased': '✓ Purchased',
+        // Worlds & Album panel
+        'nav.worlds_map': 'World Map',   'nav.worlds_map.sub': '6 worlds with permanent bonuses',
+        'nav.worlds_album': 'Collection Album', 'nav.worlds_album.sub': 'Collectible bosses & skins',
+        'panel.title.worlds': '🌍 Worlds & Album',
+        'panel.title.worlds_map': '🗺️ World Map',
+        'panel.title.worlds_album': '📖 Collection Album',
+        'wu.tab.worlds': 'Worlds', 'wu.tab.album': 'Album',
+        'wu.world.order': 'World', 'wu.world.equip': 'Equip', 'wu.world.equipped': 'Equipped',
+        'wu.world.unlocked': 'Unlocked',
+        'wu.world.requires': 'Requires Level', 'wu.world.your.level': 'You are at Level',
+        'wu.album.bosses': 'Bosses', 'wu.album.skins': 'Skins',
+        'wu.album.skins.perm': 'Permanent Skins', 'wu.album.skins.lim': 'Limited Skins',
+        'wu.album.defeated': 'Defeated', 'wu.album.not.defeated': 'Not defeated',
+        'wu.album.owned': 'Owned', 'wu.album.locked': 'Locked',
+        'wu.album.defeated.count': 'defeated', 'wu.album.owned.count': 'owned',
+        'wu.album.no.skins': 'No permanent skins available yet.',
+        'wu.album.no.lim.skins': 'No limited skins available yet.',
     },
 
     'es': {
@@ -801,6 +835,23 @@ const _T = {
         'boost.effect.click': 'poder de clic', 'boost.effect.global': 'producción global',
         // Diamond packs & permanent items
         'dpack.buy.btn': 'COMPRAR', 'perm.purchased': '✓ Comprado',
+        // Worlds & Album panel
+        'nav.worlds_map': 'Mapa de Mundos',   'nav.worlds_map.sub': '6 mundos con bonificaciones permanentes',
+        'nav.worlds_album': 'Álbum de Colección', 'nav.worlds_album.sub': 'Jefes y skins coleccionables',
+        'panel.title.worlds': '🌍 Mundos & Álbum',
+        'panel.title.worlds_map': '🗺️ Mapa de Mundos',
+        'panel.title.worlds_album': '📖 Álbum de Colección',
+        'wu.tab.worlds': 'Mundos', 'wu.tab.album': 'Álbum',
+        'wu.world.order': 'Mundo', 'wu.world.equip': 'Equipar', 'wu.world.equipped': 'Equipado',
+        'wu.world.unlocked': 'Desbloqueado',
+        'wu.world.requires': 'Requiere Nivel', 'wu.world.your.level': 'Estás en el Nivel',
+        'wu.album.bosses': 'Jefes', 'wu.album.skins': 'Skins',
+        'wu.album.skins.perm': 'Skins Permanentes', 'wu.album.skins.lim': 'Skins Limitadas',
+        'wu.album.defeated': 'Derrotado', 'wu.album.not.defeated': 'No derrotado',
+        'wu.album.owned': 'Adquirida', 'wu.album.locked': 'Bloqueada',
+        'wu.album.defeated.count': 'derrotados', 'wu.album.owned.count': 'adquiridas',
+        'wu.album.no.skins': 'Aún no hay skins permanentes disponibles.',
+        'wu.album.no.lim.skins': 'Aún no hay skins limitadas disponibles.',
     },
 };
 

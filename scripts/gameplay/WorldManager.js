@@ -6,15 +6,14 @@ class WorldManager {
         this._state = {
             unlockedWorlds: ['nexus_prime'],
             defeatedBosses: [],
-            albumRewardsClaimed: {}
+            albumRewardsClaimed: {},
+            equippedWorld: 'nexus_prime'
         };
-        this._xpBonus = 1;
-        this._prestigeBonus = 1;
     }
 
     init() {
         this._load();
-        this._applyWorldBonuses();
+        this._syncUnlocks(this._game.level?.level || 0);
 
         this._game.events.on('levelUp', ({ level }) => {
             this._checkUnlocks(level);
@@ -29,12 +28,11 @@ class WorldManager {
     _checkUnlocks(level) {
         const worlds = typeof WORLDS_DATA !== 'undefined' ? WORLDS_DATA : [];
         for (const world of worlds) {
-            if (world.unlockLevel <= 1) continue; // nexus_prime always unlocked
+            if (world.unlockLevel <= 1) continue;
             if (this._state.unlockedWorlds.includes(world.id)) continue;
             if (level >= world.unlockLevel) {
                 this._state.unlockedWorlds.push(world.id);
                 this._save();
-                this._applyWorldBonuses();
                 setTimeout(() => {
                     this._game.notify(`🌍 Novo Mundo Desbloqueado: ${world.name}!`, 'levelup');
                     this._game.events.emit('worldUnlocked', { world });
@@ -46,10 +44,28 @@ class WorldManager {
         }
     }
 
+    _syncUnlocks(level) {
+        const worlds = typeof WORLDS_DATA !== 'undefined' ? WORLDS_DATA : [];
+        let changed = false;
+        for (const world of worlds) {
+            if (this._state.unlockedWorlds.includes(world.id)) continue;
+            if (level >= world.unlockLevel) {
+                this._state.unlockedWorlds.push(world.id);
+                changed = true;
+            }
+        }
+        if (changed) this._save();
+    }
+
     _registerBossDefeat(bossType) {
+        // Award XP bonus on every defeat based on equipped world
+        this._awardBossXp();
+
         if (this._state.defeatedBosses.includes(bossType)) return;
         this._state.defeatedBosses.push(bossType);
         this._save();
+        this._game.save?.();
+        this._game._syncToServer?.();
         this._game.events.emit('albumUpdated', { category: 'bosses' });
         this.checkAlbumRewards();
         if (this._game.ui._activePanel === 'worlds') {
@@ -57,67 +73,63 @@ class WorldManager {
         }
     }
 
-    _applyWorldBonuses() {
-        const b = this.getWorldBonuses();
-        if (this._game.economy) {
-            this._game.economy.setWorldClickMult(b.click);
-            this._game.economy.setWorldProductionMult(b.production);
+    _awardBossXp() {
+        const bonus = this.getBossXpBonus();
+        if (bonus <= 0) return;
+        const bossLv = this._game.boss?.boss?.level || 1;
+        const xp = Math.floor(bossLv * 80 * bonus);
+        if (xp > 0 && this._game.level?.addXP) {
+            this._game.level.addXP(xp);
+            this._game.events.emit('bossXpAwarded', { xp });
         }
-        this._xpBonus = b.xp;
-        this._prestigeBonus = b.prestige;
     }
 
-    getWorldBonuses() {
+    // ── Equip system ────────────────────────────────────────────────────────────
+
+    equipWorld(id) {
         const worlds = typeof WORLDS_DATA !== 'undefined' ? WORLDS_DATA : [];
-        const b = { click: 1, production: 1, xp: 1, prestige: 1 };
-        for (const wId of this._state.unlockedWorlds) {
-            const w = worlds.find(x => x.id === wId);
-            if (!w) continue;
-            const v = w.bonusValue;
-            if      (w.bonusType === 'click')      b.click      += v;
-            else if (w.bonusType === 'production')  b.production  += v;
-            else if (w.bonusType === 'xp')          b.xp          += v;
-            else if (w.bonusType === 'prestige')    b.prestige    += v;
-            else if (w.bonusType === 'all') {
-                b.click      += v;
-                b.production += v;
-                b.xp         += v;
-            }
-        }
-        return b;
+        const level  = this._game.level?.level || 0;
+        const w = worlds.find(x => x.id === id);
+        if (!w || level < w.unlockLevel) return false;
+        this._state.equippedWorld = id;
+        this._save();
+        this._game.events.emit('worldEquipped', { world: w });
+        return true;
     }
 
-    getXpMult()      { return this._xpBonus; }
-    getPrestigeMult(){ return this._prestigeBonus; }
-    isUnlocked(id)   { return this._state.unlockedWorlds.includes(id); }
+    getEquippedWorld() {
+        const worlds = typeof WORLDS_DATA !== 'undefined' ? WORLDS_DATA : [];
+        return worlds.find(x => x.id === this._state.equippedWorld) || worlds[0] || null;
+    }
+
+    getBossXpBonus() {
+        const w = this.getEquippedWorld();
+        return w?.bossXpBonus || 0;
+    }
+
+    // ── Stubs for removed bonus system ──────────────────────────────────────────
+
+    getXpMult()       { return 1; }
+    getPrestigeMult() { return 1; }
+    isUnlocked(id)    { return this._state.unlockedWorlds.includes(id); }
+
+    // ── Album ───────────────────────────────────────────────────────────────────
 
     getAlbumProgress() {
-        const game  = this._game;
-        const worlds  = typeof WORLDS_DATA         !== 'undefined' ? WORLDS_DATA         : [];
-        const bossTypes = typeof BOSS_TYPES_ALBUM  !== 'undefined' ? BOSS_TYPES_ALBUM    : [];
-        const skins   = typeof PREMIUM_SKINS       !== 'undefined' ? PREMIUM_SKINS       : [];
-        const achDefs = typeof ACHIEVEMENTS        !== 'undefined' ? ACHIEVEMENTS        : [];
+        const game    = this._game;
+        const worlds  = typeof WORLDS_DATA        !== 'undefined' ? WORLDS_DATA        : [];
+        const bossTypes = typeof BOSS_TYPES_ALBUM !== 'undefined' ? BOSS_TYPES_ALBUM   : [];
+        const skins   = typeof PREMIUM_SKINS      !== 'undefined' ? PREMIUM_SKINS      : [];
+        const achDefs = typeof ACHIEVEMENTS       !== 'undefined' ? ACHIEVEMENTS       : [];
 
         const ownedSkins = skins.filter(s => game.account.hasSkin(s.id)).length;
         const earnedAchs = game.achievements?.unlocked?.size || 0;
 
         return {
-            worlds: {
-                owned: this._state.unlockedWorlds.length,
-                total: worlds.length
-            },
-            bosses: {
-                owned: this._state.defeatedBosses.length,
-                total: bossTypes.length || 5
-            },
-            skins: {
-                owned: ownedSkins,
-                total: skins.length
-            },
-            achievements: {
-                owned: earnedAchs,
-                total: achDefs.length
-            }
+            worlds:       { owned: this._state.unlockedWorlds.length, total: worlds.length },
+            bosses:       { owned: this._state.defeatedBosses.length,  total: bossTypes.length || 5 },
+            skins:        { owned: ownedSkins, total: skins.length },
+            achievements: { owned: earnedAchs, total: achDefs.length }
         };
     }
 
@@ -156,11 +168,13 @@ class WorldManager {
             changed = true;
         }
 
-        if (changed) { this._save(); game.save(); }
+        if (changed) { this._save(); game.save?.(); game._syncToServer?.(); }
         return changed;
     }
 
-    getState()  { return JSON.parse(JSON.stringify(this._state)); }
+    // ── Persistence ─────────────────────────────────────────────────────────────
+
+    getState() { return JSON.parse(JSON.stringify(this._state)); }
 
     loadState(s) {
         if (!s) return;
@@ -168,11 +182,11 @@ class WorldManager {
             if (Array.isArray(s.unlockedWorlds))  this._state.unlockedWorlds = s.unlockedWorlds;
             if (Array.isArray(s.defeatedBosses))  this._state.defeatedBosses = s.defeatedBosses;
             if (s.albumRewardsClaimed)            this._state.albumRewardsClaimed = s.albumRewardsClaimed;
+            if (s.equippedWorld)                  this._state.equippedWorld = s.equippedWorld;
             if (!this._state.unlockedWorlds.includes('nexus_prime')) {
                 this._state.unlockedWorlds.unshift('nexus_prime');
             }
         } catch(_) {}
-        this._applyWorldBonuses();
     }
 
     _save() {
