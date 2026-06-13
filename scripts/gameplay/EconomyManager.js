@@ -19,6 +19,8 @@ class EconomyManager {
         this._skillClickMult = 1;
         this._skillGlobalMult = 1;
         this._premiumMult = 1;
+        this._worldClickMult = 1;
+        this._worldProductionMult = 1;
     }
 
     addNeurons(amount) {
@@ -50,6 +52,7 @@ class EconomyManager {
             * this._prestigeMult
             * this._skillClickMult
             * this._premiumMult
+            * this._worldClickMult
         ));
     }
 
@@ -61,7 +64,8 @@ class EconomyManager {
             * this._prestigeMult
             * this._shopGlobalMult
             * this._skillGlobalMult
-            * this._premiumMult;
+            * this._premiumMult
+            * this._worldProductionMult;
     }
 
     setClickMult(v) { this._clickMult = v; }
@@ -74,7 +78,9 @@ class EconomyManager {
     setShopGlobalMult(v) { this._shopGlobalMult = v; }
     setSkillClickMult(v) { this._skillClickMult = v; }
     setSkillGlobalMult(v) { this._skillGlobalMult = v; }
-    setPremiumMult(v)     { this._premiumMult = v; }
+    setPremiumMult(v)        { this._premiumMult = v; }
+    setWorldClickMult(v)     { this._worldClickMult = v || 1; }
+    setWorldProductionMult(v){ this._worldProductionMult = v || 1; }
 
     getPrestigeCost() {
         return Config.PRESTIGE_BASE * Math.pow(Config.PRESTIGE_SCALE, this.totalPrestiges);

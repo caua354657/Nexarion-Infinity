@@ -53,6 +53,8 @@ class AchievementManager {
         }
     }
 
+    getEarned() { return [...this.unlocked]; }
+
     unlockSecret(id, economy) {
         const a = ACHIEVEMENTS.find(x => x.id === id && x.type === 'secret');
         if (!a || this.unlocked.has(id)) return;

@@ -1,0 +1,397 @@
+/* ══════════════════════════════════════════════════════════════
+   Nexarion Infinity — Worlds & Collection Album
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper ───────────────────────────────────────────────── */
+.wu-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+/* ── Subtabs (Map / Album) ─────────────────────────────────── */
+.wu-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px 0;
+    flex-shrink: 0;
+}
+
+.wu-tab {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid rgba(0,245,255,0.18);
+    border-radius: 8px;
+    background: rgba(0,245,255,0.04);
+    color: rgba(200,224,240,0.55);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+}
+.wu-tab:hover { background: rgba(0,245,255,0.08); color: #c8e0f0; }
+.wu-tab--active {
+    background: rgba(0,245,255,0.12);
+    border-color: rgba(0,245,255,0.45);
+    color: #00f5ff;
+}
+
+/* ── Body ──────────────────────────────────────────────────── */
+.wu-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 14px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,245,255,0.2) transparent;
+}
+.wu-body::-webkit-scrollbar { width: 4px; }
+.wu-body::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.2); border-radius: 2px; }
+
+/* ── World Map ─────────────────────────────────────────────── */
+.wu-map { display: flex; flex-direction: column; gap: 10px; }
+
+/* Active bonus bar */
+.wu-bonus-bar {
+    background: rgba(0,245,255,0.04);
+    border: 1px solid rgba(0,245,255,0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 4px;
+}
+.wu-bonus-title {
+    display: block;
+    font-size: 11px;
+    color: rgba(200,224,240,0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 7px;
+}
+.wu-bonus-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.wu-bonus-item {
+    font-size: 12px;
+    color: rgba(200,224,240,0.65);
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    padding: 3px 9px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.wu-bonus-item strong { color: #00f5ff; font-weight: 700; margin-left: 3px; }
+
+/* World list */
+.wu-worlds-list { display: flex; flex-direction: column; gap: 8px; }
+
+.wu-world {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--w-accent, rgba(0,245,255,0.2));
+    background: var(--w-bg, rgba(0,245,255,0.04));
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+}
+.wu-world::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 0% 50%, var(--w-glow, transparent), transparent);
+    pointer-events: none;
+    opacity: 0.4;
+}
+.wu-world--unlocked {
+    box-shadow: 0 0 12px var(--w-glow, transparent);
+}
+.wu-world--unlocked:hover {
+    transform: translateX(3px);
+    box-shadow: 0 0 20px var(--w-glow, transparent);
+}
+.wu-world--locked {
+    opacity: 0.55;
+    filter: saturate(0.4);
+    border-color: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+}
+.wu-world--locked::before { display: none; }
+.wu-world--ready {
+    opacity: 0.8;
+    border-color: rgba(255,255,255,0.15);
+}
+
+.wu-world-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    width: 44px;
+    text-align: center;
+    filter: drop-shadow(0 0 8px var(--w-accent, transparent));
+}
+.wu-world--locked .wu-world-icon { filter: none; }
+
+.wu-world-info { flex: 1; min-width: 0; }
+.wu-world-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--w-accent, #c8e0f0);
+    line-height: 1.2;
+    font-family: 'Orbitron', sans-serif;
+}
+.wu-world--locked .wu-world-name { color: rgba(200,224,240,0.45); }
+.wu-world-sub {
+    font-size: 11px;
+    color: rgba(200,224,240,0.5);
+    margin-top: 1px;
+}
+.wu-world-desc {
+    font-size: 11px;
+    color: rgba(200,224,240,0.38);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+.wu-world-lock-req {
+    font-size: 11px;
+    color: rgba(200,224,240,0.5);
+    margin-top: 4px;
+}
+.wu-world-lock-req strong { color: #fbbf24; }
+
+.wu-world-prog {
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+.wu-world-prog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+.wu-world-right {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    min-width: 130px;
+}
+.wu-world-bonus {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--w-accent, #00f5ff);
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--w-accent, rgba(0,245,255,0.2));
+    border-radius: 6px;
+    padding: 3px 8px;
+    text-align: right;
+    white-space: nowrap;
+}
+.wu-world-bonus--locked { color: rgba(200,224,240,0.3); border-color: rgba(255,255,255,0.06); }
+.wu-world-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4ade80;
+    background: rgba(74,222,128,0.08);
+    border: 1px solid rgba(74,222,128,0.22);
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+.wu-world-badge--lock {
+    color: #fbbf24;
+    background: rgba(251,191,36,0.06);
+    border-color: rgba(251,191,36,0.18);
+}
+
+/* ── Album ─────────────────────────────────────────────────── */
+.wu-album { display: flex; flex-direction: column; gap: 10px; }
+
+.wu-album-header {
+    background: rgba(123,47,255,0.06);
+    border: 1px solid rgba(123,47,255,0.18);
+    border-radius: 10px;
+    padding: 11px 14px;
+}
+.wu-album-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #c8e0f0;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.wu-album-prog { display: flex; align-items: center; gap: 10px; }
+.wu-album-prog-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.wu-album-prog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7b2fff, #00f5ff);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 8px rgba(0,245,255,0.4);
+}
+.wu-album-pct {
+    font-size: 11px;
+    font-weight: 700;
+    color: #00f5ff;
+    white-space: nowrap;
+}
+
+/* Category tabs */
+.wu-album-cats {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.wu-album-cat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 11px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 7px;
+    background: rgba(255,255,255,0.03);
+    color: rgba(200,224,240,0.5);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.wu-album-cat:hover { background: rgba(255,255,255,0.06); color: #c8e0f0; }
+.wu-album-cat--active {
+    border-color: rgba(0,245,255,0.35);
+    background: rgba(0,245,255,0.08);
+    color: #00f5ff;
+}
+.wu-album-cat-count {
+    font-size: 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: rgba(200,224,240,0.45);
+}
+.wu-album-cat--active .wu-album-cat-count { color: rgba(0,245,255,0.7); }
+
+/* Reward hints */
+.wu-album-rewards {
+    background: rgba(251,191,36,0.05);
+    border: 1px solid rgba(251,191,36,0.15);
+    border-radius: 9px;
+    padding: 10px 13px;
+}
+.wu-album-rewards-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fbbf24;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.wu-album-reward-item {
+    font-size: 11px;
+    color: rgba(200,224,240,0.6);
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    line-height: 1.5;
+}
+.wu-album-reward-item:last-child { border-bottom: none; }
+
+/* Collectible grid */
+.wu-album-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+}
+
+.wu-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02);
+    text-align: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+}
+.wu-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--w-accent, transparent), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+.wu-card--unlocked {
+    border-color: var(--w-accent, rgba(0,245,255,0.3));
+    background: rgba(0,0,0,0.25);
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
+.wu-card--unlocked::before { opacity: 0.15; }
+.wu-card--unlocked:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--w-accent, transparent); }
+.wu-card--locked { opacity: 0.45; filter: saturate(0.2); }
+
+.wu-card-icon { font-size: 26px; line-height: 1; }
+.wu-card-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: #c8e0f0;
+    line-height: 1.3;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+.wu-card--unlocked .wu-card-name { color: var(--w-accent, #c8e0f0); }
+.wu-card-sub {
+    font-size: 9px;
+    color: rgba(200,224,240,0.4);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wu-card-rarity { font-weight: 700; letter-spacing: 0.3px; }
+.wu-card-bonus {
+    font-size: 9px;
+    color: rgba(200,224,240,0.45);
+    margin-top: 2px;
+}
+
+.wu-empty {
+    grid-column: 1/-1;
+    text-align: center;
+    color: rgba(200,224,240,0.3);
+    font-size: 13px;
+    padding: 24px;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 500px) {
+    .wu-world { flex-wrap: wrap; }
+    .wu-world-right { width: 100%; flex-direction: row; justify-content: space-between; min-width: unset; }
+    .wu-album-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    .wu-bonus-items { gap: 5px; }
+}

@@ -230,6 +230,7 @@ class UIManager {
             'wardrobe_color':     _tL.t('panel.title.wardrobe_color'),
             'wardrobe_theme':     _tL.t('panel.title.wardrobe_theme'),
             'wardrobe_limited':   _tL.t('panel.title.wardrobe_limited'),
+            'worlds':             '🌍 Mundos & Álbum',
         };
         return titles[panelId] || _tL.t('panel.title.default');
     }
@@ -376,6 +377,10 @@ class UIManager {
             case 'wardrobe_color':   this._renderWardrobe(content, ['color']); break;
             case 'wardrobe_theme':   this._renderWardrobe(content, ['theme', 'event']); break;
             case 'wardrobe_limited': this._renderWardrobe(content, ['temp']); break;
+            case 'worlds':
+                if (typeof WorldUI !== 'undefined') WorldUI.render(this._game, content);
+                else content.innerHTML = '<div class="empty-msg">Módulo de Mundos carregando...</div>';
+                break;
             default: content.innerHTML = '<div class="empty-msg">Em breve...</div>';
         }
     }
