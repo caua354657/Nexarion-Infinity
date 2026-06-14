@@ -332,70 +332,36 @@
     border-radius: 6px;
 }
 
-/* ── Companion near orb ──────────────────────────────────────────────────── */
+/* ── Companion below XP bar ──────────────────────────────────────────────── */
 
 #pets-companion {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 0;
+    height: auto;
     pointer-events: none;
 }
 
+/* Hide when empty so it takes no space */
+#pets-companion:empty { display: none; }
+
 .pet-companion {
-    position: absolute;
-    font-size: 28px;
+    font-size: 20px;
     line-height: 1;
-    filter: drop-shadow(0 0 8px var(--pet-glow, transparent));
+    filter: drop-shadow(0 0 6px var(--pet-glow, transparent));
     pointer-events: none;
     user-select: none;
 }
 
-/* Place pets at cardinal points around the orb center */
-.pet-companion--0 {
-    left: -52px;
-    top: 50%;
-    transform: translateY(-50%);
-    animation: pet-float 2.8s ease-in-out infinite;
-}
+.pet-companion--0 { animation: pet-hud-float 3s ease-in-out infinite 0s;   }
+.pet-companion--1 { animation: pet-hud-float 3s ease-in-out infinite 1s;   }
+.pet-companion--2 { animation: pet-hud-float 3s ease-in-out infinite 2s;   }
 
-.pet-companion--1 {
-    right: -52px;
-    top: 50%;
-    transform: translateY(-50%);
-    animation: pet-float 2.8s ease-in-out infinite 0.9s;
-}
-
-.pet-companion--2 {
-    bottom: -52px;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: pet-float 2.8s ease-in-out infinite 1.8s;
-}
-
-/* ── Animations ──────────────────────────────────────────────────────────── */
-
-@keyframes pet-float {
-    0%, 100% { transform: translateY(-50%) translateY(0);   }
-    50%       { transform: translateY(-50%) translateY(-6px); }
-}
-
-.pet-companion--1 {
-    animation-name: pet-float-right;
-}
-.pet-companion--2 {
-    animation-name: pet-float-bottom;
-}
-
-@keyframes pet-float-right {
-    0%, 100% { transform: translateY(-50%) translateY(0);   }
-    50%       { transform: translateY(-50%) translateY(-6px); }
-}
-
-@keyframes pet-float-bottom {
-    0%, 100% { transform: translateX(-50%) translateY(0);   }
-    50%       { transform: translateX(-50%) translateY(-6px); }
+@keyframes pet-hud-float {
+    0%, 100% { transform: translateY(0);    }
+    50%       { transform: translateY(-4px); }
 }
 
 @keyframes pet-idle {

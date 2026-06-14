@@ -2217,6 +2217,8 @@ class UIManager {
                 { id: 'missions',     icon: '📋', label: _L.t('nav.missions'),     sub: _L.t('nav.missions.sub'),     theme: 'green'  },
                 { id: 'achievements', icon: '🎯', label: _L.t('nav.achievements'), sub: _L.t('nav.achievements.sub'), theme: 'gold'   },
                 { id: 'leaderboard',  icon: '🏆', label: _L.t('nav.leaderboard'),  sub: _L.t('nav.leaderboard.sub'),  theme: 'neural' },
+                { id: 'pets',         icon: '🐾', label: 'Pets',                   sub: 'Companheiros e bônus',       theme: 'green'  },
+                { id: 'worlds_album', icon: '📖', label: _L.t('nav.worlds_album'), sub: _L.t('nav.worlds_album.sub'), theme: 'gold'   },
             ],
             conta: [
                 { id: 'profile',  icon: '👤', label: _L.t('nav.profile'),   sub: _L.t('nav.profile.sub'),   theme: 'neural' },
@@ -2234,9 +2236,7 @@ class UIManager {
                 { id: 'wardrobe',     icon: '🎭', label: _L.t('nav.wardrobe_main'), sub: _L.t('nav.wardrobe_main.sub'), theme: 'purple'  },
             ],
             worlds: [
-                { id: 'worlds_map',   icon: '🌍', label: _L.t('nav.worlds_map'),   sub: _L.t('nav.worlds_map.sub'),   theme: 'neural' },
-                { id: 'worlds_album', icon: '📖', label: _L.t('nav.worlds_album'), sub: _L.t('nav.worlds_album.sub'), theme: 'gold'   },
-                { id: 'pets',         icon: '🐾', label: 'Pets',                   sub: 'Companheiros e bônus',       theme: 'green'  },
+                { id: 'worlds_map', icon: '🌍', label: _L.t('nav.worlds_map'), sub: _L.t('nav.worlds_map.sub'), theme: 'neural' },
             ],
         };
 
