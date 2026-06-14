@@ -112,9 +112,26 @@ const WORLDS_DATA = [
 ];
 
 const BOSS_TYPES_ALBUM = [
-    { id: 'cyber_boss',       name: 'Chefe Cibernético',    icon: '🤖', rarity: 'Raro',      color: '#ff69b4' },
-    { id: 'glitch_entity',    name: 'Entidade Corrompida',  icon: '👾', rarity: 'Raro',      color: '#aaff00' },
-    { id: 'neural_titan',     name: 'Titã Neural',          icon: '🧠', rarity: 'Épico',     color: '#c084fc' },
-    { id: 'circuit_phantom',  name: 'Fantasma de Circuito', icon: '💀', rarity: 'Épico',     color: '#fb923c' },
-    { id: 'data_colossus',    name: 'Colosso de Dados',     icon: '🌐', rarity: 'Lendário',  color: '#fbbf24' }
+    // Comum
+    { id: 'nano_drone',        name: 'Nano Drone',           icon: '🛸', rarity: 'Comum',     color: '#60a5fa' },
+    { id: 'static_surge',      name: 'Static Surge',         icon: '⚡', rarity: 'Comum',     color: '#7dd3fc' },
+    // Incomum
+    { id: 'viral_code',        name: 'Viral Code',           icon: '🦠', rarity: 'Incomum',   color: '#4ade80' },
+    { id: 'memory_leech',      name: 'Memory Leech',         icon: '🩸', rarity: 'Incomum',   color: '#a3e635' },
+    // Raro
+    { id: 'cyber_boss',        name: 'Chefe Cibernético',    icon: '🤖', rarity: 'Raro',      color: '#ff0080' },
+    { id: 'glitch_entity',     name: 'Glitch Entity',        icon: '👾', rarity: 'Raro',      color: '#00ff88' },
+    { id: 'chrome_hunter',     name: 'Chrome Hunter',        icon: '🐺', rarity: 'Raro',      color: '#38bdf8' },
+    { id: 'plasma_drifter',    name: 'Plasma Drifter',       icon: '🌊', rarity: 'Raro',      color: '#22d3ee' },
+    // Épico
+    { id: 'neural_titan',      name: 'Titã Neural',          icon: '🧠', rarity: 'Épico',     color: '#c084fc' },
+    { id: 'circuit_phantom',   name: 'Circuit Phantom',      icon: '💀', rarity: 'Épico',     color: '#fb923c' },
+    { id: 'void_sentinel',     name: 'Void Sentinel',        icon: '🌑', rarity: 'Épico',     color: '#7c3aed' },
+    { id: 'storm_herald',      name: 'Storm Herald',         icon: '🌩️', rarity: 'Épico',     color: '#818cf8' },
+    // Lendário
+    { id: 'data_colossus',     name: 'Data Colossus',        icon: '🌐', rarity: 'Lendário',  color: '#ffd700' },
+    { id: 'nexus_destroyer',   name: 'Nexus Destroyer',      icon: '💥', rarity: 'Lendário',  color: '#f59e0b' },
+    // Mítico
+    { id: 'omega_protocol',    name: 'Omega Protocol',       icon: '☠️', rarity: 'Mítico',    color: '#ec4899' },
+    { id: 'singularity_prime', name: 'Singularity Prime',    icon: '🌀', rarity: 'Mítico',    color: '#a855f7' },
 ];

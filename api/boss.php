@@ -25,12 +25,58 @@ $action = $input['action'] ?? $_GET['action'] ?? '';
 
 function bossPool(): array {
     return [
-        ['tipo' => 'cyber_boss',      'raridade' => 'rare'],
-        ['tipo' => 'glitch_entity',   'raridade' => 'rare'],
-        ['tipo' => 'neural_titan',    'raridade' => 'epic'],
-        ['tipo' => 'circuit_phantom', 'raridade' => 'epic'],
-        ['tipo' => 'data_colossus',   'raridade' => 'legendary'],
+        ['tipo' => 'nano_drone',        'raridade' => 'common'],
+        ['tipo' => 'static_surge',      'raridade' => 'common'],
+        ['tipo' => 'viral_code',        'raridade' => 'uncommon'],
+        ['tipo' => 'memory_leech',      'raridade' => 'uncommon'],
+        ['tipo' => 'cyber_boss',        'raridade' => 'rare'],
+        ['tipo' => 'glitch_entity',     'raridade' => 'rare'],
+        ['tipo' => 'chrome_hunter',     'raridade' => 'rare'],
+        ['tipo' => 'plasma_drifter',    'raridade' => 'rare'],
+        ['tipo' => 'neural_titan',      'raridade' => 'epic'],
+        ['tipo' => 'circuit_phantom',   'raridade' => 'epic'],
+        ['tipo' => 'void_sentinel',     'raridade' => 'epic'],
+        ['tipo' => 'storm_herald',      'raridade' => 'epic'],
+        ['tipo' => 'data_colossus',     'raridade' => 'legendary'],
+        ['tipo' => 'nexus_destroyer',   'raridade' => 'legendary'],
+        ['tipo' => 'omega_protocol',    'raridade' => 'mythic'],
+        ['tipo' => 'singularity_prime', 'raridade' => 'mythic'],
     ];
+}
+
+function selectBossForLevel(int $nivel): array {
+    $all = bossPool();
+    $byRarity = [];
+    foreach ($all as $b) {
+        $byRarity[$b['raridade']][] = $b;
+    }
+
+    if ($nivel <= 8) {
+        $w = ['common'=>50,'uncommon'=>35,'rare'=>13,'epic'=>2,'legendary'=>0,'mythic'=>0];
+    } elseif ($nivel <= 20) {
+        $w = ['common'=>18,'uncommon'=>28,'rare'=>32,'epic'=>17,'legendary'=>5,'mythic'=>0];
+    } elseif ($nivel <= 40) {
+        $w = ['common'=>5,'uncommon'=>12,'rare'=>28,'epic'=>33,'legendary'=>17,'mythic'=>5];
+    } elseif ($nivel <= 70) {
+        $w = ['common'=>0,'uncommon'=>5,'rare'=>18,'epic'=>35,'legendary'=>30,'mythic'=>12];
+    } else {
+        $w = ['common'=>0,'uncommon'=>0,'rare'=>10,'epic'=>22,'legendary'=>35,'mythic'=>33];
+    }
+
+    $total = array_sum($w);
+    $rand  = mt_rand(1, max(1, $total));
+    $cum   = 0;
+    $chosen = 'rare';
+    foreach ($w as $rarity => $weight) {
+        $cum += $weight;
+        if ($rand <= $cum && $weight > 0 && !empty($byRarity[$rarity])) {
+            $chosen = $rarity;
+            break;
+        }
+    }
+
+    $pool = $byRarity[$chosen] ?? $byRarity['rare'] ?? [$all[0]];
+    return $pool[mt_rand(0, count($pool) - 1)];
 }
 
 function bossHpMax(int $nivel): float {
@@ -58,8 +104,7 @@ function fetchChefe(PDO $pdo, int $uid): ?array {
 }
 
 function criarChefe(PDO $pdo, int $uid, int $nivel): array {
-    $pool    = bossPool();
-    $entrada = $pool[($nivel - 1) % count($pool)];
+    $entrada = selectBossForLevel($nivel);
     $hp      = bossHpMax($nivel);
 
     $pdo->prepare("

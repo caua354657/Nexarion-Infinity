@@ -1158,12 +1158,23 @@ input[type=range]::-webkit-slider-thumb {
 }
 @keyframes bw-fade-in { from { opacity: 0.3; } to { opacity: 1; } }
 
-/* Boss type themes */
-#boss-world[data-type="cyber_boss"]     { --world-color:#00f5ff; --world-color2:#ff0080; --world-dark:#000a14; }
-#boss-world[data-type="glitch_entity"]  { --world-color:#00ff88; --world-color2:#ffff00; --world-dark:#00100a; }
-#boss-world[data-type="neural_titan"]   { --world-color:#9b30ff; --world-color2:#ff66ff; --world-dark:#08001a; }
-#boss-world[data-type="circuit_phantom"]{ --world-color:#ff6400; --world-color2:#ff0000; --world-dark:#100400; }
-#boss-world[data-type="data_colossus"]  { --world-color:#ffd700; --world-color2:#ff8c00; --world-dark:#100a00; }
+/* Boss type themes — cores base */
+#boss-world[data-type="nano_drone"]       { --world-color:#60a5fa; --world-color2:#1d4ed8; --world-dark:#000814; }
+#boss-world[data-type="static_surge"]     { --world-color:#7dd3fc; --world-color2:#fde68a; --world-dark:#000c14; }
+#boss-world[data-type="viral_code"]       { --world-color:#4ade80; --world-color2:#86efac; --world-dark:#001208; }
+#boss-world[data-type="memory_leech"]     { --world-color:#a3e635; --world-color2:#4d7c0f; --world-dark:#040e00; }
+#boss-world[data-type="cyber_boss"]       { --world-color:#00f5ff; --world-color2:#ff0080; --world-dark:#000a14; }
+#boss-world[data-type="glitch_entity"]    { --world-color:#00ff88; --world-color2:#ffff00; --world-dark:#00100a; }
+#boss-world[data-type="chrome_hunter"]    { --world-color:#38bdf8; --world-color2:#0284c7; --world-dark:#000d18; }
+#boss-world[data-type="plasma_drifter"]   { --world-color:#22d3ee; --world-color2:#0891b2; --world-dark:#000e14; }
+#boss-world[data-type="neural_titan"]     { --world-color:#9b30ff; --world-color2:#ff66ff; --world-dark:#08001a; }
+#boss-world[data-type="circuit_phantom"]  { --world-color:#ff6400; --world-color2:#ff0000; --world-dark:#100400; }
+#boss-world[data-type="void_sentinel"]    { --world-color:#7c3aed; --world-color2:#2e1065; --world-dark:#06000f; }
+#boss-world[data-type="storm_herald"]     { --world-color:#818cf8; --world-color2:#4f46e5; --world-dark:#04040f; }
+#boss-world[data-type="data_colossus"]    { --world-color:#ffd700; --world-color2:#ff8c00; --world-dark:#100a00; }
+#boss-world[data-type="nexus_destroyer"]  { --world-color:#f59e0b; --world-color2:#92400e; --world-dark:#0e0600; }
+#boss-world[data-type="omega_protocol"]   { --world-color:#ec4899; --world-color2:#be185d; --world-dark:#10000a; }
+#boss-world[data-type="singularity_prime"]{ --world-color:#a855f7; --world-color2:#7c3aed; --world-dark:#080010; }
 
 /* Animated background */
 #boss-world::before {
@@ -1173,7 +1184,30 @@ input[type=range]::-webkit-slider-thumb {
         radial-gradient(ellipse at 80% 80%, var(--world-color2) 0%, transparent 45%),
         linear-gradient(180deg, var(--world-dark) 0%, #000006 100%);
     opacity: 0.15;
+    animation: bw-bg-pulse 5s ease-in-out infinite;
 }
+@keyframes bw-bg-pulse {
+    0%,100% { opacity: 0.13; transform: scale(1); }
+    50%     { opacity: 0.20; transform: scale(1.03); }
+}
+
+/* Per-type background animation variants */
+#boss-world[data-type="static_surge"]::before,
+#boss-world[data-type="glitch_entity"]::before   { animation: bw-bg-glitch 1.2s steps(2) infinite; }
+#boss-world[data-type="storm_herald"]::before     { animation: bw-bg-storm  0.9s ease-in-out infinite; }
+#boss-world[data-type="nano_drone"]::before,
+#boss-world[data-type="viral_code"]::before       { animation: bw-bg-calm 7s ease-in-out infinite; }
+#boss-world[data-type="void_sentinel"]::before    { animation: bw-bg-void 6s ease-in-out infinite; }
+#boss-world[data-type="omega_protocol"]::before   { animation: bw-bg-storm 0.7s ease-in-out infinite; }
+#boss-world[data-type="singularity_prime"]::before{ animation: bw-bg-mythic 3s linear infinite; }
+#boss-world[data-type="data_colossus"]::before,
+#boss-world[data-type="nexus_destroyer"]::before  { animation: bw-bg-pulse 3s ease-in-out infinite; }
+
+@keyframes bw-bg-calm   { 0%,100%{opacity:.10;transform:scale(1)}   50%{opacity:.18;transform:scale(1.02)} }
+@keyframes bw-bg-glitch { 0%{opacity:.10;transform:scale(1) skewX(0deg)} 33%{opacity:.28;transform:scale(1.01) skewX(-1deg)} 66%{opacity:.13;transform:scale(0.99) skewX(1deg)} 100%{opacity:.10;transform:scale(1) skewX(0deg)} }
+@keyframes bw-bg-storm  { 0%,100%{opacity:.12;transform:scale(1)}   40%{opacity:.30;transform:scale(1.04)} 60%{opacity:.10;transform:scale(0.98)} }
+@keyframes bw-bg-void   { 0%,100%{opacity:.08;transform:scale(0.97)} 50%{opacity:.18;transform:scale(1.04)} }
+@keyframes bw-bg-mythic { 0%{opacity:.12;transform:scale(1) rotate(0deg)} 50%{opacity:.22;transform:scale(1.04) rotate(1deg)} 100%{opacity:.12;transform:scale(1) rotate(0deg)} }
 #boss-world::after {
     content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
     background: repeating-linear-gradient(
@@ -1293,6 +1327,80 @@ input[type=range]::-webkit-slider-thumb {
 }
 @keyframes bw-glow-pulse { 0%,100%{opacity:.5;transform:scale(.95)} 50%{opacity:1;transform:scale(1.05)} }
 .bw-arena--dead { cursor: default; }
+
+/* ── Rarity arena effects (GPU-only: transform + opacity + filter) ── */
+
+/* Uncommon: gentle border pulse */
+#boss-world[data-rarity="uncommon"] .bw-arena {
+    animation: bw-arena-uncommon 3.5s ease-in-out infinite;
+}
+@keyframes bw-arena-uncommon {
+    0%,100% { box-shadow: inset 0 0 30px rgba(74,222,128,0.06), 0 0 20px rgba(74,222,128,0.06); }
+    50%     { box-shadow: inset 0 0 45px rgba(74,222,128,0.15), 0 0 35px rgba(74,222,128,0.1); }
+}
+
+/* Rare: stronger glow */
+#boss-world[data-rarity="rare"] .bw-arena {
+    animation: bw-arena-rare 2.5s ease-in-out infinite;
+}
+@keyframes bw-arena-rare {
+    0%,100% { box-shadow: inset 0 0 40px rgba(var(--glow),0.1), 0 0 30px rgba(var(--glow),0.1); }
+    50%     { box-shadow: inset 0 0 60px rgba(var(--glow),0.25), 0 0 50px rgba(var(--glow),0.15); }
+}
+
+/* Epic: intense pulse + subtle vibration */
+#boss-world[data-rarity="epic"] .bw-arena {
+    animation: bw-arena-epic 2s ease-in-out infinite;
+}
+@keyframes bw-arena-epic {
+    0%,100% { transform: scale(1);    box-shadow: 0 0 40px var(--world-color)22, inset 0 0 60px var(--world-color)11; }
+    50%     { transform: scale(1.008); box-shadow: 0 0 70px var(--world-color)44, inset 0 0 80px var(--world-color)22; }
+}
+
+/* Legendary: golden ring orbit */
+#boss-world[data-rarity="legendary"] .bw-arena::before {
+    content: ''; position: absolute; inset: -16px; border-radius: 50%;
+    border: 1px solid var(--world-color); opacity: 0;
+    animation: bw-ring-orbit 5s linear infinite;
+}
+#boss-world[data-rarity="legendary"] .bw-arena::after {
+    content: ''; position: absolute; inset: -32px; border-radius: 50%;
+    border: 1px solid var(--world-color2); opacity: 0;
+    animation: bw-ring-orbit 8s linear infinite reverse;
+}
+@keyframes bw-ring-orbit {
+    0%   { transform: rotate(0deg)   scale(0.95); opacity: 0.5; }
+    50%  { transform: rotate(180deg) scale(1.02); opacity: 0.9; }
+    100% { transform: rotate(360deg) scale(0.95); opacity: 0.5; }
+}
+#boss-world[data-rarity="legendary"] .bw-arena {
+    animation: bw-arena-legendary 2.5s ease-in-out infinite;
+}
+@keyframes bw-arena-legendary {
+    0%,100% { box-shadow: 0 0 60px var(--world-color)33, inset 0 0 80px var(--world-color)11; }
+    50%     { box-shadow: 0 0 100px var(--world-color)66, inset 0 0 120px var(--world-color)22; }
+}
+
+/* Mythic: max intensity — rings + intense glow */
+#boss-world[data-rarity="mythic"] .bw-arena::before {
+    content: ''; position: absolute; inset: -12px; border-radius: 50%;
+    border: 2px solid var(--world-color); opacity: 0;
+    animation: bw-ring-orbit 3s linear infinite;
+}
+#boss-world[data-rarity="mythic"] .bw-arena::after {
+    content: ''; position: absolute; inset: -28px; border-radius: 50%;
+    border: 2px solid var(--world-color2); opacity: 0;
+    animation: bw-ring-orbit 5s linear infinite reverse;
+}
+#boss-world[data-rarity="mythic"] .bw-arena {
+    animation: bw-arena-mythic 1.5s ease-in-out infinite;
+}
+@keyframes bw-arena-mythic {
+    0%,100% { transform: scale(1);    box-shadow: 0 0 80px var(--world-color)44, 0 0 140px var(--world-color2)22; }
+    50%     { transform: scale(1.012); box-shadow: 0 0 120px var(--world-color)77, 0 0 200px var(--world-color2)33; }
+}
+
+/* ── Boss icon per rarity ── */
 .bw-boss-icon {
     font-size: 120px; line-height: 1; pointer-events: none;
     animation: bw-boss-float 3s ease-in-out infinite;
@@ -1301,6 +1409,46 @@ input[type=range]::-webkit-slider-thumb {
 @media (max-width: 480px) {
     .bw-boss-icon { font-size: 96px; }
 }
+
+/* Uncommon: bounce instead of float */
+#boss-world[data-rarity="uncommon"] .bw-boss-icon { animation: bw-boss-bounce 2s ease-in-out infinite; }
+@keyframes bw-boss-bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-16px)} 60%{transform:translateY(-14px)} }
+
+/* Epic: bigger + more aggressive float */
+#boss-world[data-rarity="epic"] .bw-boss-icon {
+    font-size: 130px;
+    animation: bw-boss-epic 2.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 40px var(--world-color)) drop-shadow(0 0 16px var(--world-color2));
+}
+@media (max-width:480px) { #boss-world[data-rarity="epic"] .bw-boss-icon { font-size: 104px; } }
+@keyframes bw-boss-epic { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.04)} }
+
+/* Legendary: large + golden glow burst */
+#boss-world[data-rarity="legendary"] .bw-boss-icon {
+    font-size: 138px;
+    animation: bw-boss-legendary 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 50px var(--world-color)) drop-shadow(0 0 20px #fff6) drop-shadow(0 0 8px var(--world-color2));
+}
+@media (max-width:480px) { #boss-world[data-rarity="legendary"] .bw-boss-icon { font-size: 112px; } }
+@keyframes bw-boss-legendary {
+    0%,100% { transform: translateY(0) scale(1);    filter: drop-shadow(0 0 50px var(--world-color)) drop-shadow(0 0 20px #fff4); }
+    50%     { transform: translateY(-16px) scale(1.06); filter: drop-shadow(0 0 80px var(--world-color)) drop-shadow(0 0 30px #fff8); }
+}
+
+/* Mythic: max size + rainbow shimmer */
+#boss-world[data-rarity="mythic"] .bw-boss-icon {
+    font-size: 148px;
+    animation: bw-boss-float 2.5s ease-in-out infinite, bw-boss-mythic-glow 3s linear infinite;
+}
+@media (max-width:480px) { #boss-world[data-rarity="mythic"] .bw-boss-icon { font-size: 120px; } }
+@keyframes bw-boss-mythic-glow {
+    0%   { filter: drop-shadow(0 0 60px #ff0080) drop-shadow(0 0 16px #ff0080aa); }
+    25%  { filter: drop-shadow(0 0 60px #7b00ff) drop-shadow(0 0 16px #7b00ffaa); }
+    50%  { filter: drop-shadow(0 0 60px #00f5ff) drop-shadow(0 0 16px #00f5ffaa); }
+    75%  { filter: drop-shadow(0 0 60px var(--world-color)) drop-shadow(0 0 16px var(--world-color2)); }
+    100% { filter: drop-shadow(0 0 60px #ff0080) drop-shadow(0 0 16px #ff0080aa); }
+}
+
 @keyframes bw-boss-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 .bw-boss-icon--hit { animation: bw-hit-shake 0.28s ease forwards !important; }
 @keyframes bw-hit-shake {

@@ -3894,7 +3894,8 @@ class UIManager {
         this._game.boss.openBossWorld();
 
         world.className = 'open';
-        world.setAttribute('data-type', this._game.boss.boss?.type || '');
+        world.setAttribute('data-type',   this._game.boss.boss?.type   || '');
+        world.setAttribute('data-rarity', this._game.boss.boss?.rarity || '');
         // Apply equipped world color theme (overrides data-type CSS vars)
         const _ew = this._game.worlds?.getEquippedWorld?.();
         if (_ew) {
@@ -4438,7 +4439,7 @@ class UIManager {
             : `${String(Math.floor(bossRemWorld/60)).padStart(2,'0')}:${String(bossRemWorld%60).padStart(2,'0')}`;
 
         const world = document.getElementById('boss-world');
-        if (world) world.setAttribute('data-type', b.type);
+        if (world) { world.setAttribute('data-type', b.type); world.setAttribute('data-rarity', b.rarity || ''); }
 
         const sr          = bm._sessionRewards || { neurons: 0, diamonds: 0, kills: 0 };
         const sessKills   = sr.kills    || 0;
