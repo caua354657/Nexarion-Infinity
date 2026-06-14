@@ -69,6 +69,7 @@ function createMain() {
         minWidth: 900,
         minHeight: 600,
         title: 'Nexarion Infinity — Clicker Neural',
+        icon: path.join(__dirname, 'icon.ico'),
         backgroundColor: '#050510',
         show: false,
         webPreferences: {

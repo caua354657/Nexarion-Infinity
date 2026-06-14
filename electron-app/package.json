@@ -12,6 +12,7 @@
     "productName": "Nexarion Infinity",
     "win": {
       "target": "portable",
+      "icon": "icon.ico",
       "signDlls": false,
       "sign": null,
       "certificateSubjectName": null,
