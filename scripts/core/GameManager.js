@@ -16,6 +16,7 @@ class GameManager {
         this.randomEvents = new RandomEventManager(this.boosts, this.economy, this.events);
         this.boss = new BossManager(this);
         this.worlds = new WorldManager(this);
+        this.pets = new PetManager(this);
         this.limitedSkins = new LimitedSkinsManager(this);
         this.ui = new UIManager(this);
         this.notifications = new NotificationManager(this.events);
@@ -207,10 +208,10 @@ class GameManager {
     _tick(dt) {
         const nps = this.upgradeManager.getNPS();
         this.economy.neuronsPerSec = nps;
-        const earned = this.economy.getEffectiveNPS() * dt;
+        const earned = this.economy.getEffectiveNPS() * dt * (this.pets?.getNpsMult?.() || 1);
         if (earned > 0) {
             this.economy.addNeurons(earned);
-            const xpMult = this.skills.getXpMult() * this.shop.getXpMult();
+            const xpMult = this.skills.getXpMult() * this.shop.getXpMult() * (this.pets?.getXpMult?.() || 1);
             this.level.addXP(this.level.xpFromNeurons(earned) * xpMult);
             this.missions.onEarn(earned);
         }
@@ -257,10 +258,10 @@ class GameManager {
 
         const comboMult = this.combo.getMult();
         const critMult = isCrit ? Config.CRITICAL_MULT : 1;
-        const value = Math.ceil(this.economy.getClickValue() * comboMult * critMult);
+        const value = Math.ceil(this.economy.getClickValue() * comboMult * critMult * (this.pets?.getClickMult?.() || 1));
 
         this.economy.addNeurons(value);
-        const xpMult = this.skills.getXpMult() * this.shop.getXpMult();
+        const xpMult = this.skills.getXpMult() * this.shop.getXpMult() * (this.pets?.getXpMult?.() || 1);
         this.level.addXP((this.level.xpFromNeurons(value) + 1) * xpMult);
         this.missions.onEarn(value);
 
@@ -673,6 +674,7 @@ class GameManager {
             tutorial:     safe(() => this.tutorial.getState()),
             boss:         safe(() => this.boss.getState()),
             worlds:       safe(() => this.worlds.getState()),
+            pets:         safe(() => this.pets.getState()),
             limitedSkins: safe(() => this.limitedSkins.getState()),
             stats:        { ...this.stats },
             audio:        safe(() => this.audio.getState()),
@@ -787,6 +789,7 @@ class GameManager {
         ld(() => this.tutorial.loadState(s.tutorial));
         ld(() => { if (s.boss)   this.boss.loadState(s.boss); });
         ld(() => { if (s.worlds)       this.worlds.loadState(s.worlds); });
+        ld(() => { if (s.pets)         this.pets.loadState(s.pets); });
         ld(() => { if (s.limitedSkins) this.limitedSkins.loadState(s.limitedSkins); });
         ld(() => { if (s.stats) Object.assign(this.stats, s.stats); });
         ld(() => { if (s.audio) this.audio.loadState(s.audio); });

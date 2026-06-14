@@ -74,7 +74,7 @@ class BossManager {
 
     attackClick() {
         if (!this.boss || this.boss.status !== 'active') return;
-        const dmg = this.bossPower * (this._game.shop?.getBossDamageMult?.() || 1);
+        const dmg = this.bossPower * (this._game.shop?.getBossDamageMult?.() || 1) * (this._game.pets?.getBossDmgMult?.() || 1);
         this._dmgBuffer += dmg;
         if (Date.now() - this._lastFlush >= this._flushDelay) this._flush();
     }
@@ -182,6 +182,18 @@ class BossManager {
                 if (this.boss) this.boss.status = 'defeated';
                 this._game.events.emit('bossDefeated', { boss: this.boss });
                 this._game.audio.achievement?.();
+
+                // Pet drop
+                const petDrop = this._game.pets?.tryDrop?.(this.boss?.rarity || 'common');
+                if (petDrop) {
+                    const rLabel = (typeof PET_RARITIES !== 'undefined' ? PET_RARITIES[petDrop.pet?.rarity]?.label : null) || '';
+                    if (petDrop.type === 'new') {
+                        this._game.notify(`🐾 Novo pet: ${petDrop.pet.name}${rLabel ? ' (' + rLabel + ')' : ''}!`, 'levelup');
+                    } else {
+                        this._game.notify(`🐾 ${petDrop.pet.name} duplicado! +${petDrop.xpGain} XP`, 'info');
+                    }
+                    if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
+                }
 
                 // Track session kill count
                 this._sessionRewards.kills++;

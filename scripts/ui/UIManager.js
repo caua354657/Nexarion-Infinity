@@ -120,6 +120,11 @@ class UIManager {
                 this._fetchFriendsList(true);
             }
         }, 60000);
+
+        // Show pet companions after save is loaded (small delay)
+        setTimeout(() => {
+            if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
+        }, 1200);
     }
 
     _initBadgeCache() {
@@ -386,6 +391,11 @@ class UIManager {
                 const _wMode = panelId === 'worlds_map' ? 'map' : 'album';
                 if (typeof WorldUI !== 'undefined') WorldUI.render(this._game, content, _wMode);
                 else content.innerHTML = '<div class="empty-msg">Módulo de Mundos carregando...</div>';
+                break;
+            }
+            case 'pets': {
+                if (typeof PetUI !== 'undefined') PetUI.render(this._game, content);
+                else content.innerHTML = '<div class="empty-msg">Sistema de Pets carregando...</div>';
                 break;
             }
             default: content.innerHTML = '<div class="empty-msg">Em breve...</div>';
@@ -2226,6 +2236,7 @@ class UIManager {
             worlds: [
                 { id: 'worlds_map',   icon: '🌍', label: _L.t('nav.worlds_map'),   sub: _L.t('nav.worlds_map.sub'),   theme: 'neural' },
                 { id: 'worlds_album', icon: '📖', label: _L.t('nav.worlds_album'), sub: _L.t('nav.worlds_album.sub'), theme: 'gold'   },
+                { id: 'pets',         icon: '🐾', label: 'Pets',                   sub: 'Companheiros e bônus',       theme: 'green'  },
             ],
         };
 
@@ -3208,10 +3219,12 @@ class UIManager {
 
         const _lL = window.LANG || { t: k => k };
         const TABS = [
-            { id: 'neuronios',  label: _lL.t('lb.tab.neurons'),   unit: ' ⚡', tipo: 'neuronios'  },
-            { id: 'cliques',    label: _lL.t('lb.tab.clicks'),    unit: ' 🖱', tipo: 'cliques'    },
-            { id: 'nivel',      label: _lL.t('lb.tab.level'),     unit: ' Lv', tipo: 'nivel'      },
-            { id: 'prestigios', label: _lL.t('lb.tab.prestiges'), unit: ' ♻',  tipo: 'prestigios' },
+            { id: 'neuronios',   label: _lL.t('lb.tab.neurons'),   unit: ' ⚡', tipo: 'neuronios'   },
+            { id: 'cliques',     label: _lL.t('lb.tab.clicks'),    unit: ' 🖱', tipo: 'cliques'     },
+            { id: 'nivel',       label: _lL.t('lb.tab.level'),     unit: ' Lv', tipo: 'nivel'       },
+            { id: 'prestigios',  label: _lL.t('lb.tab.prestiges'), unit: ' ♻',  tipo: 'prestigios'  },
+            { id: 'dano_chefe',  label: '⚔️ Dano Boss',           unit: ' 💥', tipo: 'dano_chefe'  },
+            { id: 'abates_chefe',label: '💀 Boss Kills',           unit: '',    tipo: 'abates_chefe'},
         ];
         const tab = TABS.find(t => t.id === this._activeLbTab) || TABS[0];
 
@@ -3249,10 +3262,12 @@ class UIManager {
 
         // Local player fallback entry
         const localScore = (() => {
-            if (tab.id === 'neuronios')  return g.economy.lifetimeNeurons;
-            if (tab.id === 'cliques')    return g.stats.totalClicks;
-            if (tab.id === 'nivel')      return g.level.level;
-            if (tab.id === 'prestigios') return g.economy.totalPrestiges;
+            if (tab.id === 'neuronios')   return g.economy.lifetimeNeurons;
+            if (tab.id === 'cliques')     return g.stats.totalClicks;
+            if (tab.id === 'nivel')       return g.level.level;
+            if (tab.id === 'prestigios')  return g.economy.totalPrestiges;
+            if (tab.id === 'dano_chefe')  return g.boss?.lifetimeDamage || 0;
+            if (tab.id === 'abates_chefe')return g.boss?.bossKills || 0;
             return 0;
         })();
         const playerLocal = acc.isLoggedIn() ? {
@@ -3353,6 +3368,25 @@ class UIManager {
         const c  = document.getElementById('modal-content');
         const tc = document.getElementById('modal-tabs');
         if (c) this._renderLeaderboard(c, tc);
+    }
+
+    // ── Pet equip helpers ────────────────────────────────────────────────────
+
+    _petEquip(petId) {
+        const pm = this._game.pets;
+        if (!pm) return;
+        const ok = pm.equip(petId);
+        if (!ok) { this._game.notify('Slots de pets cheios! Desequipe um primeiro.', 'error'); }
+        if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
+        if (this._activePanel === 'pets') this._renderPanelContent('pets');
+    }
+
+    _petUnequip(petId) {
+        const pm = this._game.pets;
+        if (!pm) return;
+        pm.unequip(petId);
+        if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
+        if (this._activePanel === 'pets') this._renderPanelContent('pets');
     }
 
     // ── Boss Info Panel ──────────────────────────────────────────────────────
