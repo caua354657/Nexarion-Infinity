@@ -2228,7 +2228,6 @@ class UIManager {
             boss: [
                 { id: 'boss_battle',   icon: '⚔️', label: _L.t('nav.boss'),          sub: _L.t('nav.boss.sub'),          theme: 'pink'   },
                 { id: 'boss_upgrades', icon: '💥', label: _L.t('nav.boss_upgrades'), sub: _L.t('nav.boss_upgrades.sub'), theme: 'purple' },
-                { id: 'boss_ranking',  icon: '🏆', label: _L.t('nav.boss_ranking'),  sub: _L.t('nav.boss_ranking.sub'),  theme: 'gold'   },
             ],
             shop: [
                 { id: 'shop_content', icon: '🛍️', label: _L.t('nav.shop_main'),     sub: _L.t('nav.shop_main.sub'),     theme: 'neural'  },
