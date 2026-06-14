@@ -432,6 +432,11 @@ class GameManager {
         const skins = typeof PREMIUM_SKINS  !== 'undefined' ? PREMIUM_SKINS  : [];
         const labels = { vip: 'VIP Permanente', double_neuron: '2× Neurônio', boss_damage_x2: '2× Dano no Boss' };
         if (labels[itemId]) return { label: labels[itemId], price: itemId === 'double_neuron' ? 'R$ 12,90' : 'R$ 9,90' };
+        if (itemId.startsWith('pet_')) {
+            const petId = itemId.replace('pet_', '');
+            const pet = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId) : null;
+            return { label: `Pet: ${pet?.name || petId}`, price: pet?.price || 'R$ 9,90' };
+        }
         const pack = packs.find(p => p.id === itemId);
         if (pack) return { label: pack.name, price: pack.price };
         const skin = skins.find(s => s.id === itemId);
@@ -550,6 +555,17 @@ class GameManager {
                 this._particles?.spawnBurst?.(cx, cy, '#ffd700', 40);
                 this.notify(`💎 +${pack.diamonds.toLocaleString('pt-BR')} Diamantes adicionados!`, 'levelup');
                 this.audio.levelUp?.();
+            }
+        } else if (itemId.startsWith('pet_')) {
+            // Premium pet purchase — store in account (skins column) + grant immediately
+            acc.buySkin?.(itemId); // piggybacks on skins storage for persistence
+            const petId = itemId.replace('pet_', '');
+            if (this.pets?.grantPet?.(petId)) {
+                const pet = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId) : null;
+                this.notify(`🐾 Pet ${pet?.name || petId} desbloqueado! (Exclusivo)`, 'levelup');
+                this.audio.levelUp?.();
+                if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this);
+                if (this.ui._activePanel === 'pets') this.ui._renderPanelContent('pets');
             }
         } else if (itemId.startsWith('skin_') && !acc.hasSkin(itemId)) {
             acc.buySkin(itemId);
@@ -740,6 +756,7 @@ class GameManager {
             }
             const skin = this.account.getActiveSkin();
             if (skin) this._applyActiveSkin(skin);
+            this.pets._restorePremium?.(); // re-grant any premium pets stored in account
             this.economy.neuronsPerSec = this.upgradeManager.getNPS();
             // Progresso restaurado silenciosamente
             this.ui._updateHUD();

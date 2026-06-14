@@ -15,6 +15,27 @@ class PetManager {
         if (!s) return;
         if (s.owned)    this._state.owned    = s.owned;
         if (s.equipped) this._state.equipped  = s.equipped.filter(id => !!this._state.owned[id]);
+        // Restore premium pets from account (survive save wipe)
+        this._restorePremium();
+    }
+
+    _restorePremium() {
+        const acc = this._game.account;
+        if (!acc?.isLoggedIn?.()) return;
+        if (typeof PETS === 'undefined') return;
+        for (const pet of PETS) {
+            if (pet.costType !== 'premium' || !pet.itemId) continue;
+            if (acc.hasSkin?.(pet.itemId) && !this._state.owned[pet.id]) {
+                this._state.owned[pet.id] = { level: 1, xp: 0 };
+            }
+        }
+    }
+
+    // ── Level gate ────────────────────────────────────────────────────────────
+
+    isUnlocked() {
+        const req = (typeof PET_UNLOCK_LEVEL !== 'undefined') ? PET_UNLOCK_LEVEL : 55;
+        return (this._game.level?.level || 0) >= req;
     }
 
     // ── Ownership ─────────────────────────────────────────────────────────────
@@ -39,52 +60,50 @@ class PetManager {
         }).filter(Boolean);
     }
 
-    // ── Drop logic ────────────────────────────────────────────────────────────
+    // ── Acquire ───────────────────────────────────────────────────────────────
 
-    tryDrop(bossRarity = 'common') {
-        if (typeof PETS === 'undefined') return null;
-        const rarityBoost = { common: 0, uncommon: 5, rare: 10, epic: 20, legendary: 35, mythic: 50 };
-        const chance = PET_DROP_BASE_CHANCE + (rarityBoost[bossRarity] || 0);
-        if (Math.random() * 100 >= chance) return null;
-
-        // Build weighted pool
-        const pool = [];
-        for (const pet of PETS) {
-            const r = (PET_RARITIES || {})[pet.rarity];
-            if (!r) continue;
-            const w = Math.max(1, Math.round(r.dropWeight * 10));
-            for (let i = 0; i < w; i++) pool.push(pet);
-        }
-        if (!pool.length) return null;
-        const chosen = pool[Math.floor(Math.random() * pool.length)];
-        return this._acquire(chosen.id);
-    }
-
-    _acquire(petId) {
-        const pet = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId) : null;
-        if (!pet) return null;
-
-        if (this._state.owned[petId]) {
-            const xpGain = (PET_DUPE_XP || {})[pet.rarity] || 50;
-            this._addXP(petId, xpGain);
-            this._save();
-            return { pet, type: 'xp', xpGain };
-        }
-
+    grantPet(petId) {
+        if (this._state.owned[petId]) return false; // already owned
         this._state.owned[petId] = { level: 1, xp: 0 };
         this._save();
-        return { pet, type: 'new' };
+        return true;
     }
 
-    // ── Leveling ─────────────────────────────────────────────────────────────
+    buyWithDiamonds(petId) {
+        const pet = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId) : null;
+        if (!pet || pet.costType !== 'diamond') return false;
+        if (this._state.owned[petId]) return false; // already owned
+        const eco = this._game.economy;
+        if (!eco || eco.prestigeTokens < pet.cost) return false;
+        eco.prestigeTokens -= pet.cost;
+        eco._updatePrestigeMult?.();
+        this._state.owned[petId] = { level: 1, xp: 0 };
+        this._save();
+        this._game.ui?._updateHUD?.();
+        return true;
+    }
+
+    // ── Leveling via boss kills ───────────────────────────────────────────────
+
+    onBossKill(bossRarity = 'common') {
+        if (typeof PETS === 'undefined') return;
+        const xpTable = (typeof PET_BOSS_XP !== 'undefined') ? PET_BOSS_XP : {};
+        const xpGain  = xpTable[bossRarity] || 2;
+        const ownedIds = Object.keys(this._state.owned);
+        if (!ownedIds.length) return;
+        for (const petId of ownedIds) {
+            this._addXP(petId, xpGain);
+        }
+        this._save();
+    }
 
     _addXP(petId, amount) {
         const data = this._state.owned[petId];
         if (!data) return;
-        const maxLv = PET_MAX_LEVEL || 10;
+        const maxLv = (typeof PET_MAX_LEVEL !== 'undefined') ? PET_MAX_LEVEL : 10;
         if (data.level >= maxLv) { data.xp = 0; return; }
         data.xp += amount;
-        const xpTable = PET_LEVEL_XP || [];
+        const xpTable = (typeof PET_LEVEL_XP !== 'undefined') ? PET_LEVEL_XP : [];
         while (data.level < maxLv && xpTable[data.level + 1] && data.xp >= xpTable[data.level + 1]) {
             data.level++;
             const petName = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId)?.name : petId;
@@ -94,8 +113,8 @@ class PetManager {
 
     getXpToNext(petId) {
         const data = this._state.owned[petId];
-        if (!data || !PET_LEVEL_XP) return 0;
-        const maxLv = PET_MAX_LEVEL || 10;
+        if (!data || typeof PET_LEVEL_XP === 'undefined') return 0;
+        const maxLv = (typeof PET_MAX_LEVEL !== 'undefined') ? PET_MAX_LEVEL : 10;
         if (data.level >= maxLv) return 0;
         return PET_LEVEL_XP[data.level + 1] || 0;
     }

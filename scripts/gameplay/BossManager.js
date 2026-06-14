@@ -183,17 +183,8 @@ class BossManager {
                 this._game.events.emit('bossDefeated', { boss: this.boss });
                 this._game.audio.achievement?.();
 
-                // Pet drop
-                const petDrop = this._game.pets?.tryDrop?.(this.boss?.rarity || 'common');
-                if (petDrop) {
-                    const rLabel = (typeof PET_RARITIES !== 'undefined' ? PET_RARITIES[petDrop.pet?.rarity]?.label : null) || '';
-                    if (petDrop.type === 'new') {
-                        this._game.notify(`🐾 Novo pet: ${petDrop.pet.name}${rLabel ? ' (' + rLabel + ')' : ''}!`, 'levelup');
-                    } else {
-                        this._game.notify(`🐾 ${petDrop.pet.name} duplicado! +${petDrop.xpGain} XP`, 'info');
-                    }
-                    if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
-                }
+                // Pet XP from boss kill
+                this._game.pets?.onBossKill?.(this.boss?.rarity || 'common');
 
                 // Track session kill count
                 this._sessionRewards.kills++;

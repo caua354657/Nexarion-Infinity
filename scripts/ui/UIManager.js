@@ -3389,6 +3389,31 @@ class UIManager {
         if (this._activePanel === 'pets') this._renderPanelContent('pets');
     }
 
+    _petBuy(petId) {
+        const pm = this._game.pets;
+        if (!pm) return;
+        if (!pm.isUnlocked()) { this._game.notify('Pets desbloqueados no Nível 55!', 'error'); return; }
+        if (!this._game.account.isLoggedIn()) { this._game.notify('Faça login para comprar pets!', 'error'); return; }
+        const pet = (typeof PETS !== 'undefined') ? PETS.find(p => p.id === petId) : null;
+        if (!pet) return;
+        const ok = pm.buyWithDiamonds(petId);
+        if (ok) {
+            this._game.notify(`🐾 ${pet.name} adquirido! (${pet.bonus.label.replace('{v}', pet.bonus.baseVal)})`, 'levelup');
+            this._game.audio.levelUp?.();
+            if (typeof PetUI !== 'undefined') PetUI.updateCompanion(this._game);
+            this._renderPanelContent('pets');
+        } else {
+            const bal = Math.floor(this._game.economy?.prestigeTokens || 0);
+            const lack = pet.cost - bal;
+            this._game.notify(`💎 Diamantes insuficientes! Faltam ${lack.toLocaleString('pt-BR')} 💎`, 'error');
+        }
+    }
+
+    _petBuyPremium(itemId) {
+        if (!this._game.account.isLoggedIn()) { this._game.notify('Faça login para comprar!', 'error'); return; }
+        this._game.iniciarPagamento(itemId);
+    }
+
     // ── Boss Info Panel ──────────────────────────────────────────────────────
 
     // ── Boss Info Panel ──────────────────────────────────────────────────────

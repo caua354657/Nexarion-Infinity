@@ -41,6 +41,12 @@ function catalogo(): array {
         'diamonds_medium'  => ['nome' => 'Pacote Médio (400💎)',     'tipo' => 'diamonds',      'preco' => 9.90,  'diamonds' => 400],
         'diamonds_large'   => ['nome' => 'Pacote Grande (1000💎)',   'tipo' => 'diamonds',      'preco' => 19.90, 'diamonds' => 1000],
         'diamonds_mega'    => ['nome' => 'Pacote MEGA (3000💎)',     'tipo' => 'diamonds',      'preco' => 49.90, 'diamonds' => 3000],
+        // ── Pets míticos e lendários (exclusivos) ─────────────────────────────
+        'pet_omega_serpent'    => ['nome' => 'Pet: Omega Serpent (Mítico)',      'tipo' => 'skin', 'preco' => 9.90,  'diamonds' => 0],
+        'pet_singularity_owl'  => ['nome' => 'Pet: Singularity Owl (Mítico)',    'tipo' => 'skin', 'preco' => 9.90,  'diamonds' => 0],
+        'pet_nexus_dragon'     => ['nome' => 'Pet: Nexus Dragon (Lendário)',     'tipo' => 'skin', 'preco' => 19.90, 'diamonds' => 0],
+        'pet_infinity_fox'     => ['nome' => 'Pet: Infinity Fox (Lendário)',     'tipo' => 'skin', 'preco' => 19.90, 'diamonds' => 0],
+        'pet_cosmos_whale'     => ['nome' => 'Pet: Cosmos Whale (Lendário)',     'tipo' => 'skin', 'preco' => 19.90, 'diamonds' => 0],
         // ── Skins de cor ──────────────────────────────────────────────────────
         'skin_midnight'    => ['nome' => 'Skin: Protocolo Meia-Noite',  'tipo' => 'skin', 'preco' => 1.99,  'diamonds' => 0],
         'skin_pulse'       => ['nome' => 'Skin: Grade de Pulso',         'tipo' => 'skin', 'preco' => 1.99,  'diamonds' => 0],

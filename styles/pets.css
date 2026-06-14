@@ -1,5 +1,82 @@
 /* ── Pet System ─────────────────────────────────────────────────────────── */
 
+/* ── Locked screen ───────────────────────────────────────────────────────── */
+
+.pet-locked-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 24px;
+    text-align: center;
+}
+
+.pet-locked-icon {
+    font-size: 52px;
+    filter: grayscale(1) opacity(0.4);
+    animation: pet-locked-pulse 3s ease-in-out infinite;
+}
+
+@keyframes pet-locked-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50%       { transform: scale(1.08); opacity: 0.6; }
+}
+
+.pet-locked-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+}
+
+.pet-locked-msg {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+}
+
+.pet-locked-msg strong {
+    color: #a78bfa;
+}
+
+.pet-locked-progress {
+    width: 100%;
+    max-width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+}
+
+.pet-locked-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pet-locked-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a78bfa);
+    border-radius: 4px;
+    transition: width 0.8s ease;
+}
+
+.pet-locked-lv {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    font-family: 'Orbitron', sans-serif;
+}
+
+.pet-locked-hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    line-height: 1.6;
+    max-width: 260px;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+
 .pet-panel {
     display: flex;
     flex-direction: column;
@@ -25,9 +102,22 @@
     letter-spacing: 0.5px;
 }
 
+.pet-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pet-header-diam {
+    font-size: 11px;
+    color: #fbbf24;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+}
+
 .pet-header-count {
     font-size: 11px;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255,255,255,0.35);
     font-family: 'Orbitron', sans-serif;
 }
 
@@ -318,6 +408,68 @@
     color: rgba(255,255,255,0.25);
     cursor: not-allowed;
     opacity: 0.6;
+}
+
+.pet-btn--buy {
+    background: rgba(251,191,36,0.12);
+    border-color: rgba(251,191,36,0.45);
+    color: #fbbf24;
+}
+
+.pet-btn--buy:hover {
+    background: rgba(251,191,36,0.22);
+}
+
+.pet-btn--broke {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.pet-btn--broke:hover {
+    background: rgba(251,191,36,0.08);
+}
+
+.pet-btn-lack {
+    font-size: 9px;
+    color: rgba(255,100,100,0.7);
+    text-align: center;
+    margin-top: 2px;
+}
+
+.pet-btn--premium {
+    background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2));
+    border-color: rgba(236,72,153,0.5);
+    color: #f9a8d4;
+}
+
+.pet-btn--premium:hover {
+    background: linear-gradient(135deg, rgba(139,92,246,0.35), rgba(236,72,153,0.35));
+}
+
+.pet-premium-badge {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #fbbf24;
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 3px;
+    padding: 2px 6px;
+    text-align: center;
+    margin-bottom: 3px;
+}
+
+.pet-card--shop .pet-card-bonus {
+    font-size: 9px;
+    color: rgba(255,255,255,0.45);
+}
+
+/* HUD placeholder when no pets equipped */
+.pet-hud-empty {
+    font-size: 16px;
+    opacity: 0.3;
+    filter: grayscale(1);
+    cursor: default;
 }
 
 /* ── Hint ────────────────────────────────────────────────────────────────── */

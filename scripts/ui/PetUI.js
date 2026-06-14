@@ -9,13 +9,32 @@ const PetUI = {
             return;
         }
 
-        const ownedMap  = pm._state.owned;
+        // ── Level gate ───────────────────────────────────────────────────────
+        const unlockLv = (typeof PET_UNLOCK_LEVEL !== 'undefined') ? PET_UNLOCK_LEVEL : 55;
+        const curLv    = game.level?.level || 0;
+        if (!pm.isUnlocked()) {
+            container.innerHTML = `
+            <div class="pet-locked-screen">
+                <div class="pet-locked-icon">🐾</div>
+                <div class="pet-locked-title">Sistema de Pets</div>
+                <div class="pet-locked-msg">Desbloqueado no <strong>Nível ${unlockLv}</strong></div>
+                <div class="pet-locked-progress">
+                    <div class="pet-locked-bar">
+                        <div class="pet-locked-fill" style="width:${Math.min(100, Math.floor(curLv / unlockLv * 100))}%"></div>
+                    </div>
+                    <span class="pet-locked-lv">Nível ${curLv} / ${unlockLv}</span>
+                </div>
+                <div class="pet-locked-hint">Derrote bosses, evolua e alcance o nível ${unlockLv} para desbloquear seus companheiros de batalha!</div>
+            </div>`;
+            return;
+        }
+
+        const ownedMap    = pm._state.owned;
         const equippedIds = new Set(pm._state.equipped);
-        const ownedIds  = new Set(Object.keys(ownedMap));
+        const ownedIds    = new Set(Object.keys(ownedMap));
         const equippedPets = pm.getEquipped();
 
         const RARITY_ORDER = ['legendary','mythic','epic','ultra_rare','rare','uncommon','common'];
-
         const allPets = [...PETS].sort((a, b) => {
             const aOwn = ownedIds.has(a.id) ? 0 : 1;
             const bOwn = ownedIds.has(b.id) ? 0 : 1;
@@ -28,9 +47,7 @@ const PetUI = {
         // ── Equipped slots ───────────────────────────────────────────────────
         const buildSlot = (idx) => {
             const petId = pm._state.equipped[idx];
-            if (!petId) {
-                return `<div class="pet-slot pet-slot--empty"><div class="pet-slot-num">${idx + 1}</div><div class="pet-slot-hint">vazio</div></div>`;
-            }
+            if (!petId) return `<div class="pet-slot pet-slot--empty"><div class="pet-slot-num">${idx + 1}</div><div class="pet-slot-hint">vazio</div></div>`;
             const pet  = PETS.find(p => p.id === petId);
             const data = ownedMap[petId];
             const r    = rar(pet?.rarity);
@@ -43,10 +60,10 @@ const PetUI = {
             </div>`;
         };
 
-        const slotsHTML = [0, 1, 2].map(buildSlot).join('');
-
-        // ── Bonus summary ────────────────────────────────────────────────────
-        const bonusHTML = this._buildBonusSummary(pm);
+        const slotsHTML  = [0, 1, 2].map(buildSlot).join('');
+        const bonusHTML  = this._buildBonusSummary(pm);
+        const ownedCount = ownedIds.size;
+        const totalCount = PETS.length;
 
         // ── Pet cards ────────────────────────────────────────────────────────
         const cardsHTML = allPets.map(pet => {
@@ -57,21 +74,49 @@ const PetUI = {
             const maxLv      = (typeof PET_MAX_LEVEL !== 'undefined') ? PET_MAX_LEVEL : 10;
 
             if (!isOwned) {
+                // Buy button
+                let buyBtn = '';
+                if (pet.costType === 'diamond') {
+                    const diamonds = game.economy?.prestigeTokens || 0;
+                    const canAfford = diamonds >= pet.cost;
+                    buyBtn = `<button class="pet-btn pet-btn--buy${canAfford ? '' : ' pet-btn--broke'}"
+                        onclick="window.game.ui._petBuy('${pet.id}')">
+                        💎 ${pet.cost.toLocaleString('pt-BR')}
+                        ${canAfford ? '' : '<span class="pet-btn-lack"> (falta ${(pet.cost - Math.floor(diamonds)).toLocaleString(\'pt-BR\')} 💎)</span>'}
+                    </button>`;
+                    // rebuild cleanly without template nesting issue:
+                    const lack = pet.cost - Math.floor(diamonds);
+                    buyBtn = `<button class="pet-btn pet-btn--buy${canAfford ? '' : ' pet-btn--broke'}" onclick="window.game.ui._petBuy('${pet.id}')">💎 ${pet.cost.toLocaleString('pt-BR')} Diamantes</button>`;
+                    if (!canAfford) {
+                        buyBtn += `<div class="pet-btn-lack">Faltam ${lack.toLocaleString('pt-BR')} 💎</div>`;
+                    }
+                } else if (pet.costType === 'premium') {
+                    const isLoggedIn = game.account?.isLoggedIn?.();
+                    buyBtn = `<div class="pet-premium-badge">EXCLUSIVO</div>
+                    <button class="pet-btn pet-btn--premium" onclick="window.game.ui._petBuyPremium('${pet.itemId}')">
+                        💳 ${pet.price}
+                    </button>
+                    ${!isLoggedIn ? '<div class="pet-btn-lack">Faça login para comprar</div>' : ''}`;
+                }
+
                 return `
-                <div class="pet-card pet-card--locked" style="--pet-c:${r.color}">
-                    <div class="pet-card-rar" style="color:${r.color}">${r.label}</div>
-                    <div class="pet-card-icon pet-card-icon--lock">?</div>
-                    <div class="pet-card-name pet-card-name--lock">???</div>
+                <div class="pet-card pet-card--shop" style="--pet-c:${r.color};--pet-glow:${r.glow}">
+                    <div class="pet-card-rar" style="color:${r.color}">${r.label}${pet.costType === 'premium' ? ' ★' : ''}</div>
+                    <div class="pet-card-icon">${pet.icon}</div>
+                    <div class="pet-card-name">${pet.name}</div>
                     <div class="pet-card-desc">${pet.desc}</div>
+                    <div class="pet-card-bonus">${pet.bonus.label.replace('{v}', pet.bonus.baseVal)}</div>
+                    ${buyBtn}
                 </div>`;
             }
 
+            // Owned pet card
             const level  = data.level;
             const xp     = data.xp;
             const xpNext = pm.getXpToNext(pet.id);
             const xpPct  = (xpNext > 0) ? Math.min(100, Math.floor(xp / xpNext * 100)) : 100;
-            const bonusVal  = pet.bonus.baseVal + pet.bonus.perLevel * (level - 1);
-            const bonusTxt  = pet.bonus.label.replace('{v}', bonusVal.toFixed(0));
+            const bonusVal = pet.bonus.baseVal + pet.bonus.perLevel * (level - 1);
+            const bonusTxt = pet.bonus.label.replace('{v}', bonusVal.toFixed(0));
 
             const equipBtn = isEquipped
                 ? `<button class="pet-btn pet-btn--off" onclick="window.game.ui._petUnequip('${pet.id}')">Desequipar</button>`
@@ -93,29 +138,28 @@ const PetUI = {
             </div>`;
         }).join('');
 
-        const ownedCount = ownedIds.size;
-        const totalCount = PETS.length;
+        const diamondsBal = Math.floor(game.economy?.prestigeTokens || 0);
 
         container.innerHTML = `
         <div class="pet-panel">
             <div class="pet-header">
-                <div class="pet-header-title">🐾 Sistema de Pets</div>
-                <div class="pet-header-count">${ownedCount} / ${totalCount} capturados</div>
+                <div class="pet-header-title">🐾 Pets</div>
+                <div class="pet-header-right">
+                    <span class="pet-header-diam">💎 ${diamondsBal.toLocaleString('pt-BR')}</span>
+                    <span class="pet-header-count">${ownedCount}/${totalCount}</span>
+                </div>
             </div>
 
             <div class="pet-active-section">
-                <div class="pet-active-label">Pets Ativos (${pm._state.equipped.length} / ${pm.MAX_ACTIVE})</div>
+                <div class="pet-active-label">Pets Ativos (${pm._state.equipped.length}/${pm.MAX_ACTIVE})</div>
                 <div class="pet-slots">${slotsHTML}</div>
                 ${bonusHTML}
             </div>
 
-            <div class="pet-grid-label">Coleção</div>
+            <div class="pet-grid-label">Coleção & Loja</div>
             <div class="pet-grid">${cardsHTML}</div>
 
-            <div class="pet-hint">
-                Pets são obtidos aleatoriamente ao derrotar bosses.<br>
-                Pets duplicados convertem-se em XP para o pet.
-            </div>
+            <div class="pet-hint">Pets ganham XP ao derrotar bosses. Pets Míticos e Lendários são exclusivos e persistem mesmo após resetar o progresso.</div>
         </div>`;
     },
 
@@ -125,9 +169,7 @@ const PetUI = {
         const boss  = pm.getBossDmgMult();
         const xp    = pm.getXpMult();
         const diam  = pm.getDiamondBonus();
-
         if (click <= 1 && nps <= 1 && boss <= 1 && xp <= 1 && diam <= 0) return '';
-
         const fmt  = (v) => '+' + ((v - 1) * 100).toFixed(0) + '%';
         const fmtD = (v) => '+' + (v * 100).toFixed(1) + '%';
         const parts = [];
@@ -135,8 +177,7 @@ const PetUI = {
         if (nps   > 1) parts.push(`<span>🧠 N/s: ${fmt(nps)}</span>`);
         if (boss  > 1) parts.push(`<span>⚔️ Boss: ${fmt(boss)}</span>`);
         if (xp    > 1) parts.push(`<span>⭐ XP: ${fmt(xp)}</span>`);
-        if (diam  > 0) parts.push(`<span>💎 +${fmtD(diam)} diamantes</span>`);
-
+        if (diam  > 0) parts.push(`<span>💎 ${fmtD(diam)}</span>`);
         return `<div class="pet-bonus-bar">${parts.join('')}</div>`;
     },
 
@@ -144,11 +185,22 @@ const PetUI = {
         const el = document.getElementById('pets-companion');
         if (!el) return;
         const pm = game?.pets;
-        if (!pm) return;
+
+        // Show placeholder paw if system not unlocked or no pets equipped
+        if (!pm || !pm.isUnlocked?.()) {
+            el.innerHTML = '';
+            return;
+        }
+
         const equipped = pm.getEquipped();
+        if (!equipped.length) {
+            el.innerHTML = '<div class="pet-hud-empty" title="Equipe pets no painel Agenda → Pets">🐾</div>';
+            return;
+        }
+
         el.innerHTML = equipped.map((pet, i) => {
             const r = (typeof PET_RARITIES !== 'undefined' ? PET_RARITIES[pet.rarity] : null) || {};
-            return `<div class="pet-companion pet-companion--${i}" style="--pet-c:${r.color || '#fff'};--pet-glow:${r.glow || 'transparent'}" title="${pet.name} (Lv ${pet.level})">${pet.icon}</div>`;
+            return `<div class="pet-companion pet-companion--${i}" style="--pet-c:${r.color || '#fff'};--pet-glow:${r.glow || 'transparent'}" title="${pet.name} — Lv ${pet.level}">${pet.icon}</div>`;
         }).join('');
     },
 };
